@@ -1,0 +1,92 @@
+# Publishly local dev infrastructure (project-specific ports to avoid collisions
+# with other stacks on this machine). Upstream's docker-compose.dev.yaml is kept
+# untouched for a clean update path — use THIS file for Publishly development.
+#
+#   docker compose -f docker-compose.publishly.dev.yaml up -d
+#
+# Host ports: Postgres 5433, Redis 6380, Temporal 7233, Temporal UI 8082.
+# Elasticsearch is intentionally omitted; Temporal runs SQL visibility
+# (dynamicconfig/development-sql.yaml).
+
+services:
+  publishly-postgres:
+    image: postgres:17-alpine
+    container_name: publishly-postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: publishly-local-pwd
+      POSTGRES_USER: publishly-local
+      POSTGRES_DB: publishly-db-local
+    volumes:
+      - publishly-postgres-volume:/var/lib/postgresql/data
+    ports:
+      - 5433:5432
+    networks:
+      - publishly-network
+
+  publishly-redis:
+    image: redis:7-alpine
+    container_name: publishly-redis
+    restart: always
+    ports:
+      - 6380:6379
+    networks:
+      - publishly-network
+
+  publishly-temporal-postgresql:
+    container_name: publishly-temporal-postgresql
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_USER: temporal
+    networks:
+      - publishly-temporal-network
+    expose:
+      - 5432
+    volumes:
+      - publishly-temporal-pg-volume:/var/lib/postgresql/data
+
+  publishly-temporal:
+    container_name: publishly-temporal
+    image: temporalio/auto-setup:1.28.1
+    restart: always
+    ports:
+      - "7233:7233"
+    depends_on:
+      - publishly-temporal-postgresql
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=publishly-temporal-postgresql
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - ENABLE_ES=false
+      - TEMPORAL_NAMESPACE=default
+    networks:
+      - publishly-temporal-network
+    volumes:
+      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+
+  publishly-temporal-ui:
+    container_name: publishly-temporal-ui
+    image: temporalio/ui:2.34.0
+    restart: always
+    depends_on:
+      - publishly-temporal
+    environment:
+      - TEMPORAL_ADDRESS=publishly-temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:8082
+    networks:
+      - publishly-temporal-network
+    ports:
+      - "8082:8080"
+
+volumes:
+  publishly-postgres-volume:
+  publishly-temporal-pg-volume:
+
+networks:
+  publishly-network:
+  publishly-temporal-network:
