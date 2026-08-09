@@ -33,6 +33,38 @@ export class ConfigurationChecker {
     this.checkNonEmpty('STORAGE_PROVIDER', 'Needed to setup storage.');
   }
 
+  // A secret that is missing, short, or still the .env.example placeholder is
+  // an outage/security incident waiting to happen - flag it before boot.
+  checkSecretStrength(key: string, minLength = 32) {
+    const v = this.get(key);
+    if (!v) {
+      return;
+    }
+    if (v.length < minLength) {
+      this.issues.push(
+        `${key} is only ${v.length} chars - use at least ${minLength} random characters.`
+      );
+    }
+    if (/random string/i.test(v) || /change.?me/i.test(v)) {
+      this.issues.push(`${key} still looks like a placeholder value.`);
+    }
+  }
+
+  // For credential groups that only work as a complete set (e.g. a provider's
+  // client id + secret): all set or none set. Partial config means a feature
+  // will LOOK enabled and then fail at runtime.
+  checkAllOrNone(label: string, keys: string[]) {
+    const set = keys.filter((k) => !!this.get(k));
+    if (set.length > 0 && set.length < keys.length) {
+      const missing = keys.filter((k) => !this.get(k));
+      this.issues.push(
+        `${label} is partially configured - missing ${missing.join(', ')} (set all of ${keys.join(
+          ', '
+        )} or none).`
+      );
+    }
+  }
+
   checkNonEmpty(key: string, description?: string): boolean {
     const v = this.get(key);
 

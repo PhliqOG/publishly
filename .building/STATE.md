@@ -6,7 +6,7 @@ marketing site must get a distinctive creative design pass (frontend-design skil
 
 ## Baseline
 - Upstream: gitroomhq/postiz-app @ 7d08f5b6 (2026-08-08, post-v2.23.0). Remote `upstream`, tag `upstream-baseline-20260809`.
-- Repo path: Desktop/publishly (folder rename from publora pending — a transient file lock; retry before install).
+- Repo path: Desktop/publishly (renamed from publora; the "lock" was the session shell's own cwd).
 - License: **AGPL-3.0, no custom terms** (verified from LICENSE). Commercial SaaS permitted.
   Obligation (AGPL §13): network users must be offered the Corresponding Source of the modified
   version. Action: LICENSE stays intact + LICENSE-COMPLIANCE.md + source-offer link in app footer.
@@ -44,9 +44,11 @@ marketing site must get a distinctive creative design pass (frontend-design skil
 
 ## Progress log
 - 2026-08-09 ~08:00 Cloned upstream, license verified, architecture mapped, providers enumerated.
-- Gap-analysis Explore agent dispatched (auth/billing/api-keys/roles/admin/audit/tests/analytics/
-  inbox/temporal/email/CSV/capabilities/branding). Results land here when done.
-- Toolchain downloaded OK. Tasks #1/#2 in progress.
+- ~08:15 Gap analysis complete → full findings in docs/AUDIT.md (19 gap items, severity-ordered).
+  Headlines: zero tests; plaintext social tokens; weak CBC/static-IV crypto; recoverable API
+  keys; no webhook replay guard; no audit log/inbox/CSV/marketing/branding/config-validation.
+- ~08:20 Infra containers up (PG 5433, Redis 6380, Temporal PG). Checkpoint 0 committed (309994c0).
+- pnpm install running (isolated Node 22.23.2 + pnpm 10.6.1). Task #1 done; #2 in progress.
 
 ## Open risks
 - canvas (node-canvas 2.x) native build skipped by pnpm 10 → runtime failure only if server code

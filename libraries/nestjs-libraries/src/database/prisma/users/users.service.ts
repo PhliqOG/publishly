@@ -90,6 +90,14 @@ export class UsersService {
     return this._usersRepository.updatePassword(id, password);
   }
 
+  setResetCode(id: string, resetCode: string | null) {
+    return this._usersRepository.setResetCode(id, resetCode);
+  }
+
+  consumeResetCode(id: string, resetCode: string, password: string) {
+    return this._usersRepository.consumeResetCode(id, resetCode, password);
+  }
+
   getPersonal(userId: string) {
     return this._usersRepository.getPersonal(userId);
   }

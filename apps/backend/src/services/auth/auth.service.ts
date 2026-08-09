@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { Provider, User } from '@prisma/client';
 import { CreateOrgUserDto } from '@gitroom/nestjs-libraries/dtos/auth/create.org.user.dto';
 import { LoginUserDto } from '@gitroom/nestjs-libraries/dtos/auth/login.user.dto';
@@ -220,8 +221,14 @@ export class AuthService {
       return false;
     }
 
+    // Single-use: the jti is stored on the user and cleared on consumption,
+    // so a reset link dies after first use (or when a newer link is issued).
+    const jti = randomUUID();
+    await this._userService.setResetCode(user.id, jti);
+
     const resetValues = AuthChecker.signJWT({
       id: user.id,
+      jti,
       expires: dayjs().add(20, 'minutes').format('YYYY-MM-DD HH:mm:ss'),
     });
 
@@ -232,16 +239,26 @@ export class AuthService {
     );
   }
 
-  forgotReturn(body: ForgotReturnPasswordDto) {
+  async forgotReturn(body: ForgotReturnPasswordDto) {
     const user = AuthChecker.verifyJWT(body.token) as {
       id: string;
+      jti?: string;
       expires: string;
     };
     if (dayjs(user.expires).isBefore(dayjs())) {
       return false;
     }
 
-    return this._userService.updatePassword(user.id, body.password);
+    if (!user.jti) {
+      return false;
+    }
+
+    const consumed = await this._userService.consumeResetCode(
+      user.id,
+      user.jti,
+      body.password
+    );
+    return consumed ? consumed : false;
   }
 
   async activate(code: string, tracking: string) {

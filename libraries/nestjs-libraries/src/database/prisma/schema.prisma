@@ -43,6 +43,10 @@ model Organization {
   webhooks            Webhooks[]
   oauthApp            OAuthApp[]
   oauthAuthorizations OAuthAuthorization[]
+  apiKeys             ApiKey[]
+  auditLogs           AuditLog[]
+  analyticsSnapshots  AnalyticsSnapshot[]
+  bulkImports         BulkImport[]
 
   @@index([apiKey])
   @@index([streakSince])
@@ -112,7 +116,9 @@ model User {
   sendSuccessEmails     Boolean              @default(true)
   sendFailureEmails     Boolean              @default(true)
   sendStreakEmails      Boolean              @default(true)
+  resetCode             String?
   oauthAuthorizations   OAuthAuthorization[]
+  auditLogs             AuditLog[]
 
   @@unique([email, providerName])
   @@index([lastReadNotifications])
@@ -341,6 +347,7 @@ model Integration {
   orderItems            OrderItems[]
   plugs                 Plugs[]
   posts                 Post[]
+  analyticsSnapshots    AnalyticsSnapshot[]
 
   @@unique([organizationId, internalId])
   @@index([rootInternalId])
@@ -967,4 +974,84 @@ model Announcement {
   description String
   color       AnnouncementColor @default(INFO)
   createdAt   DateTime          @default(now())
+}
+
+model ApiKey {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  prefix         String
+  hash           String       @unique
+  scopes         String       @default("[]")
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([revokedAt])
+}
+
+model ProcessedWebhookEvent {
+  id          String   @id
+  source      String
+  type        String
+  processedAt DateTime @default(now())
+
+  @@index([processedAt])
+  @@index([source])
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String?
+  actorType      String       @default("user")
+  action         String
+  targetType     String?
+  targetId       String?
+  metadata       String       @default("{}")
+  ip             String?
+  userAgent      String?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User?        @relation(fields: [userId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([action])
+  @@index([targetType, targetId])
+}
+
+model AnalyticsSnapshot {
+  id             String       @id @default(uuid())
+  organizationId String
+  integrationId  String
+  day            DateTime     @db.Date
+  label          String
+  data           String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  integration    Integration  @relation(fields: [integrationId], references: [id])
+
+  @@unique([integrationId, day, label])
+  @@index([organizationId])
+  @@index([day])
+}
+
+model BulkImport {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  status         String       @default("validating")
+  totalRows      Int          @default(0)
+  processedRows  Int          @default(0)
+  validRows      Int          @default(0)
+  report         String       @default("[]")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, createdAt])
 }

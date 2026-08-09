@@ -1,0 +1,12 @@
+
+> gitroom@1.0.0 dev:backend C:\Users\Phliq\Desktop\publishly
+> rm -rf apps/backend/dist && pnpm --filter ./apps/backend run dev
+
+
+> postiz-backend@1.0.0 dev C:\Users\Phliq\Desktop\publishly\apps\backend
+> dotenv -e ../../.env -- nest start --watch --entryFile=./apps/backend/src/main
+
+c[[90m8:50:53 AM[0m] Starting compilation in watch mode...
+
+To restart at any time, enter rs.
+

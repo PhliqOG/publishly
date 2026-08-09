@@ -1,0 +1,4 @@
+
+> gitroom@1.0.0 dev:orchestrator C:\Users\Phliq\Desktop\publishly
+> rm -rf apps/orchestrator/dist && pnpm --filter ./apps/orchestrator run dev
+

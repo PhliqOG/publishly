@@ -1,0 +1,23 @@
+
+> gitroom@1.0.0 dev:frontend C:\Users\Phliq\Desktop\publishly
+> rm -rf apps/frontend/dist && pnpm --filter ./apps/frontend run dev
+
+
+> postiz-frontend@1.0.0 dev C:\Users\Phliq\Desktop\publishly\apps\frontend
+> dotenv -e ../../.env -- next dev -p 4200
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:4200
+- Network:       http://192.168.1.218:4200
+✓ Ready in 10.9s
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\Phliq\pnpm-workspace.yaml as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\Phliq\Desktop\publishly\pnpm-workspace.yaml
+
+- Experiments (use with caution):
+  · clientTraceMetadata
+  · proxyTimeout: 90000
+

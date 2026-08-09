@@ -178,6 +178,42 @@ export class UsersRepository {
     });
   }
 
+  setResetCode(id: string, resetCode: string | null) {
+    return this._user.model.user.update({
+      where: {
+        id,
+        providerName: Provider.LOCAL,
+      },
+      data: {
+        resetCode,
+      },
+    });
+  }
+
+  // Single-use consume: the where clause matches only while the code is still
+  // stored, and the update clears it - a second attempt with the same link
+  // finds no row (P2025) and fails. Atomic, no read-then-write race.
+  async consumeResetCode(id: string, resetCode: string, password: string) {
+    try {
+      return await this._user.model.user.update({
+        where: {
+          id,
+          resetCode,
+          providerName: Provider.LOCAL,
+        },
+        data: {
+          password: AuthService.hashPassword(password),
+          resetCode: null,
+        },
+      });
+    } catch (err: any) {
+      if (err?.code === 'P2025') {
+        return null;
+      }
+      throw err;
+    }
+  }
+
   changeAudienceSize(userId: string, audience: number) {
     return this._user.model.user.update({
       where: {

@@ -18,6 +18,7 @@ import { SubscriptionExceptionFilter } from '@gitroom/backend/services/auth/perm
 import { PostValidationExceptionFilter } from '@gitroom/backend/api/routes/posts.validation.exception';
 import { HttpExceptionFilter } from '@gitroom/nestjs-libraries/services/exception.filter';
 import { ConfigurationChecker } from '@gitroom/helpers/configuration/configuration.checker';
+import { providerEnvRegistry } from '@gitroom/nestjs-libraries/integrations/provider.env.registry';
 import { startMcp } from '@gitroom/nestjs-libraries/chat/start.mcp';
 
 async function start() {
@@ -86,6 +87,31 @@ function checkConfiguration() {
   const checker = new ConfigurationChecker();
   checker.readEnvFromProcess();
   checker.check();
+  checker.checkSecretStrength('JWT_SECRET');
+
+  // Social providers: partial credentials mean the provider renders as
+  // available and then fails mid-OAuth. All-or-nothing per provider.
+  for (const [identifier, keys] of Object.entries(providerEnvRegistry)) {
+    if (keys.length > 1) {
+      checker.checkAllOrNone(`Provider "${identifier}"`, keys);
+    }
+  }
+  checker.checkAllOrNone('Stripe billing', [
+    'STRIPE_PUBLISHABLE_KEY',
+    'STRIPE_SECRET_KEY',
+    'STRIPE_SIGNING_KEY',
+  ]);
+  if (process.env.STORAGE_PROVIDER === 'cloudflare') {
+    for (const key of [
+      'CLOUDFLARE_ACCOUNT_ID',
+      'CLOUDFLARE_ACCESS_KEY',
+      'CLOUDFLARE_SECRET_ACCESS_KEY',
+      'CLOUDFLARE_BUCKETNAME',
+      'CLOUDFLARE_BUCKET_URL',
+    ]) {
+      checker.checkNonEmpty(key, 'Required when STORAGE_PROVIDER=cloudflare.');
+    }
+  }
 
   if (checker.hasIssues()) {
     for (const issue of checker.getIssues()) {
@@ -93,6 +119,13 @@ function checkConfiguration() {
     }
 
     Logger.warn('Configuration issues found: ' + checker.getIssuesCount());
+
+    // Production deployments opt into fail-fast so a misconfigured instance
+    // never serves traffic; dev keeps the upstream warn-only behavior.
+    if (process.env.CONFIG_STRICT === 'true') {
+      Logger.error('CONFIG_STRICT=true - refusing to run with config issues.');
+      process.exit(1);
+    }
   } else {
     Logger.log('Configuration check completed without any issues');
   }

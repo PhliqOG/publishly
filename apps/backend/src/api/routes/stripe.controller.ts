@@ -6,6 +6,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { StripeService } from '@gitroom/nestjs-libraries/services/stripe.service';
+import { WebhookEventLedgerService } from '@gitroom/nestjs-libraries/services/webhook.event.ledger.service';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Stripe')
@@ -13,10 +14,11 @@ import { ApiTags } from '@nestjs/swagger';
 export class StripeController {
   constructor(
     private readonly _stripeService: StripeService,
+    private readonly _webhookLedger: WebhookEventLedgerService
   ) {}
 
   @Post('/')
-  stripe(@Req() req: RawBodyRequest<Request>) {
+  async stripe(@Req() req: RawBodyRequest<Request>) {
     const event = this._stripeService.validateRequest(
       req.rawBody,
       // @ts-ignore
@@ -34,20 +36,33 @@ export class StripeController {
       return { ok: true };
     }
 
+    // Stripe redelivers on timeout/retry; each event id gets processed once.
+    const claimed = await this._webhookLedger.claimEvent(
+      'stripe',
+      event.id,
+      event.type
+    );
+    if (!claimed) {
+      return { ok: true, duplicate: true };
+    }
+
     try {
       switch (event.type) {
         case 'invoice.payment_succeeded':
-          return this._stripeService.paymentSucceeded(event);
+          return await this._stripeService.paymentSucceeded(event);
         case 'customer.subscription.created':
-          return this._stripeService.createSubscription(event);
+          return await this._stripeService.createSubscription(event);
         case 'customer.subscription.updated':
-          return this._stripeService.updateSubscription(event);
+          return await this._stripeService.updateSubscription(event);
         case 'customer.subscription.deleted':
-          return this._stripeService.deleteSubscription(event);
+          return await this._stripeService.deleteSubscription(event);
         default:
           return { ok: true };
       }
     } catch (e) {
+      // Release the claim so Stripe's redelivery can retry a failed handler -
+      // dedupe applies to successfully processed events only.
+      await this._webhookLedger.releaseEvent(event.id);
       throw new HttpException(e, 500);
     }
   }

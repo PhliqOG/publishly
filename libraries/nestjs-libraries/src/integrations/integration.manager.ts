@@ -37,6 +37,21 @@ import { SkoolProvider } from '@gitroom/nestjs-libraries/integrations/social/sko
 import { WhopProvider } from '@gitroom/nestjs-libraries/integrations/social/whop.provider';
 import { MeweProvider } from '@gitroom/nestjs-libraries/integrations/social/mewe.provider';
 import { TumblrProvider } from '@gitroom/nestjs-libraries/integrations/social/tumblr.provider';
+import { TestProviderProvider } from '@gitroom/nestjs-libraries/integrations/social/testprovider.provider';
+import {
+  isProviderConfigured,
+  missingProviderEnv,
+} from '@gitroom/nestjs-libraries/integrations/provider.env.registry';
+
+// maxLength implementations may depend on per-post settings; with no settings
+// some providers can throw, and the connect screen only needs a best-effort cap.
+function safeMaxLength(p: SocialProvider): number | null {
+  try {
+    return p.maxLength(undefined, undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
   new XProvider(),
@@ -74,6 +89,11 @@ export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
   new MeweProvider(),
   new TumblrProvider(),
   // new MastodonCustomProvider(),
+  // Sandbox channel for dev/tests/demos - never registered unless explicitly
+  // enabled, so production deployments cannot expose it by accident.
+  ...(process.env.ENABLE_TEST_PROVIDER === 'true'
+    ? [new TestProviderProvider()]
+    : []),
 ];
 
 @Injectable()
@@ -89,6 +109,11 @@ export class IntegrationManager {
           isExternal: !!p.externalUrl,
           isWeb3: !!p.isWeb3,
           isChromeExtension: !!p.isChromeExtension,
+          // Honest server-configuration state: false means this deployment is
+          // missing the provider's env credentials and connect cannot work.
+          configured: isProviderConfigured(p.identifier),
+          missingEnv: missingProviderEnv(p.identifier),
+          maxLength: safeMaxLength(p),
           ...(p.extensionCookies
             ? { extensionCookies: p.extensionCookies }
             : {}),

@@ -771,14 +771,14 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
       depth: 0,
     });
 
-    // @ts-ignore
-    const parentCid = parentThread.data.thread.post?.cid;
-    // @ts-ignore
-    const rootUri =
-      parentThread.data.thread.post?.record?.reply?.root?.uri || postId;
-    // @ts-ignore
-    const rootCid =
-      parentThread.data.thread.post?.record?.reply?.root?.cid || parentCid;
+    // getPostThread returns a union (thread | notFound | blocked); only
+    // ThreadViewPost carries `post`, so narrow before reading from it.
+    const parentThreadView = parentThread.data.thread;
+    const parentPost =
+      'post' in parentThreadView ? (parentThreadView.post as any) : undefined;
+    const parentCid = parentPost?.cid;
+    const rootUri = parentPost?.record?.reply?.root?.uri || postId;
+    const rootCid = parentPost?.record?.reply?.root?.cid || parentCid;
 
     // @ts-ignore
     const { cid, uri, commit } = await agent.post({
