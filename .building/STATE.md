@@ -72,6 +72,18 @@ marketing site must get a distinctive creative design pass (frontend-design skil
   (RFC4180 parser, preview→commit lifecycle, per-row report) + bulk shift/delete endpoints.
 - Branding fork running (in-app rename sweep, original logo, disabled-provider UI, api-key +
   audit-log settings UIs). Approval packages done earlier (docs/platform-approval/, 12 files).
+- ~10:00-10:45 Shipped: API keys/audit/bulk/webhook-ledger/crypto/pricing (checkpoint 2
+  3f518100); marketing site + inbox fork + docs fork + export/deletion + admin/system +
+  snapshots (checkpoint 3 54c28dc0). Docs fork also fixed the never-executed upstream remote
+  rename (origin→upstream + baseline tag) — a real push-hazard catch.
+- MACHINE RESTARTED mid-run (~3h gap). Recovery: containers auto-restarted; recompiled
+  backend (one-shot tsc) + orchestrator (nest build — REQUIRED for Temporal workflow
+  bundling); relaunched all three apps. Frontend serves marketing '/' 200 with the
+  departures-board hero. Orchestrator worker queues RUNNING incl. 'testprovider'.
+- VERIFICATION: unit 27/27 (twice); integration vs LIVE API 17/17 (IDOR matrix 7,
+  api-keys 6, webhook replay ledger 4). Secrets scan of tracked files: clean.
+- E2E scheduling proof: first run exposed testprovider missing from the settings-DTO
+  discriminator whitelist — fixed, backend recompiling/restarting, E2E re-running.
 
 ## Open risks
 - canvas (node-canvas 2.x) native build skipped by pnpm 10 → runtime failure only if server code

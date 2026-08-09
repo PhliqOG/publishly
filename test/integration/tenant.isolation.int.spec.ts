@@ -113,7 +113,7 @@ d('tenant isolation (IDOR)', () => {
     expect(readA.status).toBe(200);
   });
 
-  it('public API: an api key only reaches its own org's data', async () => {
+  it('public API: an api key only reaches its own org data', async () => {
     const createdKey = await api(userA, 'POST', '/api-keys', {
       name: 'A public key',
       scopes: ['*'],

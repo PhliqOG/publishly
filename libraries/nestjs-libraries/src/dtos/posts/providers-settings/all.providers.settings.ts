@@ -101,6 +101,9 @@ export const allProviders = (setEmpty?: any) => {
     { value: WhopDto, name: 'whop' },
     { value: MeweDto, name: 'mewe' },
     { value: TumblrDto, name: 'tumblr' },
+    // Sandbox channel (ENABLE_TEST_PROVIDER); a name here is inert unless the
+    // provider is registered - connect/publish are gated at the registry.
+    { value: setEmpty, name: 'testprovider' },
   ].filter((f) => f.value);
 };
 
