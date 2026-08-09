@@ -17,6 +17,7 @@ import {
   getMaxSize,
 } from '@gitroom/nestjs-libraries/upload/custom.upload.validation';
 import { ApiTags } from '@nestjs/swagger';
+import { withOpenToken } from '@gitroom/helpers/auth/crypto.v2';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { Organization } from '@prisma/client';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
@@ -568,12 +569,13 @@ export class PublicIntegrationsController {
 
     while (true) {
       try {
+        const openedIntegration = withOpenToken(getIntegration);
         // @ts-ignore
         const result = await integrationProvider[body.methodName](
-          getIntegration.token,
+          openedIntegration.token,
           body.data || {},
           getIntegration.internalId,
-          getIntegration
+          openedIntegration
         );
 
         return { output: result };

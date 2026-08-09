@@ -16,6 +16,7 @@ import { object, string } from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { web3List } from '@gitroom/frontend/components/launches/web3/web3.list';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { BRAND_NAME } from '@gitroom/react/brand/brand';
 import clsx from 'clsx';
 import copy from 'copy-to-clipboard';
 import { capitalize } from 'lodash';
@@ -280,7 +281,7 @@ const ExtensionNotFound: FC = () => {
       <p className="text-[14px] text-textColor/80">
         {t(
           'extension_not_available',
-          'The Postiz browser extension is not installed. You need to install it before connecting this channel.'
+          `The ${BRAND_NAME} browser extension is not installed. You need to install it before connecting this channel.`
         )}
       </p>
       <div className="flex gap-[10px]">
@@ -289,7 +290,8 @@ const ExtensionNotFound: FC = () => {
           className="flex-1"
           onClick={() => {
             window.open(
-              'https://chromewebstore.google.com/detail/postiz/cidhffagahknaeodkplfbcpfeielnkjl?hl=en',
+              process.env.NEXT_PUBLIC_CHROME_EXTENSION_URL ||
+                'https://chromewebstore.google.com/detail/postiz/cidhffagahknaeodkplfbcpfeielnkjl?hl=en',
               '_blank'
             );
             modals.closeCurrent();
@@ -346,7 +348,7 @@ const ChromeExtensionWarning: FC<{
           We will store your cookies securely to facilitate the connection.
         </li>
         <li>
-          Postiz does not take responsibility for any issues arising or account
+          {BRAND_NAME} does not take responsibility for any issues arising or account
           termination due to the use of this method.
         </li>
       </ul>
@@ -383,6 +385,8 @@ export const AddProviderComponent: FC<{
     toolTip?: string;
     isExternal: boolean;
     isWeb3: boolean;
+    configured?: boolean;
+    missingEnv?: string[];
     isChromeExtension?: boolean;
     extensionCookies?: Array<{
       name: string;
@@ -574,7 +578,7 @@ export const AddProviderComponent: FC<{
             toaster.show(
               t(
                 'extension_not_installed',
-                'Postiz browser extension is not installed or not reachable.'
+                `${BRAND_NAME} browser extension is not installed or not reachable.`
               ),
               'warning'
             );
@@ -696,25 +700,40 @@ export const AddProviderComponent: FC<{
             .map((item) => (
               <div
                 key={item.identifier}
-                onClick={getSocialLink(
-                  props.invite,
-                  item.identifier,
-                  item.isExternal,
-                  item.isWeb3,
-                  item.isChromeExtension,
-                  item.customFields
-                )}
-                {...(!!item.toolTip
+                {...(item.configured === false
                   ? {
+                      // Server has no credentials for this provider - show it
+                      // honestly disabled instead of letting OAuth fail.
                       'data-tooltip-id': 'tooltip',
-                      'data-tooltip-content': item.toolTip,
+                      'data-tooltip-content': t(
+                        'provider_not_configured',
+                        'Not configured on this server'
+                      ),
                     }
-                  : {})}
+                  : {
+                      onClick: getSocialLink(
+                        props.invite,
+                        item.identifier,
+                        item.isExternal,
+                        item.isWeb3,
+                        item.isChromeExtension,
+                        item.customFields
+                      ),
+                      ...(!!item.toolTip
+                        ? {
+                            'data-tooltip-id': 'tooltip',
+                            'data-tooltip-content': item.toolTip,
+                          }
+                        : {}),
+                    })}
                 className={clsx(
                   isMobile
                     ? 'flex-row h-[72px] p-[16px]'
                     : 'flex-col p-[10px] h-[100px] justify-center',
-                  'w-full text-[14px] rounded-[8px] bg-newTableHeader text-textColor relative items-center flex gap-[10px] cursor-pointer'
+                  'w-full text-[14px] rounded-[8px] bg-newTableHeader text-textColor relative items-center flex gap-[10px]',
+                  item.configured === false
+                    ? 'opacity-40 cursor-not-allowed grayscale'
+                    : 'cursor-pointer'
                 )}
               >
                 <div>

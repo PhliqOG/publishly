@@ -19,7 +19,7 @@ export interface PricingInnerInterface {
 export interface PricingInterface {
   [key: string]: PricingInnerInterface;
 }
-export const pricing: PricingInterface = {
+const defaultPricing: PricingInterface = {
   FREE: {
     current: 'FREE',
     month_price: 0,
@@ -111,3 +111,58 @@ export const pricing: PricingInterface = {
     generate_videos: 60,
   },
 };
+
+// Entitlements are deploy-time configuration: PRICING_OVERRIDES_JSON may hold
+// partial per-tier overrides ({"PRO": {"channel": 50}}) that deep-merge over
+// the defaults above. Server-side only (the client bundle sees defaults; the
+// UI displays server-resolved billing state anyway). Prices must still match
+// the Stripe Price lookup_keys the operator configures - this governs
+// entitlement limits and displayed amounts, never what Stripe actually
+// charges (the server resolves real prices from Stripe by lookup key; client
+// input is never trusted for pricing).
+function loadPricing(): PricingInterface {
+  const overrideJson =
+    typeof process !== 'undefined'
+      ? process.env?.PRICING_OVERRIDES_JSON
+      : undefined;
+  if (!overrideJson) {
+    return defaultPricing;
+  }
+
+  let parsed: Record<string, Partial<PricingInnerInterface>>;
+  try {
+    parsed = JSON.parse(overrideJson);
+  } catch (err: any) {
+    throw new Error(
+      `PRICING_OVERRIDES_JSON could not be parsed: ${err?.message}`
+    );
+  }
+
+  const merged: PricingInterface = { ...defaultPricing };
+  for (const [tier, overrides] of Object.entries(parsed)) {
+    if (!merged[tier]) {
+      throw new Error(
+        `PRICING_OVERRIDES_JSON: unknown tier "${tier}" (valid: ${Object.keys(
+          defaultPricing
+        ).join(', ')})`
+      );
+    }
+    for (const [key, value] of Object.entries(overrides)) {
+      const current = (merged[tier] as any)[key];
+      if (current === undefined) {
+        throw new Error(
+          `PRICING_OVERRIDES_JSON: unknown entitlement "${key}" on tier "${tier}"`
+        );
+      }
+      if (typeof value !== typeof current) {
+        throw new Error(
+          `PRICING_OVERRIDES_JSON: "${tier}.${key}" must be a ${typeof current}`
+        );
+      }
+    }
+    merged[tier] = { ...merged[tier], ...overrides, current: tier };
+  }
+  return merged;
+}
+
+export const pricing: PricingInterface = loadPricing();

@@ -1,12 +1,15 @@
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 export const ChromeExtensionComponent = () => {
   const { billingEnabled } = useVariables();
-  if (!billingEnabled) {
+  // Only advertise a browser extension when this deployment actually ships
+  // one (the upstream store listing pairs with upstream's servers).
+  const extensionUrl = process.env.NEXT_PUBLIC_CHROME_EXTENSION_URL;
+  if (!billingEnabled || !extensionUrl) {
     return null;
   }
   return (
     <a
-      href="https://chromewebstore.google.com/detail/postiz/cidhffagahknaeodkplfbcpfeielnkjl"
+      href={extensionUrl}
       target="_blank"
       className="hover:text-newTextColor"
     >

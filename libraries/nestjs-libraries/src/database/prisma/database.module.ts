@@ -44,6 +44,13 @@ import { ErrorsRepository } from '@gitroom/nestjs-libraries/database/prisma/erro
 import { ErrorsService } from '@gitroom/nestjs-libraries/database/prisma/errors/errors.service';
 import { AdminStatsRepository } from '@gitroom/nestjs-libraries/database/prisma/admin-stats/admin-stats.repository';
 import { AdminStatsService } from '@gitroom/nestjs-libraries/database/prisma/admin-stats/admin-stats.service';
+import { ApiKeysRepository } from '@gitroom/nestjs-libraries/database/prisma/api-keys/api-keys.repository';
+import { ApiKeysService } from '@gitroom/nestjs-libraries/database/prisma/api-keys/api-keys.service';
+import { WebhookEventLedgerService } from '@gitroom/nestjs-libraries/services/webhook.event.ledger.service';
+import { AuditLogRepository } from '@gitroom/nestjs-libraries/database/prisma/audit-logs/audit-log.repository';
+import { AuditLogService } from '@gitroom/nestjs-libraries/database/prisma/audit-logs/audit-log.service';
+import { BulkImportRepository } from '@gitroom/nestjs-libraries/database/prisma/bulk-import/bulk-import.repository';
+import { BulkImportService } from '@gitroom/nestjs-libraries/database/prisma/bulk-import/bulk-import.service';
 
 @Global()
 @Module({
@@ -97,6 +104,13 @@ import { AdminStatsService } from '@gitroom/nestjs-libraries/database/prisma/adm
     ErrorsService,
     AdminStatsRepository,
     AdminStatsService,
+    ApiKeysRepository,
+    ApiKeysService,
+    WebhookEventLedgerService,
+    AuditLogRepository,
+    AuditLogService,
+    BulkImportRepository,
+    BulkImportService,
   ],
   get exports() {
     return this.providers;

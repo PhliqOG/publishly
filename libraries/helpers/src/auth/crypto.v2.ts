@@ -85,14 +85,29 @@ export function open(value: string): string {
   }
   // Legacy fixedEncryption values are hex ciphertext; raw plaintext rows predate
   // encryption entirely. Try legacy decryption, fall back to returning as-is.
-  if (/^[0-9a-f]+$/i.test(value) && value.length % 32 === 0) {
+  // The printable check guards against a fresh platform token that merely LOOKS
+  // like hex ciphertext: garbage from a wrong decryption is never printable.
+  if (/^[0-9a-f]+$/i.test(value) && value.length >= 32 && value.length % 32 === 0) {
     try {
-      return decrypt_legacy_using_IV(value);
+      const decrypted = decrypt_legacy_using_IV(value);
+      // eslint-disable-next-line no-control-regex
+      if (/^[\x20-\x7E\s]*$/.test(decrypted) && decrypted.length > 0) {
+        return decrypted;
+      }
+      return value;
     } catch {
       return value;
     }
   }
   return value;
+}
+
+// Some providers read `integration.token` off the row object rather than the
+// accessToken parameter. Call sites that hand an Integration to a provider use
+// this to pass an in-memory copy with the token opened - the sealed row itself
+// never mutates, so nothing plaintext flows back toward persistence layers.
+export function withOpenToken<T extends { token: string }>(obj: T): T {
+  return { ...obj, token: open(obj.token) };
 }
 
 // Hashing for API keys: keys are never stored, only their SHA-256. Constant

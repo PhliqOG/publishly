@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { withOpenToken } from '@gitroom/helpers/auth/crypto.v2';
 import {
   Activity,
   ActivityMethod,
@@ -172,6 +173,8 @@ export class PostActivity {
       integration.providerIdentifier
     );
 
+    const openedIntegration = withOpenToken(integration);
+
     const newPosts = await this._postService.updateTags(
       integration.organizationId,
       posts
@@ -181,7 +184,7 @@ export class PostActivity {
       integration.internalId,
       postId,
       lastPostId,
-      integration.token,
+      openedIntegration.token,
       await Promise.all(
         (newPosts || []).map(async (p) => ({
           id: p.id,
@@ -201,7 +204,7 @@ export class PostActivity {
           ),
         }))
       ),
-      integration
+      openedIntegration
     );
   }
 
@@ -238,6 +241,8 @@ export class PostActivity {
       integration.providerIdentifier
     );
 
+    const openedIntegration = withOpenToken(integration);
+
     const newPosts = await this._postService.updateTags(
       integration.organizationId,
       posts
@@ -267,15 +272,15 @@ export class PostActivity {
       allowPending && getIntegration.postPending
         ? await getIntegration.postPending(
             integration.internalId,
-            integration.token,
+            openedIntegration.token,
             mappedPosts,
-            integration
+            openedIntegration
           )
         : await getIntegration.post(
             integration.internalId,
-            integration.token,
+            openedIntegration.token,
             mappedPosts,
-            integration
+            openedIntegration
           );
 
     // The post is already published at this point: the streak is best-effort,
@@ -308,10 +313,11 @@ export class PostActivity {
       integration.providerIdentifier
     );
 
+    const openedIntegration = withOpenToken(integration);
     return getIntegration.checkPostStatus(
-      integration.token,
+      openedIntegration.token,
       pendingData,
-      integration
+      openedIntegration
     );
   }
 
@@ -321,10 +327,11 @@ export class PostActivity {
       integration.providerIdentifier
     );
 
+    const openedIntegration = withOpenToken(integration);
     return getIntegration.finalizePost(
-      integration.token,
+      openedIntegration.token,
       pendingData,
-      integration
+      openedIntegration
     );
   }
 

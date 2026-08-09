@@ -5,8 +5,8 @@
 #   docker compose -f docker-compose.publishly.dev.yaml up -d
 #
 # Host ports: Postgres 5433, Redis 6380, Temporal 7233, Temporal UI 8082.
-# Elasticsearch is intentionally omitted; Temporal runs SQL visibility
-# (dynamicconfig/development-sql.yaml).
+# Elasticsearch backs Temporal advanced visibility - required: the app
+# registers more Text search attributes than SQL visibility's cap of 3.
 
 services:
   publishly-postgres:
@@ -47,6 +47,25 @@ services:
     volumes:
       - publishly-temporal-pg-volume:/var/lib/postgresql/data
 
+  publishly-temporal-elasticsearch:
+    container_name: publishly-temporal-elasticsearch
+    image: elasticsearch:7.17.27
+    restart: always
+    environment:
+      - cluster.routing.allocation.disk.threshold_enabled=true
+      - cluster.routing.allocation.disk.watermark.low=512mb
+      - cluster.routing.allocation.disk.watermark.high=256mb
+      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      - xpack.security.enabled=false
+    networks:
+      - publishly-temporal-network
+    expose:
+      - 9200
+    volumes:
+      - publishly-es-volume:/usr/share/elasticsearch/data
+
   publishly-temporal:
     container_name: publishly-temporal
     image: temporalio/auto-setup:1.28.1
@@ -55,6 +74,7 @@ services:
       - "7233:7233"
     depends_on:
       - publishly-temporal-postgresql
+      - publishly-temporal-elasticsearch
     environment:
       - DB=postgres12
       - DB_PORT=5432
@@ -62,7 +82,9 @@ services:
       - POSTGRES_PWD=temporal
       - POSTGRES_SEEDS=publishly-temporal-postgresql
       - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
-      - ENABLE_ES=false
+      - ENABLE_ES=true
+      - ES_SEEDS=publishly-temporal-elasticsearch
+      - ES_VERSION=v7
       - TEMPORAL_NAMESPACE=default
     networks:
       - publishly-temporal-network
@@ -86,6 +108,7 @@ services:
 volumes:
   publishly-postgres-volume:
   publishly-temporal-pg-volume:
+  publishly-es-volume:
 
 networks:
   publishly-network:

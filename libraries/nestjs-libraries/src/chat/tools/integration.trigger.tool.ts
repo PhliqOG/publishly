@@ -1,4 +1,5 @@
 import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.interface';
+import { withOpenToken } from '@gitroom/helpers/auth/crypto.v2';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
@@ -95,9 +96,10 @@ export class IntegrationTriggerTool implements AgentToolInterface {
 
         while (true) {
           try {
+            const openedIntegration = withOpenToken(getIntegration);
             // @ts-ignore
             const load = await integrationProvider[inputData.methodName](
-              getIntegration.token,
+              openedIntegration.token,
               inputData.dataSchema.reduce(
                 (all: Record<string, string>, current: { key: string; value: string }) => ({
                   ...all,
@@ -106,7 +108,7 @@ export class IntegrationTriggerTool implements AgentToolInterface {
                 {} as Record<string, string>
               ),
               getIntegration.internalId,
-              getIntegration
+              openedIntegration
             );
 
             return { output: load };

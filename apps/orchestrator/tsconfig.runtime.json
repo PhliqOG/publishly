@@ -1,0 +1,12 @@
+{
+  "//": "Runtime alias map for running compiled output directly (node -r tsconfig-paths/register). Plain tsc does not rewrite @gitroom/* aliases at emit; this maps them into the dist tree at require time.",
+  "compilerOptions": {
+    "baseUrl": "./dist",
+    "paths": {
+      "@gitroom/backend/*": ["apps/backend/src/*"],
+      "@gitroom/helpers/*": ["libraries/helpers/src/*"],
+      "@gitroom/nestjs-libraries/*": ["libraries/nestjs-libraries/src/*"],
+      "@gitroom/orchestrator/*": ["apps/orchestrator/src/*"]
+    }
+  }
+}

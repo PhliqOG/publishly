@@ -1,4 +1,5 @@
 'use client';
+import { BRAND_NAME } from '@gitroom/react/brand/brand';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -175,7 +176,7 @@ export default function OAuthAuthorizePage() {
 
           <div className="border-t border-[#2A2929] pt-[16px]">
             <div className="text-[14px] text-gray-400 mb-[12px]">
-              This application is requesting access to your Postiz account. It
+              This application is requesting access to your {BRAND_NAME} account. It
               will be able to:
             </div>
             <ul className="text-[14px] list-disc list-inside space-y-[4px]">

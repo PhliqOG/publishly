@@ -3,6 +3,7 @@
 import React, { FC, Fragment, useCallback, useState } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
+import { BRAND_NAME } from '@gitroom/react/brand/brand';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { Button } from '@gitroom/react/form/button';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -66,7 +67,7 @@ export const Webhooks: FC = () => {
       <div className="text-customColor18 mt-[4px]">
         {t(
           'webhooks_are_a_way_to_get_notified_when_something_happens_in_postiz_via_an_http_request',
-          'Webhooks are a way to get notified when something happens in Postiz via\n        an HTTP request.'
+          `Webhooks are a way to get notified when something happens in ${BRAND_NAME} via\n        an HTTP request.`
         )}
       </div>
       <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[4px] p-[24px] flex gap-[24px]">

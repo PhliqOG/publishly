@@ -44,7 +44,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         {!!process.env.DATAFAST_WEBSITE_ID && (
           <Script
             data-website-id={process.env.DATAFAST_WEBSITE_ID}
-            data-domain="postiz.com"
+            data-domain={
+              process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || 'publishly.local'
+            }
             src="https://datafa.st/js/script.js"
             strategy="afterInteractive"
           />
@@ -67,6 +69,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           discordUrl={process.env.NEXT_PUBLIC_DISCORD_SUPPORT!}
           frontEndUrl={process.env.FRONTEND_URL!}
           isGeneral={!!process.env.IS_GENERAL}
+          brandName={process.env.NEXT_PUBLIC_BRAND_NAME || 'Publishly'}
           genericOauth={!!process.env.POSTIZ_GENERIC_OAUTH}
           oauthLogoUrl={process.env.NEXT_PUBLIC_POSTIZ_OAUTH_LOGO_URL!}
           oauthDisplayName={process.env.NEXT_PUBLIC_POSTIZ_OAUTH_DISPLAY_NAME!}
@@ -102,7 +105,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <FacebookComponent />
             <GoogleTagManagerComponent gtmId={process.env.NEXT_PUBLIC_GTM_ID} />
             <Plausible
-              domain={!!process.env.IS_GENERAL ? 'postiz.com' : 'gitroom.com'}
+              domain={
+                process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || 'publishly.local'
+              }
             >
               <PHProvider
                 phkey={process.env.NEXT_PUBLIC_POSTHOG_KEY}

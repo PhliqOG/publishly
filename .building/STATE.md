@@ -49,6 +49,29 @@ marketing site must get a distinctive creative design pass (frontend-design skil
   keys; no webhook replay guard; no audit log/inbox/CSV/marketing/branding/config-validation.
 - ~08:20 Infra containers up (PG 5433, Redis 6380, Temporal PG). Checkpoint 0 committed (309994c0).
 - pnpm install running (isolated Node 22.23.2 + pnpm 10.6.1). Task #1 done; #2 in progress.
+- ~08:50 install OK (17m36s; pnpm10 script-allowlist worked — sharp/esbuild/swc use prebuilt
+  optional deps). prisma db push OK; infra containers up under project publishly.
+- BOOT SAGA: (1) upstream TS break in bluesky.provider (atproto union) blocked ALL compiles —
+  fixed with narrowing; (2) nest-cli watch on Windows proved unreliable (no spawn after initial
+  failure; manualRestart; taskkill crashes) — ABANDONED for backend/orchestrator. New regime:
+  plain `tsc -p tsconfig.build.json --watch` per app (logs .building/logs/tsc-*.log) + apps run
+  directly from dist via dotenv+node (logs .building/logs/app-*.log, pids .building/*.pid).
+  Frontend stays on `pnpm run dev:frontend` (Next dev works fine; first-request compiles are
+  slow — use curl -m 60). (3) Temporal SQL visibility caps Text search attrs at 3 — Postiz needs
+  more → Elasticsearch added to compose (mirrors upstream), ENABLE_ES=true. Temporal+ES healthy.
+- Built during compiles: test provider (env-gated, pending-mode, fail-injection, sink);
+  provider env registry + configured/missingEnv/maxLength in integrations payload; config
+  validation (secret strength, all-or-nothing groups, CONFIG_STRICT) backend+orchestrator;
+  backend /health; Stripe webhook replay ledger (claim/release); single-use password reset;
+  hashed scoped API keys (pub_ prefix, middleware branch, scope rules, mgmt controller);
+  audit logs (model/service/controller + team/integration/api-key/bulk call sites); throttler
+  now covers ALL /public/v1 routes (read/write/posts buckets); pricing overridable via
+  PRICING_OVERRIDES_JSON (client-bundle-safe); at-rest encryption v2 (AES-256-GCM) for
+  Integration token/refreshToken sealed at repository writes + opened just-in-time at every
+  provider seam (post.activity object-boundary copies; providers untouched); CSV bulk import
+  (RFC4180 parser, preview→commit lifecycle, per-row report) + bulk shift/delete endpoints.
+- Branding fork running (in-app rename sweep, original logo, disabled-provider UI, api-key +
+  audit-log settings UIs). Approval packages done earlier (docs/platform-approval/, 12 files).
 
 ## Open risks
 - canvas (node-canvas 2.x) native build skipped by pnpm 10 → runtime failure only if server code

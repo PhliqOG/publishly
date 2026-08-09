@@ -6,6 +6,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { IntegrationRepository } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.repository';
+import { open as openSealed } from '@gitroom/helpers/auth/crypto.v2';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import {
   AnalyticsData,
@@ -308,7 +309,7 @@ export class IntegrationService {
     }
 
     const getIntegrationInformation = await provider.fetchPageInformation(
-      getIntegration.token,
+      openSealed(getIntegration.token),
       data
     );
 
@@ -385,7 +386,7 @@ export class IntegrationService {
       try {
         const loadAnalytics = await integrationProvider.analytics(
           getIntegration.internalId,
-          getIntegration.token,
+          openSealed(getIntegration.token),
           +date
         );
         await ioRedis.set(

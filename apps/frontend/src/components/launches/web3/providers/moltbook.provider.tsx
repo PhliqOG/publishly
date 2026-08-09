@@ -5,6 +5,7 @@ import { Web3ProviderInterface } from '@gitroom/frontend/components/launches/web
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { timer } from '@gitroom/helpers/utils/timer';
 import { Input } from '@gitroom/react/form/input';
+import { BRAND_NAME } from '@gitroom/react/brand/brand';
 import { Button } from '@gitroom/react/form/button';
 import copy from 'copy-to-clipboard';
 import { useToaster } from '@gitroom/react/toaster/toaster';
@@ -37,7 +38,7 @@ export const MoltbookProvider: FC<Web3ProviderInterface> = (props) => {
         method: 'POST',
         body: JSON.stringify({
           name: agentName.trim(),
-          description: agentDescription.trim() || 'Postiz social media scheduler',
+          description: agentDescription.trim() || `${BRAND_NAME} social media scheduler`,
         }),
       });
 
@@ -105,7 +106,7 @@ export const MoltbookProvider: FC<Web3ProviderInterface> = (props) => {
               name="agentName"
               disableForm={true}
               onChange={(e) => setAgentName(e.target.value)}
-              placeholder="MyPostizAgent"
+              placeholder="MyPublishingAgent"
             />
             <Input
               label={t('description_optional', 'Description (optional)')}

@@ -1,5 +1,6 @@
 'use client';
 
+import { BRAND_NAME } from '@gitroom/react/brand/brand';
 import { FC, Fragment, useCallback } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
@@ -67,7 +68,7 @@ export const ApprovedAppsComponent: FC = () => {
         <div className="text-customColor18 mt-[4px]">
           {t(
             'apps_you_have_authorized',
-            'Applications you have authorized to access your Postiz account.'
+            `Applications you have authorized to access your ${BRAND_NAME} account.`
           )}
         </div>
       </div>

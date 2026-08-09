@@ -249,6 +249,8 @@ export const useMenuItem = () => {
       path: 'https://affiliate.postiz.com',
       role: ['ADMIN', 'SUPERADMIN', 'USER'],
       requireBilling: true,
+      // Upstream affiliate program - not part of this deployment's brand.
+      hide: true,
     },
     {
       name: t('billing', 'Billing'),

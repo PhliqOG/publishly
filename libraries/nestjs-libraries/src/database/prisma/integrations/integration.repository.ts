@@ -1,5 +1,6 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
+import { seal } from '@gitroom/helpers/auth/crypto.v2';
 import dayjs from 'dayjs';
 import { Integration } from '@prisma/client';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
@@ -143,6 +144,12 @@ export class IntegrationRepository {
   }
 
   async updateIntegration(id: string, params: Partial<Integration>) {
+    if (params.token) {
+      params.token = seal(params.token);
+    }
+    if (params.refreshToken) {
+      params.refreshToken = seal(params.refreshToken);
+    }
     if (
       params.picture &&
       (params.picture.indexOf(process.env.CLOUDFLARE_BUCKET_URL!) === -1 ||
@@ -231,6 +238,12 @@ export class IntegrationRepository {
     timezone?: number,
     customInstanceDetails?: string
   ) {
+    // At-rest encryption: tokens are sealed before touching the database and
+    // opened just-in-time at provider call sites. Legacy plaintext rows keep
+    // working (open() passes them through) and re-seal on their next write.
+    token = seal(token);
+    refreshToken = refreshToken ? seal(refreshToken) : refreshToken;
+
     const postTimes = timezone
       ? {
           postingTimes: JSON.stringify([

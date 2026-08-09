@@ -1,5 +1,6 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { Integration } from '@prisma/client';
+import { open as openSealed } from '@gitroom/helpers/auth/crypto.v2';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import {
@@ -74,7 +75,7 @@ export class RefreshIntegrationService {
     cause = ''
   ): Promise<AuthTokenDetails | false> {
     const refresh: false | AuthTokenDetails = await socialProvider
-      .refreshToken(integration.refreshToken)
+      .refreshToken(openSealed(integration.refreshToken))
       .catch((err) => false);
 
     if (!refresh || !refresh.accessToken) {

@@ -12,6 +12,7 @@ import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.req
 import { Organization, User } from '@prisma/client';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
+import { AuditLogService } from '@gitroom/nestjs-libraries/database/prisma/audit-logs/audit-log.service';
 import { AddTeamMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/add.team.member.dto';
 import { AdminAddTeamMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/admin.add.team.member.dto';
 import { ShortlinkPreferenceDto } from '@gitroom/nestjs-libraries/dtos/settings/shortlink-preference.dto';
@@ -22,7 +23,8 @@ import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/p
 @Controller('/settings')
 export class SettingsController {
   constructor(
-    private _organizationService: OrganizationService
+    private _organizationService: OrganizationService,
+    private _auditLogService: AuditLogService
   ) {}
 
   @Get('/team')
@@ -44,6 +46,13 @@ export class SettingsController {
     @GetUserFromRequest() user: User,
     @Body() body: AddTeamMemberDto
   ) {
+    this._auditLogService.log({
+      organizationId: org.id,
+      userId: user.id,
+      action: 'team.member-invited',
+      targetType: 'invite',
+      metadata: { email: body.email, role: body.role },
+    });
     return this._organizationService.inviteTeamMember(org, user, body);
   }
 
@@ -67,8 +76,16 @@ export class SettingsController {
   )
   deleteTeamMember(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Param('id') id: string
   ) {
+    this._auditLogService.log({
+      organizationId: org.id,
+      userId: user.id,
+      action: 'team.member-removed',
+      targetType: 'user',
+      targetId: id,
+    });
     return this._organizationService.deleteTeamMember(org, id);
   }
 

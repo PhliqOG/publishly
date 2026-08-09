@@ -5,6 +5,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { PostsRepository } from '@gitroom/nestjs-libraries/database/prisma/posts/posts.repository';
+import { open as openSealed } from '@gitroom/helpers/auth/crypto.v2';
 import { CreatePostDto } from '@gitroom/nestjs-libraries/dtos/posts/create.post.dto';
 import dayjs from 'dayjs';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
@@ -130,7 +131,7 @@ export class PostsService {
     try {
       return await integrationProvider.missing(
         getIntegration.internalId,
-        getIntegration.token
+        openSealed(getIntegration.token)
       );
     } catch (e) {
       console.log(e);
@@ -210,7 +211,7 @@ export class PostsService {
     try {
       const loadAnalytics = await integrationProvider.postAnalytics(
         getIntegration.internalId,
-        getIntegration.token,
+        openSealed(getIntegration.token),
         post.releaseId,
         date
       );

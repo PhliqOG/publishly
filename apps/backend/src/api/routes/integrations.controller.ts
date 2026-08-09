@@ -9,6 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
+import { open as openSealed, withOpenToken } from '@gitroom/helpers/auth/crypto.v2';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
@@ -18,6 +19,7 @@ import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permis
 import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { ApiTags } from '@nestjs/swagger';
 import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
+import { AuditLogService } from '@gitroom/nestjs-libraries/database/prisma/audit-logs/audit-log.service';
 import { PostsService } from '@gitroom/nestjs-libraries/database/prisma/posts/posts.service';
 import { IntegrationTimeDto } from '@gitroom/nestjs-libraries/dtos/integrations/integration.time.dto';
 import { PlugDto } from '@gitroom/nestjs-libraries/dtos/plugs/plug.dto';
@@ -40,7 +42,8 @@ export class IntegrationsController {
     private _integrationManager: IntegrationManager,
     private _integrationService: IntegrationService,
     private _postService: PostsService,
-    private _refreshIntegrationService: RefreshIntegrationService
+    private _refreshIntegrationService: RefreshIntegrationService,
+    private _auditLogService: AuditLogService
   ) {}
 
   @Post('/provider/:id/connect')
@@ -159,7 +162,7 @@ export class IntegrationsController {
     const { url } = manager.changeProfilePicture
       ? await manager.changeProfilePicture(
           integration.internalId,
-          integration.token,
+          openSealed(integration.token),
           body.picture
         )
       : { url: '' };
@@ -167,7 +170,7 @@ export class IntegrationsController {
     const { name } = manager.changeNickname
       ? await manager.changeNickname(
           integration.internalId,
-          integration.token,
+          openSealed(integration.token),
           body.name
         )
       : { name: '' };
@@ -341,12 +344,13 @@ export class IntegrationsController {
     // @ts-ignore
     if (integrationProvider[body.name]) {
       try {
+        const openedIntegration = withOpenToken(getIntegration);
         // @ts-ignore
         const load = await integrationProvider[body.name](
-          getIntegration.token,
+          openedIntegration.token,
           body.data,
           getIntegration.internalId,
-          getIntegration
+          openedIntegration
         );
 
         return load;
@@ -381,16 +385,32 @@ export class IntegrationsController {
   @Post('/disable')
   disableChannel(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Body('id') id: string
   ) {
+    this._auditLogService.log({
+      organizationId: org.id,
+      userId: user.id,
+      action: 'integration.disabled',
+      targetType: 'integration',
+      targetId: id,
+    });
     return this._integrationService.disableChannel(org.id, id);
   }
 
   @Post('/enable')
   enableChannel(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Body('id') id: string
   ) {
+    this._auditLogService.log({
+      organizationId: org.id,
+      userId: user.id,
+      action: 'integration.enabled',
+      targetType: 'integration',
+      targetId: id,
+    });
     return this._integrationService.enableChannel(
       org.id,
       // @ts-ignore
@@ -402,6 +422,7 @@ export class IntegrationsController {
   @Delete('/')
   async deleteChannel(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Body('id') id: string
   ) {
     const isTherePosts = await this._integrationService.getPostsForChannel(
@@ -414,6 +435,14 @@ export class IntegrationsController {
       }
     }
 
+    this._auditLogService.log({
+      organizationId: org.id,
+      userId: user.id,
+      action: 'integration.deleted',
+      targetType: 'integration',
+      targetId: id,
+      metadata: { removedScheduledPosts: isTherePosts.length },
+    });
     return this._integrationService.deleteChannel(org.id, id);
   }
 
