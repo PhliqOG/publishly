@@ -51,6 +51,8 @@ import { AuditLogRepository } from '@gitroom/nestjs-libraries/database/prisma/au
 import { AuditLogService } from '@gitroom/nestjs-libraries/database/prisma/audit-logs/audit-log.service';
 import { BulkImportRepository } from '@gitroom/nestjs-libraries/database/prisma/bulk-import/bulk-import.repository';
 import { BulkImportService } from '@gitroom/nestjs-libraries/database/prisma/bulk-import/bulk-import.service';
+import { AnalyticsSnapshotRepository } from '@gitroom/nestjs-libraries/database/prisma/analytics/analytics-snapshot.repository';
+import { OrgDataService } from '@gitroom/nestjs-libraries/database/prisma/organizations/org-data.service';
 
 @Global()
 @Module({
@@ -111,6 +113,8 @@ import { BulkImportService } from '@gitroom/nestjs-libraries/database/prisma/bul
     AuditLogService,
     BulkImportRepository,
     BulkImportService,
+    AnalyticsSnapshotRepository,
+    OrgDataService,
   ],
   get exports() {
     return this.providers;

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { IntegrationRepository } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.repository';
 import { open as openSealed } from '@gitroom/helpers/auth/crypto.v2';
+import { AnalyticsSnapshotRepository } from '@gitroom/nestjs-libraries/database/prisma/analytics/analytics-snapshot.repository';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import {
   AnalyticsData,
@@ -39,7 +40,8 @@ export class IntegrationService {
     private _notificationService: NotificationService,
     @Inject(forwardRef(() => RefreshIntegrationService))
     private _refreshIntegrationService: RefreshIntegrationService,
-    private _temporalService: TemporalService
+    private _temporalService: TemporalService,
+    private _analyticsSnapshotRepository: AnalyticsSnapshotRepository
   ) {}
 
   async changeActiveCron(orgId: string) {
@@ -397,6 +399,11 @@ export class IntegrationService {
             ? 1
             : 3600
         );
+        // Persist today's platform-reported series for long-term history;
+        // best-effort - analytics reads must not fail on snapshot writes.
+        this._analyticsSnapshotRepository
+          .saveSeries(org.id, getIntegration.id, loadAnalytics)
+          .catch(() => {});
         return loadAnalytics;
       } catch (e) {
         if (e instanceof RefreshToken) {

@@ -86,6 +86,24 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/login', nextUrl.href));
   }
 
+  // Public marketing site: reachable logged-out. Signed-in visitors hitting
+  // '/' fall through to the app redirect below; other marketing pages stay
+  // viewable either way.
+  const marketingPaths = [
+    '/',
+    '/features',
+    '/pricing',
+    '/security',
+    '/terms',
+    '/privacy',
+    '/source',
+  ];
+  if (marketingPaths.includes(nextUrl.pathname)) {
+    if (!authCookie || nextUrl.pathname !== '/') {
+      return topResponse;
+    }
+  }
+
   const org = nextUrl.searchParams.get('org');
   const url = new URL(nextUrl).search;
   if (!nextUrl.pathname.startsWith('/auth') && !authCookie) {

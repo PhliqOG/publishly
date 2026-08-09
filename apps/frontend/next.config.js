@@ -1,8 +1,17 @@
 // @ts-check
 import { withSentryConfig } from '@sentry/nextjs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const monorepoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Without an explicit root, Next walks up and can adopt a stray workspace
+  // file outside the repo, ballooning Turbopack's watch scope.
+  turbopack: {
+    root: monorepoRoot,
+  },
   experimental: {
     proxyTimeout: 90_000,
   },

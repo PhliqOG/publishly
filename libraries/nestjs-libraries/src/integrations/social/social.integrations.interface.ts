@@ -159,6 +159,18 @@ export type FetchPageInformationResult = {
   username: string;
 };
 
+// A platform comment surfaced in the unified inbox. Values come straight from
+// the platform API - never synthesized for providers that lack a comments API.
+export type InboxComment = {
+  id: string;
+  postId?: string;
+  releaseURL?: string;
+  author: { name: string; username?: string; picture?: string };
+  message: string;
+  createdAt: string;
+  repliesCount?: number;
+};
+
 export interface SocialProvider
   extends IAuthenticator,
     ISocialMediaIntegration {
@@ -220,4 +232,19 @@ export interface SocialProvider
     accessToken: string,
     data: any
   ): Promise<FetchPageInformationResult>;
+  // Unified-inbox capability: only providers whose official API exposes
+  // comment reading/replying implement these. The UI derives support flags
+  // from their presence - absent means the feature is honestly unavailable.
+  listComments?(
+    accessToken: string,
+    integration: Integration,
+    params: { page?: number; postId?: string }
+  ): Promise<{ comments: InboxComment[]; nextPage?: number }>;
+  replyToComment?(
+    accessToken: string,
+    integration: Integration,
+    commentId: string,
+    message: string,
+    postId?: string
+  ): Promise<{ id: string; releaseURL?: string }>;
 }

@@ -6,6 +6,7 @@ import {
   AnalyticsData,
   AuthTokenDetails,
   GenerateAuthUrlResponse,
+  InboxComment,
   PendingCheckResponse,
   PostDetails,
   PostResponse,
@@ -36,6 +37,16 @@ type SinkEvent = {
 
 const attemptCounters = new Map<string, number>();
 export const testProviderCalls: SinkEvent[] = [];
+
+// In-memory reply store backing the inbox capability (dev/test only).
+const inboxReplies: Array<{
+  id: string;
+  integrationId: string;
+  parentId: string;
+  postId?: string;
+  message: string;
+  createdAt: string;
+}> = [];
 
 function record(event: SinkEvent) {
   testProviderCalls.push(event);
@@ -210,6 +221,68 @@ export class TestProviderProvider
       status: 'completed',
       postId: 'tp_' + pendingData.internalId,
       releaseURL: 'https://testprovider.invalid/p/' + pendingData.internalId,
+    };
+  }
+
+  // Inbox capability: deterministic seeded comments per integration plus any
+  // replies sent in this process - proves the unified-inbox pipe end to end
+  // without any external platform.
+  async listComments(
+    accessToken: string,
+    integration: Integration,
+    params: { page?: number; postId?: string }
+  ): Promise<{ comments: InboxComment[]; nextPage?: number }> {
+    const seedBase = deterministicId('inbox-' + integration.id);
+    const seeded: InboxComment[] = [1, 2, 3].map((n) => ({
+      id: `tc_${seedBase}_${n}`,
+      postId: params.postId || `tp_seeded_${n}`,
+      releaseURL: `https://testprovider.invalid/p/seeded_${n}`,
+      author: {
+        name: ['Test Commenter One', 'Test Commenter Two', 'Test Commenter Three'][n - 1],
+        username: `test.commenter.${n}`,
+        picture: '',
+      },
+      message: [
+        'This is a seeded test comment - the inbox pipeline works.',
+        'Second seeded comment with an emoji reaction level of enthusiasm!',
+        'Third seeded comment asking a question: does replying work?',
+      ][n - 1],
+      createdAt: new Date(Date.now() - n * 3600_000).toISOString(),
+      repliesCount: inboxReplies.filter((r) => r.parentId === `tc_${seedBase}_${n}`).length,
+    }));
+
+    const replies: InboxComment[] = inboxReplies
+      .filter((r) => r.integrationId === integration.id)
+      .map((r) => ({
+        id: r.id,
+        postId: r.postId,
+        author: { name: 'Test Account (you)', username: 'test.account' },
+        message: r.message,
+        createdAt: r.createdAt,
+      }));
+
+    return { comments: [...seeded, ...replies] };
+  }
+
+  async replyToComment(
+    accessToken: string,
+    integration: Integration,
+    commentId: string,
+    message: string,
+    postId?: string
+  ): Promise<{ id: string; releaseURL?: string }> {
+    const id = 'tcr_' + deterministicId(integration.id + commentId + message + inboxReplies.length);
+    inboxReplies.push({
+      id,
+      integrationId: integration.id,
+      parentId: commentId,
+      postId,
+      message,
+      createdAt: new Date().toISOString(),
+    });
+    return {
+      id,
+      releaseURL: 'https://testprovider.invalid/c/' + id,
     };
   }
 

@@ -114,6 +114,8 @@ export class IntegrationManager {
           configured: isProviderConfigured(p.identifier),
           missingEnv: missingProviderEnv(p.identifier),
           maxLength: safeMaxLength(p),
+          supportsInbox: !!p.listComments,
+          supportsReplies: !!p.replyToComment,
           ...(p.extensionCookies
             ? { extensionCookies: p.extensionCookies }
             : {}),

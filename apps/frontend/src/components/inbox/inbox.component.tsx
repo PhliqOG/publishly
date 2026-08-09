@@ -1,0 +1,306 @@
+'use client';
+
+import React, { FC, useCallback, useMemo, useState } from 'react';
+import useSWR from 'swr';
+import clsx from 'clsx';
+import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { Button } from '@gitroom/react/form/button';
+import { Textarea } from '@gitroom/react/form/textarea';
+import { useToaster } from '@gitroom/react/toaster/toaster';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
+
+type InboxChannel = {
+  id: string;
+  name: string;
+  picture?: string;
+  providerIdentifier: string;
+  supportsInbox: boolean;
+  supportsReplies: boolean;
+};
+
+type InboxComment = {
+  id: string;
+  postId?: string;
+  releaseURL?: string;
+  author: { name: string; username?: string; picture?: string };
+  message: string;
+  createdAt: string;
+};
+
+const useInboxChannels = () => {
+  const fetch = useFetch();
+  const load = useCallback(async () => {
+    return (await fetch('/inbox/channels')).json();
+  }, []);
+  return useSWR<InboxChannel[]>('inbox-channels', load);
+};
+
+const useInboxComments = (integrationId: string | null) => {
+  const fetch = useFetch();
+  const load = useCallback(async () => {
+    if (!integrationId) {
+      return null;
+    }
+    const response = await fetch(`/inbox/${integrationId}`);
+    if (!response.ok) {
+      throw new Error('inbox-load-failed');
+    }
+    return response.json();
+  }, [integrationId]);
+  return useSWR<{ comments: InboxComment[] } | null>(
+    integrationId ? `inbox-comments-${integrationId}` : null,
+    load
+  );
+};
+
+function relativeTime(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+export const InboxComponent: FC = () => {
+  const t = useT();
+  const { data: channels, isLoading } = useInboxChannels();
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const selectedChannel = useMemo(
+    () => channels?.find((c) => c.id === selected) || null,
+    [channels, selected]
+  );
+
+  return (
+    <div className="flex flex-col gap-[16px]">
+      <h1 className="text-[24px]">{t('inbox', 'Inbox')}</h1>
+      {isLoading && (
+        <div className="text-customColor18">{t('loading', 'Loading...')}</div>
+      )}
+      {!isLoading && !channels?.length && (
+        <div className="bg-sixth border border-fifth rounded-[4px] p-[24px] text-customColor18">
+          {t(
+            'inbox_no_channels',
+            'Connect a channel first - comments from networks with an official comments API will appear here.'
+          )}
+        </div>
+      )}
+      {!!channels?.length && (
+        <div className="flex gap-[16px]">
+          <div className="flex flex-col gap-[8px] min-w-[240px]">
+            {channels.map((channel) => (
+              <div
+                key={channel.id}
+                onClick={() =>
+                  channel.supportsInbox ? setSelected(channel.id) : undefined
+                }
+                title={
+                  channel.supportsInbox
+                    ? channel.name
+                    : t(
+                        'inbox_unsupported_tooltip',
+                        'Comment sync for this network is coming after platform approval - nothing is hidden, we just do not fake data.'
+                      )
+                }
+                className={clsx(
+                  'flex items-center gap-[10px] p-[12px] rounded-[4px] border border-fifth',
+                  channel.supportsInbox
+                    ? 'cursor-pointer bg-sixth hover:bg-forth'
+                    : 'opacity-40 cursor-not-allowed bg-sixth',
+                  selected === channel.id && 'bg-forth'
+                )}
+              >
+                {!!channel.picture && (
+                  <img
+                    src={channel.picture}
+                    alt=""
+                    className="w-[24px] h-[24px] rounded-full"
+                  />
+                )}
+                <div className="flex flex-col">
+                  <div className="text-[14px]">{channel.name}</div>
+                  <div className="text-[11px] text-customColor18">
+                    {channel.providerIdentifier}
+                    {!channel.supportsInbox &&
+                      ' - ' + t('inbox_not_available', 'not available yet')}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex-1">
+            {!selectedChannel && (
+              <div className="bg-sixth border border-fifth rounded-[4px] p-[24px] text-customColor18">
+                {t(
+                  'inbox_pick_channel',
+                  'Pick a channel on the left to read its comments.'
+                )}
+              </div>
+            )}
+            {!!selectedChannel && (
+              <CommentsList
+                key={selectedChannel.id}
+                channel={selectedChannel}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CommentsList: FC<{ channel: InboxChannel }> = ({ channel }) => {
+  const t = useT();
+  const { data, error, isLoading, mutate } = useInboxComments(channel.id);
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+
+  if (isLoading) {
+    return (
+      <div className="text-customColor18">{t('loading', 'Loading...')}</div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="bg-sixth border border-fifth rounded-[4px] p-[24px] text-customColor18">
+        {t(
+          'inbox_load_error',
+          'Could not load comments from the platform. Try again in a moment.'
+        )}
+      </div>
+    );
+  }
+  if (!data?.comments?.length) {
+    return (
+      <div className="bg-sixth border border-fifth rounded-[4px] p-[24px] text-customColor18">
+        {t('inbox_empty', 'No comments on this channel yet.')}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-[10px]">
+      {data.comments.map((comment) => (
+        <div
+          key={comment.id}
+          className="bg-sixth border border-fifth rounded-[4px] p-[16px] flex flex-col gap-[8px]"
+        >
+          <div className="flex items-center gap-[10px]">
+            {!!comment.author.picture && (
+              <img
+                src={comment.author.picture}
+                alt=""
+                className="w-[28px] h-[28px] rounded-full"
+              />
+            )}
+            <div className="flex flex-col">
+              <div className="text-[14px]">{comment.author.name}</div>
+              {!!comment.author.username && (
+                <div className="text-[11px] text-customColor18">
+                  @{comment.author.username}
+                </div>
+              )}
+            </div>
+            <div className="ms-auto text-[11px] text-customColor18">
+              {relativeTime(comment.createdAt)}
+            </div>
+          </div>
+          <div className="text-[14px] whitespace-pre-wrap">
+            {comment.message}
+          </div>
+          <div className="flex items-center gap-[12px]">
+            {!!comment.releaseURL && (
+              <a
+                href={comment.releaseURL}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[12px] underline text-customColor18"
+              >
+                {t('inbox_view_post', 'View post')}
+              </a>
+            )}
+            {channel.supportsReplies && (
+              <div
+                className="text-[12px] underline cursor-pointer text-customColor18"
+                onClick={() =>
+                  setReplyTo(replyTo === comment.id ? null : comment.id)
+                }
+              >
+                {t('reply', 'Reply')}
+              </div>
+            )}
+          </div>
+          {replyTo === comment.id && (
+            <ReplyComposer
+              channelId={channel.id}
+              commentId={comment.id}
+              postId={comment.postId}
+              onDone={() => {
+                setReplyTo(null);
+                mutate();
+              }}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const ReplyComposer: FC<{
+  channelId: string;
+  commentId: string;
+  postId?: string;
+  onDone: () => void;
+}> = ({ channelId, commentId, postId, onDone }) => {
+  const fetch = useFetch();
+  const toaster = useToaster();
+  const t = useT();
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const send = useCallback(async () => {
+    if (!message.trim()) {
+      return;
+    }
+    setSending(true);
+    try {
+      const response = await fetch(`/inbox/${channelId}/reply`, {
+        method: 'POST',
+        body: JSON.stringify({ commentId, message, postId }),
+      });
+      if (!response.ok) {
+        throw new Error('reply-failed');
+      }
+      toaster.show(t('inbox_reply_sent', 'Reply sent'), 'success');
+      onDone();
+    } catch {
+      toaster.show(
+        t('inbox_reply_failed', 'The platform rejected the reply'),
+        'warning'
+      );
+    } finally {
+      setSending(false);
+    }
+  }, [message, channelId, commentId, postId]);
+
+  return (
+    <div className="flex flex-col gap-[8px] mt-[4px]">
+      <Textarea
+        label=""
+        name="reply"
+        disableForm={true}
+        value={message}
+        onChange={(e: any) => setMessage(e.target.value)}
+        placeholder={t('inbox_reply_placeholder', 'Write a reply...')}
+      />
+      <div>
+        <Button onClick={send} disabled={sending || !message.trim()}>
+          {sending ? t('sending', 'Sending...') : t('send_reply', 'Send reply')}
+        </Button>
+      </div>
+    </div>
+  );
+};

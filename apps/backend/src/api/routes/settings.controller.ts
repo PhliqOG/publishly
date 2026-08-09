@@ -13,6 +13,7 @@ import { Organization, User } from '@prisma/client';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { AuditLogService } from '@gitroom/nestjs-libraries/database/prisma/audit-logs/audit-log.service';
+import { OrgDataService } from '@gitroom/nestjs-libraries/database/prisma/organizations/org-data.service';
 import { AddTeamMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/add.team.member.dto';
 import { AdminAddTeamMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/admin.add.team.member.dto';
 import { ShortlinkPreferenceDto } from '@gitroom/nestjs-libraries/dtos/settings/shortlink-preference.dto';
@@ -24,7 +25,8 @@ import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/p
 export class SettingsController {
   constructor(
     private _organizationService: OrganizationService,
-    private _auditLogService: AuditLogService
+    private _auditLogService: AuditLogService,
+    private _orgDataService: OrgDataService
   ) {}
 
   @Get('/team')
@@ -87,6 +89,36 @@ export class SettingsController {
       targetId: id,
     });
     return this._organizationService.deleteTeamMember(org, id);
+  }
+
+  // Full workspace export (no secrets - tokens are excluded by construction).
+  @Get('/export')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async exportOrganization(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User
+  ) {
+    this._auditLogService.log({
+      organizationId: org.id,
+      userId: user.id,
+      action: 'org.data-exported',
+    });
+    return this._orgDataService.exportData(org.id);
+  }
+
+  // Destroys credentials immediately, soft-deletes content, disables members.
+  @Delete('/organization')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async deleteOrganization(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User
+  ) {
+    this._auditLogService.log({
+      organizationId: org.id,
+      userId: user.id,
+      action: 'org.deletion-requested',
+    });
+    return this._orgDataService.requestDeletion(org.id);
   }
 
   @Get('/shortlink')

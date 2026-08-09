@@ -94,6 +94,34 @@ export const useMenuItem = () => {
       path: '/analytics',
     },
     {
+      name: t('inbox', 'Inbox'),
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+        >
+          <path
+            d="M17.5 9.58333C17.5 13.4954 14.1421 16.6667 10 16.6667C8.85139 16.6667 7.76308 16.4227 6.79004 15.9868C6.60828 15.9053 6.51739 15.8646 6.44462 15.8462C6.37485 15.8285 6.32106 15.8221 6.24911 15.8221C6.17403 15.8221 6.09239 15.8386 5.9291 15.8716L2.5 16.5556L3.28073 13.5045C3.32949 13.3139 3.35387 13.2186 3.35688 13.1354C3.35979 13.055 3.35434 12.9944 3.33502 12.9163C3.31502 12.8354 3.26661 12.7357 3.16979 12.5361C2.74032 11.6511 2.5 10.647 2.5 9.58333C2.5 5.67132 5.85786 2.5 10 2.5C14.1421 2.5 17.5 5.67132 17.5 9.58333Z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M6.66675 8.75H13.3334M6.66675 11.6667H10.8334"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ),
+      path: '/inbox',
+    },
+    {
       name: t('media', 'Media'),
       icon: (
         <svg
