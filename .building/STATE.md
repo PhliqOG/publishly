@@ -84,6 +84,13 @@ marketing site must get a distinctive creative design pass (frontend-design skil
   api-keys 6, webhook replay ledger 4). Secrets scan of tracked files: clean.
 - E2E scheduling proof: first run exposed testprovider missing from the settings-DTO
   discriminator whitelist — fixed, backend recompiling/restarting, E2E re-running.
+- POST-REPORT FOLLOW-UP (operator "continue"): production `next build` PASS (9/9 static,
+  full route table, proxy bundled); `next start` on :4200 serves marketing+app routes 200
+  with Publishly markup; E2E scheduling re-run PASS on the production-frontend stack.
+  Ops note: killing a backgrounded launch task does NOT always kill the node child — the
+  original orchestrator (pid 8508) survived a task kill and held :3002 (EADDRINUSE on
+  relaunch, which is how it was noticed). Check ports before relaunching.
+  Browser-level UI E2E still open: Claude-in-Chrome extension not connected on this box.
 
 ## Open risks
 - canvas (node-canvas 2.x) native build skipped by pnpm 10 → runtime failure only if server code

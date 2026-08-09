@@ -78,15 +78,20 @@ missing package); Windows-safe run regime documented.
   real composer API → Temporal workflow → worker publish → Post PUBLISHED with releaseURL,
   **exactly-once delivery confirmed via the provider sink**.
 - Inbox smoke: PASS (capability listing, comment fetch, authorized reply).
+- **Production frontend build: PASS** (post-report follow-up) — `next build` clean, 9/9
+  static pages, full route table (marketing pages prerendered static, app routes dynamic,
+  proxy middleware bundled); `next start` serves /, /pricing, /features, /source,
+  /auth/login all 200 with the Publishly marketing markup rendered; E2E scheduling
+  re-run PASS against the production-frontend stack.
 - Runtime health at close: backend {ok, db+redis}, orchestrator {ok} with provider task
   queues RUNNING, frontend 200 (marketing + app), Temporal UI on 8082, ES green.
 - Committed-secrets scan: clean.
 
-**Not exercised (honest):** production `next build`/`nest build` full-bundle pass for the
-frontend (dev-server + clean full-graph typechecks only); Stripe test-mode E2E (no test
-keys on the machine — replay logic is covered by ledger tests; paste keys and run
-`pnpm run dev:stripe` tomorrow); real-provider posting (no credentials, by design);
-browser-level UI E2E (API-level E2E only). Survived a mid-build machine restart —
+**Not exercised (honest):** Stripe test-mode E2E (no test keys on the machine — replay
+logic is covered by ledger tests; paste keys and run `pnpm run dev:stripe` tomorrow);
+real-provider posting (no credentials, by design); browser-level UI E2E (API-level E2E
+only; Chrome extension not connected on this machine — the production HTML render was
+verified via HTTP instead). Survived a mid-build machine restart —
 recovery runbook proven and documented.
 
 ## DEPLOYMENT
