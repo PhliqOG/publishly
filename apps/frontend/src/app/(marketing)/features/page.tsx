@@ -6,139 +6,312 @@ import {
 } from '@gitroom/frontend/components/marketing/chrome';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
-export const metadata: Metadata = { title: 'Features' };
+export const metadata: Metadata = {
+  title: 'Features',
+  description:
+    'Compose once, schedule the week & let a durable workflow deliver. Every capability listed here ships in the product today.',
+};
 
-const GROUPS = [
+// The page follows the actual job: compose → schedule → deliver, then the
+// structure around the posts. Rows & splits, no card grids.
+
+const COMPOSE = [
   {
-    title: 'Composer',
-    items: [
-      'One draft, tailored captions per network',
-      'Live previews in each platform’s shape',
-      'Character and media limits enforced before scheduling',
-      'First-comment publishing where platforms allow it',
-      'Drafts, tags, saved channel sets, and signatures',
-    ],
+    h: 'Per-network variants',
+    p: 'Write the core message once, then tailor the caption, tags & first comment for each destination. The variant travels with the post — nothing gets retyped.',
   },
   {
-    title: 'Calendar',
-    items: [
-      'Month, week, and day views',
-      'Drag-and-drop rescheduling',
-      'Timezone-aware slots',
-      'Bulk CSV import with a validation preview and per-row error report',
-      'Bulk shift and bulk delete for selected posts',
-    ],
+    h: 'Live previews',
+    p: 'See the post in each platform’s shape while you write it, not after it publishes.',
   },
   {
-    title: 'Publishing pipeline',
-    items: [
-      'Durable workflow per post — survives restarts and deploys',
-      'Duplicate-resistant execution with deterministic workflow identities',
-      'Per-network partial success: only failed destinations retry',
-      'Automatic token refresh, honest error reporting per channel',
-      'Hourly sweeper re-queues anything that missed its slot',
-    ],
+    h: 'Limits, checked early',
+    p: 'Character counts & media rules are validated before you schedule, so a post never fails for a reason the composer could see coming.',
   },
   {
-    title: 'Team & workspace',
-    items: [
-      'Workspaces with roles and invitations',
-      'Internal comments on scheduled posts',
-      'Audit log of security-relevant actions',
-      'Customer grouping for agency-style setups',
-    ],
+    h: 'First comments',
+    p: 'Publish the first comment together with the post on networks that support it. Where a network doesn’t, the option isn’t shown.',
   },
   {
-    title: 'Analytics',
-    items: [
-      'Platform-reported metrics via official APIs',
-      'Historical snapshots are captured whenever analytics refresh',
-      'Metrics a platform does not expose are labelled unavailable — never estimated',
-    ],
-  },
-  {
-    title: 'Developers',
-    items: [
-      'Public API with hashed, scope-limited keys',
-      'Outgoing webhooks on publishing events',
-      'Self-hostable: the engine is open source (AGPL-3.0)',
-    ],
+    h: 'Repeat work, shortened',
+    p: 'Drafts, tags, saved channel sets & signatures keep the second week faster than the first.',
   },
 ];
+
+const SCHEDULE = [
+  {
+    h: 'Three altitudes',
+    p: 'Month for the plan, week for the rhythm, day for the detail — the same posts at three zoom levels.',
+  },
+  {
+    h: 'Drag & drop',
+    p: 'Reschedule by dragging a post to its new slot. The publishing pipeline follows — no orphaned jobs, no stale queues.',
+  },
+  {
+    h: 'Timezone-aware slots',
+    p: 'Every slot is stored with its timezone, so the calendar means what it says wherever your team signs in.',
+  },
+  {
+    h: 'CSV import, with receipts',
+    p: 'Load a CSV, preview the validation, commit when it’s clean. Every rejected row tells you why before anything is written.',
+  },
+  {
+    h: 'Bulk edits',
+    p: 'Shift a whole range of posts or clear it in one action instead of fifty.',
+  },
+];
+
+const DELIVER = [
+  {
+    h: 'Durable workflows',
+    p: 'Each destination runs as its own durable workflow. It survives crashes, restarts & deploys — mid-publish included.',
+  },
+  {
+    h: 'No double posts',
+    p: 'Deterministic workflow identities make retries converge instead of repeating. The dangerous step simply isn’t repeatable.',
+  },
+  {
+    h: 'Partial success',
+    p: 'A post to six networks is six deliveries. If one fails, five stay published & only the failed one retries.',
+  },
+  {
+    h: 'Honest status',
+    p: 'The calendar shows what actually happened, per network — delivered, retrying or failed, with the platform’s own error.',
+  },
+  {
+    h: 'The sweeper',
+    p: 'Every hour, a sweeper re-queues anything that missed its slot — after downtime, an API outage or a token refresh. Missed doesn’t mean lost.',
+  },
+];
+
+const AROUND = [
+  {
+    h: 'Ten networks, first-class',
+    p: 'Instagram, Facebook, TikTok, YouTube, X, Threads, LinkedIn, Pinterest, Bluesky & Mastodon — all through official APIs, plus 20+ more publishing targets from the engine.',
+  },
+  {
+    h: 'Workspaces & roles',
+    p: 'Channels, media, keys & analytics stay isolated per workspace, with roles & invitations deciding who can do what.',
+  },
+  {
+    h: 'Audit log',
+    p: 'Team invitations, channel changes, key management & bulk operations are recorded per workspace — who, what, when, from where.',
+  },
+  {
+    h: 'Analytics with receipts',
+    p: 'Platform-reported metrics only, snapshotted as they refresh. Anything a network doesn’t expose is labelled unavailable — never estimated.',
+  },
+  {
+    h: 'A capability-gated inbox',
+    p: 'Comments from connected channels in one queue, replies through the same official APIs. Channels that can’t support it say so.',
+  },
+  {
+    h: 'Scoped API keys',
+    p: 'Hashed, scope-limited keys you can revoke at any time. Everything the app does, your scripts can do.',
+  },
+  {
+    h: 'Webhooks',
+    p: 'Outgoing webhooks fire on publishing events, so your own systems stay in the loop.',
+  },
+  {
+    h: 'Open source',
+    p: 'The engine is AGPL-3.0 & the corresponding source of the running service is available to every user.',
+  },
+];
+
+const Rows = ({ items }: { items: Array<{ h: string; p: string }> }) => (
+  <div className="mk-rows">
+    {items.map((item) => (
+      <div className="mk-row" key={item.h}>
+        <h3>{item.h}</h3>
+        <p>{item.p}</p>
+      </div>
+    ))}
+  </div>
+);
 
 export default function FeaturesPage() {
   return (
     <>
       <MarketingNav />
+      <main id="mk-main">
+        <header style={{ padding: '96px 0 8px' }}>
+          <div className="mk-container">
+            <div className="mk-reveal">
+              <span className="mk-eyebrow" style={{ display: 'block' }}>
+                Features
+              </span>
+              <h1
+                className="mk-h2-lg"
+                style={{ marginTop: 18, maxWidth: '13ch' }}
+              >
+                Compose. Schedule. Deliver.
+              </h1>
+              <p className="mk-section-lede">
+                The whole job in three moves. Everything on this page ships in
+                the product today — where a network limits a feature, the
+                interface says so instead of pretending.
+              </p>
+            </div>
+          </div>
+        </header>
 
-      <section style={{ padding: '96px 0 88px' }}>
-        <div className="mk-container">
-          <div className="mk-reveal">
-            <span className="mk-eyebrow" style={{ display: 'block' }}>
-              Features
-            </span>
-            <h1
-              className="mk-h1"
+        <section className="mk-section" aria-labelledby="ft-compose">
+          <div className="mk-container">
+            <div className="mk-split">
+              <div>
+                <span className="mk-num" aria-hidden>
+                  01
+                </span>
+                <h2 id="ft-compose" className="mk-h2" style={{ marginTop: 12 }}>
+                  Compose once, in every voice.
+                </h2>
+                <p className="mk-section-lede">
+                  One draft carries the message. Captions, tags & first
+                  comments adapt per network — checked against each
+                  platform&rsquo;s real limits before you schedule.
+                </p>
+              </div>
+              <Rows items={COMPOSE} />
+            </div>
+          </div>
+        </section>
+
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="ft-schedule"
+        >
+          <div className="mk-container">
+            <div className="mk-split mk-split-rev">
+              <div style={{ maxWidth: '46ch' }}>
+                <span className="mk-num" aria-hidden>
+                  02
+                </span>
+                <h2
+                  id="ft-schedule"
+                  className="mk-h2"
+                  style={{ marginTop: 12 }}
+                >
+                  Schedule the week in one sitting.
+                </h2>
+                <p className="mk-section-lede">
+                  Month, week & day views over one calendar. Move a slot &
+                  the pipeline moves with it.
+                </p>
+              </div>
+              <Rows items={SCHEDULE} />
+            </div>
+          </div>
+        </section>
+
+        <section className="mk-section" aria-labelledby="ft-deliver">
+          <div className="mk-container">
+            <div style={{ maxWidth: '58ch' }}>
+              <span className="mk-num" aria-hidden>
+                03
+              </span>
+              <h2 id="ft-deliver" className="mk-h2" style={{ marginTop: 12 }}>
+                Delivery you don&rsquo;t babysit.
+              </h2>
+              <p className="mk-section-lede">
+                Publishing runs on a durable workflow engine, so crashes, rate
+                limits & expired tokens stay boring.
+              </p>
+            </div>
+            <div style={{ marginTop: 44 }}>
+              <Rows items={DELIVER} />
+            </div>
+          </div>
+        </section>
+
+        <section className="mk-section" aria-labelledby="ft-around">
+          <div className="mk-container">
+            <div style={{ maxWidth: '58ch' }}>
+              <span className="mk-num" aria-hidden>
+                04
+              </span>
+              <h2 id="ft-around" className="mk-h2" style={{ marginTop: 12 }}>
+                Around the posts.
+              </h2>
+              <p className="mk-section-lede">
+                The structure that keeps a shared calendar honest — for one
+                brand or forty.
+              </p>
+            </div>
+            <div
+              className="mk-reveal"
               style={{
-                fontSize: 'clamp(2.7rem, 5.6vw, 4.4rem)',
-                marginTop: 20,
-                maxWidth: '16ch',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                columnGap: 56,
+                marginTop: 48,
               }}
             >
-              Every feature, listed.
-            </h1>
-            <p className="mk-section-lede">
-              Everything here ships in the product today. If a network limits a
-              feature, the interface says so instead of pretending.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="mk-section">
-        <div className="mk-container">
-          <div className="mk-feature-head">
-            <span className="mk-num">01</span>
-            <span className="mk-num-label">Inventory</span>
-          </div>
-          <div className="mk-cards mk-reveal" data-delay="120">
-            {GROUPS.map((group, i) => (
-              <div className="mk-card" key={group.title}>
-                <div className="mk-card-num">
-                  {String(i + 1).padStart(2, '0')}
+              {AROUND.map((item) => (
+                <div
+                  key={item.h}
+                  style={{
+                    borderTop: '1px solid var(--mk-line)',
+                    padding: '20px 0 26px',
+                  }}
+                >
+                  <h3 style={{ fontSize: 17, letterSpacing: '-0.015em' }}>
+                    {item.h}
+                  </h3>
+                  <p
+                    style={{
+                      color: 'var(--mk-text-2)',
+                      fontSize: 14.5,
+                      lineHeight: 1.6,
+                      margin: '8px 0 0',
+                    }}
+                  >
+                    {item.p}
+                    {item.h === 'Open source' && (
+                      <>
+                        {' '}
+                        <Link
+                          href="/source"
+                          style={{
+                            color: 'var(--mk-blue)',
+                            textDecoration: 'underline',
+                            textUnderlineOffset: 3,
+                          }}
+                        >
+                          {MARKETING.openSource.linkLabel}
+                        </Link>
+                        .
+                      </>
+                    )}
+                  </p>
                 </div>
-                <h3>{group.title}</h3>
-                <ul className="mk-feature-points" style={{ marginTop: 16 }}>
-                  {group.items.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="mk-section">
-        <div className="mk-container">
-          <div className="mk-feature-head">
-            <span className="mk-num">02</span>
-            <span className="mk-num-label">Start</span>
-          </div>
-          <div className="mk-band mk-reveal">
-            <div>
-              <h2 style={{ fontSize: 'clamp(1.7rem, 3.2vw, 2.4rem)' }}>
-                See the board clear itself.
-              </h2>
-              <p>Create the workspace before choosing a paid plan.</p>
+              ))}
             </div>
-            <Link href={MARKETING.authRegister} className="mk-btn mk-btn-primary">
-              {MARKETING.cta.primary}
-            </Link>
           </div>
-        </div>
-      </section>
+        </section>
 
+        <section style={{ padding: '0 0 104px' }}>
+          <div className="mk-container">
+            <div className="mk-band">
+              <div>
+                <h2 style={{ fontSize: 'clamp(1.7rem, 3.2vw, 2.4rem)' }}>
+                  See the board clear itself.
+                </h2>
+                <p>
+                  Create the workspace first — choose a plan when a channel is
+                  ready to go live.
+                </p>
+              </div>
+              <Link
+                href={MARKETING.authRegister}
+                className="mk-btn mk-btn-primary"
+              >
+                {MARKETING.cta.primary}
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
       <MarketingFooter />
     </>
   );

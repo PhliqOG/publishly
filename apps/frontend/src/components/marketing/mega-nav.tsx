@@ -25,7 +25,7 @@ const MENUS: Menu[] = [
       { label: 'Composer', href: '/features', sub: 'One draft, every voice' },
       { label: 'Calendar', href: '/calendar', sub: 'The week at a glance' },
       { label: 'Publishing', href: '/publishing', sub: 'Durable delivery' },
-      { label: 'Analytics', href: '/analytics', sub: 'Numbers with receipts' },
+      { label: 'Analytics', href: '/product/analytics', sub: 'Numbers with receipts' },
       { label: 'Engagement', href: '/engagement', sub: 'One inbox' },
       { label: 'API', href: '/api-docs', sub: 'Scoped keys, real docs' },
     ],

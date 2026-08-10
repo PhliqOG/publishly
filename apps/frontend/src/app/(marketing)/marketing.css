@@ -16,22 +16,34 @@ html {
 }
 
 :root {
-  --mk-ink: #14233b;
-  --mk-blue: #2563eb;
-  --mk-blue-up: #1d4fd8;
-  --mk-sky: #3b82f6;
-  --mk-wash: #eaf2fe;
+  /* ink & text */
+  --mk-ink: #071521;
+  --mk-ink-soft: #223544;
+  --mk-muted: #5f7180;
+
+  /* brand ramp (sky family, harmonized with the wordmark blue) */
+  --mk-brand-300: #95d3ff;
+  --mk-brand-400: #72c2ff;
+  --mk-brand-500: #55b0ff;
+  --mk-brand-600: #3298e8;
+  --mk-brand-700: #1878c4;
+
+  --mk-blue: var(--mk-brand-700);
+  --mk-blue-up: #136aae;
+  --mk-sky: var(--mk-brand-500);
+  --mk-wash: #eaf6ff;
+  --mk-wash-strong: #d9efff;
   --mk-sun: #ffd34d;
 
-  --mk-bg: #ffffff;
-  --mk-bg-tint: #f6fafe;
+  --mk-bg: #f7fbff;
+  --mk-bg-tint: #eaf6ff;
   --mk-surface-1: #ffffff;
-  --mk-surface-2: rgba(20, 35, 59, 0.035);
-  --mk-line: rgba(20, 35, 59, 0.1);
-  --mk-line-strong: rgba(20, 35, 59, 0.26);
+  --mk-surface-2: rgba(7, 21, 33, 0.03);
+  --mk-line: rgba(7, 21, 33, 0.1);
+  --mk-line-strong: rgba(7, 21, 33, 0.24);
   --mk-text: var(--mk-ink);
-  --mk-text-2: rgba(20, 35, 59, 0.72);
-  --mk-text-3: rgba(20, 35, 59, 0.48);
+  --mk-text-2: var(--mk-ink-soft);
+  --mk-text-3: var(--mk-muted);
 
   --net-instagram: #e1306c;
   --net-facebook: #1877f2;
@@ -48,12 +60,13 @@ html {
   --mk-radius: 14px;
   --mk-radius-sm: 9px;
   --mk-container: 1120px;
+  --mk-container-wide: 1280px;
   --mk-shadow:
-    0 1px 2px rgba(20, 35, 59, 0.05),
-    0 10px 30px -12px rgba(20, 35, 59, 0.12);
+    0 1px 2px rgba(7, 21, 33, 0.05),
+    0 10px 30px -12px rgba(7, 21, 33, 0.1);
   --mk-shadow-lg:
-    0 2px 4px rgba(20, 35, 59, 0.06),
-    0 24px 60px -22px rgba(20, 35, 59, 0.2);
+    0 2px 4px rgba(7, 21, 33, 0.05),
+    0 24px 60px -22px rgba(7, 21, 33, 0.16);
 }
 
 /* dark scope — product-window replicas & the terminal keep their night UI */
@@ -610,18 +623,156 @@ html {
   margin-right: auto;
 }
 .mk-h2 {
-  font-size: clamp(1.9rem, 3.6vw, 2.8rem);
-  letter-spacing: -0.035em;
-  line-height: 1.1;
+  font-size: clamp(2.1rem, 4vw, 3.4rem);
+  letter-spacing: -0.04em;
+  line-height: 1.02;
   max-width: 24ch;
+  text-wrap: balance;
+}
+.mk-h2-lg {
+  font-size: clamp(2.6rem, 5.2vw, 4.8rem);
+  letter-spacing: -0.045em;
+  line-height: 0.97;
   text-wrap: balance;
 }
 .mk-section-lede {
   color: var(--mk-text-2);
-  font-size: 17.5px;
-  line-height: 1.65;
+  font-size: clamp(1.06rem, 1.4vw, 1.3rem);
+  line-height: 1.55;
   max-width: 52ch;
   margin: 18px 0 0;
+}
+
+/* editorial split (asymmetric, left-aligned) */
+.mk-split {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 64px;
+  align-items: center;
+  text-align: left;
+}
+.mk-split-rev {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+}
+.mk-rows {
+  border-top: 1px solid var(--mk-line);
+}
+.mk-row {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 22px;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--mk-line);
+  text-align: left;
+}
+.mk-row h3 {
+  font-size: 17px;
+  letter-spacing: -0.015em;
+}
+.mk-row p {
+  color: var(--mk-text-2);
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* editorial statement — words shift muted → ink on scroll */
+.mk-statement {
+  font-family: var(--mk-font-display), sans-serif;
+  font-size: clamp(1.7rem, 3.4vw, 3rem);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  line-height: 1.18;
+  max-width: 26ch;
+  text-wrap: balance;
+}
+.mk-statement .mk-w {
+  color: var(--mk-muted);
+  transition: color 0.35s var(--mk-ease);
+}
+.mk-statement .mk-w.mk-w-on {
+  color: var(--mk-ink);
+}
+
+/* connection diagram (platforms → Publishly) */
+.mk-diagram {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.mk-diagram .mk-d-path {
+  stroke: var(--mk-brand-400);
+  stroke-width: 1.6;
+  fill: none;
+}
+.mk-diagram .mk-d-node {
+  fill: #fff;
+  stroke: var(--mk-line-strong);
+  stroke-width: 1;
+}
+.mk-diagram .mk-d-hub {
+  fill: var(--mk-brand-700);
+}
+.mk-diagram .mk-d-label {
+  font-family: var(--mk-font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  fill: var(--mk-muted);
+  text-transform: uppercase;
+}
+.mk-diagram .mk-d-pulse {
+  fill: var(--mk-brand-600);
+}
+
+/* final CTA — contained brand panel with the dot motif, footer flows out */
+.mk-cta-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 26px;
+  background: linear-gradient(135deg, var(--mk-brand-600), var(--mk-brand-700));
+  color: #fff;
+  padding: 88px 32px;
+  text-align: center;
+}
+.mk-cta-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    circle,
+    rgba(248, 252, 255, 0.5) 1px,
+    transparent 1.35px
+  );
+  background-size: 8px 8px;
+  opacity: 0.35;
+  -webkit-mask-image: radial-gradient(80% 90% at 50% 110%, #000 30%, transparent 78%);
+  mask-image: radial-gradient(80% 90% at 50% 110%, #000 30%, transparent 78%);
+  pointer-events: none;
+}
+.mk-cta-panel > * {
+  position: relative;
+}
+.mk-cta-panel .mk-h2 {
+  color: #fff;
+  margin: 0 auto;
+}
+.mk-cta-panel p {
+  color: rgba(255, 255, 255, 0.92);
+}
+.mk-cta-panel .mk-btn-primary {
+  background-color: #fff;
+  color: var(--mk-brand-700);
+}
+.mk-cta-panel .mk-btn-primary:hover {
+  background-color: var(--mk-wash);
+}
+.mk-cta-panel .mk-btn-ghost {
+  border-color: rgba(255, 255, 255, 0.55);
+  color: #fff;
+  background: transparent;
+}
+.mk-cta-panel .mk-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* sun accent — a small warm underline dot used sparingly */
@@ -1454,6 +1605,15 @@ html {
 /* ---------- responsive ---------- */
 
 @media (max-width: 1020px) {
+  .mk-split,
+  .mk-split-rev {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .mk-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
   .mk-trio,
   .mk-cards,
   .mk-bento {

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import {
   MarketingFooter,
   MarketingNav,
@@ -11,7 +12,7 @@ export default function PrivacyPage() {
   return (
     <>
       <MarketingNav />
-      <main>
+      <main id="mk-main">
         <section className="mk-section">
           <div className="mk-container">
             <header style={{ marginBottom: 36 }}>
@@ -73,7 +74,7 @@ export default function PrivacyPage() {
                 app in your Meta settings. The signed callback immediately
                 removes matching provider data and returns a confirmation URL.
                 Full instructions and request status are available on the{' '}
-                <a href="/data-deletion">data-deletion page</a>.
+                <Link href="/data-deletion">data-deletion page</Link>.
               </p>
             </div>
           </div>

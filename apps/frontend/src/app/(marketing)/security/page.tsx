@@ -1,135 +1,203 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { CSSProperties } from 'react';
 import {
   MarketingFooter,
   MarketingNav,
 } from '@gitroom/frontend/components/marketing/chrome';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
-export const metadata: Metadata = { title: 'Security' };
+export const metadata: Metadata = {
+  title: 'Security',
+  description:
+    'How your social credentials are stored, used & destroyed — stated plainly, with the source available to check.',
+};
+
+// The calm chapter: definition lists & measured type, no cards, no urgency.
+
+const DT: CSSProperties = {
+  margin: 0,
+  fontFamily: 'var(--mk-font-display), sans-serif',
+  fontWeight: 650,
+  fontSize: 17,
+  letterSpacing: '-0.015em',
+  color: 'var(--mk-text)',
+  lineHeight: 1.3,
+};
+
+const DD: CSSProperties = {
+  margin: 0,
+  color: 'var(--mk-text-2)',
+  fontSize: 15,
+  lineHeight: 1.6,
+};
+
+const BOUNDARIES = [
+  {
+    h: 'Tenant isolation',
+    p: 'Every workspace’s data is scoped at the query layer & covered by automated cross-tenant access tests that run against the real API.',
+  },
+  {
+    h: 'Roles & membership',
+    p: 'Channels, media, keys & analytics live inside a workspace. Roles & invitations decide who can act; the audit log records who did.',
+  },
+  {
+    h: 'Deletion is destruction',
+    p: 'Disconnect a channel & its tokens are destroyed immediately. You can export your workspace at any time.',
+  },
+];
+
+const STATEMENT =
+  'Security here is mostly subtraction — fewer copies of each credential, narrower scopes on every key & a written record of everything that touched them.';
 
 export default function SecurityPage() {
   return (
     <>
       <MarketingNav />
-
-      <section style={{ padding: '96px 0 88px' }}>
-        <div className="mk-container">
-          <div className="mk-reveal">
-            <span className="mk-eyebrow" style={{ display: 'block' }}>
-              Security
-            </span>
-            <h1
-              className="mk-h1"
-              style={{
-                fontSize: 'clamp(2.7rem, 5.6vw, 4.4rem)',
-                marginTop: 20,
-                maxWidth: '18ch',
-              }}
-            >
-              A commitment, not a brochure.
-            </h1>
-            <p className="mk-section-lede">
-              A scheduler holds the keys to your audience. Here is how those
-              keys are handled — stated plainly.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="mk-section">
-        <div className="mk-container">
-          <div className="mk-feature-head">
-            <span className="mk-num">01</span>
-            <span className="mk-num-label">Commitments</span>
-          </div>
-          <div className="mk-cards mk-reveal" data-delay="120">
-            {MARKETING.security.map((card, i) => (
-              <div className="mk-card" key={card.title}>
-                <div className="mk-card-num">
-                  {String(i + 1).padStart(2, '0')}
-                </div>
-                <h3>{card.title}</h3>
-                <p>{card.body}</p>
-              </div>
-            ))}
-            <div className="mk-card">
-              <div className="mk-card-num">05</div>
-              <h3>Tenant isolation</h3>
-              <p>
-                Every workspace&apos;s data is scoped at the query layer and
-                covered by automated cross-tenant access tests that run against
-                the real API.
+      <main id="mk-main">
+        <header style={{ padding: '96px 0 8px' }}>
+          <div className="mk-container">
+            <div className="mk-reveal">
+              <span className="mk-eyebrow" style={{ display: 'block' }}>
+                Security
+              </span>
+              <h1
+                className="mk-h2-lg"
+                style={{ marginTop: 18, maxWidth: '13ch' }}
+              >
+                How your keys are held.
+              </h1>
+              <p className="mk-section-lede">
+                A scheduler holds credentials to your audience. This page
+                states plainly how they&rsquo;re stored, how they&rsquo;re
+                used & how they&rsquo;re destroyed.
               </p>
             </div>
-            <div className="mk-card">
-              <div className="mk-card-num">06</div>
-              <h3>Open source, auditable</h3>
-              <p>
-                The engine is AGPL-3.0. Anyone can read the code that touches
-                their credentials — and every user of this service is entitled
-                to the corresponding source.{' '}
-                <Link href="/source" style={{ textDecoration: 'underline' }}>
-                  Get the source.
+          </div>
+        </header>
+
+        <section className="mk-section" aria-labelledby="sec-commitments">
+          <div className="mk-container">
+            <div style={{ maxWidth: '58ch' }}>
+              <h2 id="sec-commitments" className="mk-h2">
+                Four commitments.
+              </h2>
+              <p className="mk-section-lede">
+                Not aspirations — descriptions of how the system works today.
+              </p>
+            </div>
+            <dl
+              className="mk-rows mk-reveal"
+              style={{ margin: '44px 0 0' }}
+            >
+              {MARKETING.security.map((item) => (
+                <div className="mk-row" key={item.title}>
+                  <dt style={DT}>{item.title}</dt>
+                  <dd style={DD}>{item.body}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
+        <section className="mk-quiet" style={{ textAlign: 'left' }}>
+          <div className="mk-container">
+            <p className="mk-statement">
+              {STATEMENT.split(' ').map((w, i) => (
+                <span className="mk-w" key={i}>
+                  {w}{' '}
+                </span>
+              ))}
+            </p>
+          </div>
+        </section>
+
+        <section className="mk-section" aria-labelledby="sec-boundaries">
+          <div className="mk-container">
+            <div className="mk-split">
+              <div>
+                <h2 id="sec-boundaries" className="mk-h2">
+                  Where the walls are.
+                </h2>
+                <p className="mk-section-lede">
+                  Isolation is structural — the boundaries live in the
+                  queries & the tests, not in a policy document.
+                </p>
+              </div>
+              <dl className="mk-rows" style={{ margin: 0 }}>
+                {BOUNDARIES.map((item) => (
+                  <div className="mk-row" key={item.h}>
+                    <dt style={DT}>{item.h}</dt>
+                    <dd style={DD}>{item.p}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </div>
+        </section>
+
+        <section
+          className="mk-section"
+          style={{ paddingTop: 24 }}
+          aria-labelledby="sec-disclosure"
+        >
+          <div className="mk-container">
+            <div style={{ maxWidth: '58ch' }}>
+              <h2 id="sec-disclosure" className="mk-h2">
+                Found a vulnerability?
+              </h2>
+              <p className="mk-section-lede">
+                Write to us before disclosing publicly
+                {MARKETING.supportEmail
+                  ? `: ${MARKETING.supportEmail}`
+                  : ' — see the contact page'}
+                . We read every report.
+              </p>
+            </div>
+            <div style={{ maxWidth: '58ch', marginTop: 72 }}>
+              <h2 className="mk-h2">Read the code.</h2>
+              <p className="mk-section-lede">{MARKETING.openSource.line}</p>
+              <p style={{ margin: '20px 0 0' }}>
+                <Link href="/source" className="mk-arrow">
+                  {MARKETING.openSource.linkLabel}
                 </Link>
               </p>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="mk-section">
-        <div className="mk-container">
-          <div className="mk-feature-head">
-            <span className="mk-num">02</span>
-            <span className="mk-num-label">Disclosure</span>
-          </div>
-          <div className="mk-band mk-reveal">
-            <div>
-              <h2 style={{ fontSize: 'clamp(1.7rem, 3.2vw, 2.4rem)' }}>
-                Found a vulnerability?
-              </h2>
-              <p>
-                Write to us before disclosing publicly
-                {MARKETING.supportEmail
-                  ? `: ${MARKETING.supportEmail}`
-                  : ' via the contact address in your account settings.'}
+        <section style={{ padding: '8px 0 104px' }}>
+          <div className="mk-container">
+            <div
+              style={{
+                borderTop: '1px solid var(--mk-line)',
+                paddingTop: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 24,
+                flexWrap: 'wrap',
+              }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  color: 'var(--mk-text-2)',
+                  fontSize: 16,
+                }}
+              >
+                Read it, then start.
               </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mk-section">
-        <div className="mk-container">
-          <div className="mk-feature-head">
-            <span className="mk-num">03</span>
-            <span className="mk-num-label">Start</span>
-          </div>
-          <div className="mk-band mk-reveal">
-            <div>
-              <h2 style={{ fontSize: 'clamp(1.7rem, 3.2vw, 2.4rem)' }}>
-                Read the code, then start.
-              </h2>
-              <p>
-                The engine is open source, and the source offer is public.
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
               <Link
                 href={MARKETING.authRegister}
                 className="mk-btn mk-btn-primary"
               >
                 {MARKETING.cta.primary}
               </Link>
-              <Link href="/source" className="mk-btn mk-btn-ghost">
-                {MARKETING.openSource.linkLabel}
-              </Link>
             </div>
           </div>
-        </div>
-      </section>
-
+        </section>
+      </main>
       <MarketingFooter />
     </>
   );

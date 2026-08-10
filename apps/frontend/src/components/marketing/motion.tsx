@@ -160,6 +160,16 @@ export function ScrollScene({ children }: { children: ReactNode }): ReactElement
 //    GSAP hides them at setup, so nothing flashes.
 //  · everything sits inside gsap.matchMedia — reduced-motion users get the
 //    static page untouched. Re-runs on route change.
+// Shared motion vocabulary — one place, consistent values everywhere.
+export const MOTION = {
+  fast: 0.35,
+  normal: 0.65,
+  slow: 1.05,
+  easeOut: 'power3.out',
+  easeStrong: 'expo.out',
+  easeInOut: 'power2.inOut',
+} as const;
+
 export function MotionRuntime(): null {
   const pathname = usePathname();
 
@@ -177,6 +187,54 @@ export function MotionRuntime(): null {
       mm = gsap.matchMedia();
 
       mm.add('(prefers-reduced-motion: no-preference)', () => {
+        // — editorial statement: words shift muted → ink as the user scrolls
+        gsap.utils.toArray<HTMLElement>('.mk-statement').forEach((el) => {
+          const words = el.querySelectorAll('.mk-w');
+          if (!words.length) return;
+          const tl = gsap.timeline({
+            scrollTrigger: {
+              trigger: el,
+              start: 'top 78%',
+              end: 'top 32%',
+              scrub: 0.4,
+            },
+          });
+          words.forEach((w) => {
+            tl.to(w, { onStart: () => w.classList.add('mk-w-on') }, '<0.05');
+          });
+        });
+
+        // — connection diagram: paths draw, then nodes & labels activate
+        gsap.utils.toArray<SVGSVGElement>('.mk-diagram').forEach((svg) => {
+          const paths = svg.querySelectorAll<SVGPathElement>('.mk-d-path');
+          const nodes = svg.querySelectorAll('.mk-d-node, .mk-d-hub');
+          const labels = svg.querySelectorAll('.mk-d-label');
+          paths.forEach((p) => {
+            const len = p.getTotalLength();
+            p.style.strokeDasharray = `${len}`;
+            p.style.strokeDashoffset = `${len}`;
+          });
+          const tl = gsap.timeline({
+            scrollTrigger: { trigger: svg, start: 'top 78%', once: true },
+            defaults: { ease: MOTION.easeInOut },
+          });
+          tl.fromTo(
+            nodes,
+            { autoAlpha: 0, scale: 0.7, transformOrigin: 'center' },
+            { autoAlpha: 1, scale: 1, duration: MOTION.fast, stagger: 0.07 }
+          )
+            .to(
+              paths,
+              { strokeDashoffset: 0, duration: MOTION.slow, stagger: 0.08 },
+              '-=0.1'
+            )
+            .fromTo(
+              labels,
+              { autoAlpha: 0 },
+              { autoAlpha: 1, duration: MOTION.fast, stagger: 0.05 },
+              '-=0.6'
+            );
+        });
         // nav settles in from above, once
         gsap.fromTo(
           '.mk-nav',

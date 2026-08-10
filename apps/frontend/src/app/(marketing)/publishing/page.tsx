@@ -9,7 +9,7 @@ export default function PublishingPage() {
     <ProductMarketingPage
       eyebrow="Publishing"
       title="One idea. 10 native destinations."
-      lede="Draft once, tailor the parts that differ, validate against each provider’s real limits & hand every destination to a durable server-side workflow."
+      lede="Draft once, tailor what differs per network, validate against each provider’s real limits & hand every destination to a durable server-side workflow."
       visual={<ComposerReplica />}
       spotlight={{
         eyebrow: 'Composer',
@@ -21,10 +21,11 @@ export default function PublishingPage() {
           'First comments & platform settings',
         ],
       }}
+      statement="A post to six networks is six deliveries. One failure retries alone — the other five stay published & the calendar reports each destination honestly."
       items={[
         {
           title: 'Universal composer',
-          body: 'Images, video, carousels & per-network captions in one draft — first comments, thumbnails & platform settings appear only where a network supports them.',
+          body: 'Compose images, video, carousels & per-network captions in one draft. First comments, thumbnails & platform settings appear only where a network supports them.',
           points: [
             '1 draft, 10 possible destinations',
             'Controls gated by network capability',
@@ -40,7 +41,7 @@ export default function PublishingPage() {
         },
         {
           title: 'Independent destinations',
-          body: 'A post to 6 networks is 6 deliveries — 1 failed destination retries alone while the rest stay published.',
+          body: 'Each destination publishes as its own durable delivery. A failed network retries alone while the rest stay published.',
           points: [
             'Honest per-network status',
             'Conservative retries, never blind re-posts',

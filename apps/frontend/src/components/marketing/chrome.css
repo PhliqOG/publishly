@@ -1,0 +1,80 @@
+/* ============================================================
+   chrome.css — footer-scoped styles for chrome.tsx ONLY.
+   mk-ft- prefix; layers over the base .mk-footer rules in
+   marketing.css (compound selectors win on specificity, not
+   import order). Tokens only — no raw hex.
+   ============================================================ */
+
+/* Pale-wash ground so the footer reads as its own closing surface and
+   flows cleanly out of the blue .mk-cta-panel above it on home. Bottom
+   padding is zero: the cropped wordmark forms the page's bottom edge. */
+.mk-footer.mk-ft {
+  background: var(--mk-wash);
+  padding: 76px 0 0;
+  overflow: hidden; /* clips the oversized wordmark at the page edge */
+}
+
+/* Link ink darkens a step on the wash so 14px text keeps AA contrast. */
+.mk-ft .mk-footer-col a {
+  color: var(--mk-ink-soft);
+}
+.mk-ft .mk-footer-col a:hover {
+  color: var(--mk-ink);
+}
+
+.mk-ft .mk-ft-agpl {
+  margin: 14px 0 0;
+  max-width: 38ch;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--mk-ink-soft);
+}
+
+.mk-ft a.mk-ft-source {
+  margin-top: 10px;
+  min-height: 24px;
+  font-weight: 600;
+  color: var(--mk-blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.mk-ft a.mk-ft-source:hover {
+  color: var(--mk-blue-up);
+}
+
+.mk-ft .mk-ft-meta {
+  margin-top: 60px;
+  padding: 18px 0 10px;
+  border-top: 1px solid var(--mk-line);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 32px;
+  font-size: 13px;
+  color: var(--mk-muted);
+}
+.mk-ft .mk-ft-meta p {
+  margin: 0;
+  max-width: 62ch;
+}
+
+/* The one brand detail: the wordmark oversized, ghosted to sky, and
+   cropped by the bottom edge of the page. multiply melts the PNG's
+   white ground into the wash — no box, no gradient; at 0.4 the blue
+   lands in brand-300 territory. Flat color, decorative only. */
+.mk-ft-mark {
+  max-width: var(--mk-container);
+  margin: 6px auto 0;
+  padding: 0 28px;
+}
+.mk-ft-mark img {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* % margin resolves against width: image is 31.1% of width tall, so
+     -14% crops the lower ~45% of the letterforms off the page */
+  margin-bottom: -14%;
+  mix-blend-mode: multiply;
+  opacity: 0.4;
+}

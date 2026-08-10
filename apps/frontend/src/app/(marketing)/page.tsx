@@ -4,6 +4,7 @@ import { MarketingFooter } from '@gitroom/frontend/components/marketing/chrome';
 import { MegaNav } from '@gitroom/frontend/components/marketing/mega-nav';
 import { HalftoneHeroBackground } from '@gitroom/frontend/components/marketing/halftone';
 import { PlatformIcon } from '@gitroom/frontend/components/marketing/icons';
+import { ConnectionDiagram } from '@gitroom/frontend/components/marketing/diagram';
 import { CalendarBoard } from '@gitroom/frontend/components/marketing/hero-cinema';
 import { Tabs } from '@gitroom/frontend/components/marketing/motion';
 import { ApiTerminal } from '@gitroom/frontend/components/marketing/terminal';
@@ -170,26 +171,32 @@ export default function MarketingHome() {
           </div>
         </section>
 
-        <section className="mk-section mk-center" id="overview">
+        <section className="mk-section" id="connect">
           <div className="mk-container">
-            <div className="mk-reveal">
-              <h2 className="mk-h2">
-                Everything in its place.
-                <span className="mk-sundot" aria-hidden />
-              </h2>
-              <p className="mk-section-lede">
-                Three jobs, done properly — planning, publishing &
-                measuring. Nothing else in the way.
-              </p>
-            </div>
-            <div className="mk-trio">
-              {TRIO.map((t, i) => (
-                <div className="mk-trio-card mk-reveal" key={t.title} data-delay={i * 70}>
-                  <div className="mk-trio-icon">{t.icon}</div>
-                  <h3>{t.title}</h3>
-                  <p>{t.body}</p>
+            <div className="mk-split">
+              <div>
+                <h2 className="mk-h2">
+                  Connect once.
+                  <br />
+                  Publish everywhere.
+                  <span className="mk-sundot" aria-hidden />
+                </h2>
+                <p className="mk-section-lede">
+                  Authorize each account through its platform&rsquo;s official
+                  OAuth flow. From then on, every post travels one controlled
+                  pipeline — drafted once, tailored per network, delivered &
+                  verified.
+                </p>
+                <div className="mk-rows" style={{ marginTop: 34 }}>
+                  {TRIO.map((t) => (
+                    <div className="mk-row" key={t.title}>
+                      <h3>{t.title}</h3>
+                      <p>{t.body}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+              <ConnectionDiagram />
             </div>
           </div>
         </section>
@@ -368,16 +375,16 @@ export default function MarketingHome() {
           </div>
         </section>
 
-        <section className="mk-quiet">
-          <div className="mk-container mk-reveal">
-            <h2 className="mk-h2" style={{ margin: '0 auto' }}>
-              Boring, on purpose.
-            </h2>
-            <p>
-              Every scheduled post runs as a durable workflow with a
-              deterministic identity. Crashes, restarts & retries converge
-              instead of double-posting — the dangerous step is simply not
-              repeatable.
+        <section className="mk-quiet" style={{ textAlign: 'left' }}>
+          <div className="mk-container">
+            <p className="mk-statement">
+              {'Every post runs as a durable workflow with a deterministic identity. Crashes, restarts & retries converge instead of double-posting — the dangerous step is simply not repeatable. Boring, on purpose.'
+                .split(' ')
+                .map((w, i) => (
+                  <span className="mk-w" key={i}>
+                    {w}{' '}
+                  </span>
+                ))}
             </p>
           </div>
         </section>
@@ -418,22 +425,25 @@ export default function MarketingHome() {
           </div>
         </section>
 
-        <section className="mk-ctaclose">
-          <div className="mk-container mk-reveal">
-            <h2 className="mk-h2" style={{ margin: '0 auto' }}>
-              Start publishing properly.
-            </h2>
-            <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-              Connect a channel, fill the week & watch the board clear
-              itself.
-            </p>
-            <div className="mk-hero-ctas">
-              <Link href={MARKETING.authRegister} className="mk-btn mk-btn-primary">
-                Create free account
-              </Link>
-              <Link href="/pricing" className="mk-btn mk-btn-ghost">
-                See pricing
-              </Link>
+        <section className="mk-ctaclose" style={{ background: 'none' }}>
+          <div className="mk-container">
+            <div className="mk-cta-panel">
+              <h2 className="mk-h2">Start publishing properly.</h2>
+              <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
+                Connect a channel, fill the week & watch the board clear
+                itself.
+              </p>
+              <div className="mk-hero-ctas">
+                <Link
+                  href={MARKETING.authRegister}
+                  className="mk-btn mk-btn-primary"
+                >
+                  Create free account
+                </Link>
+                <Link href="/pricing" className="mk-btn mk-btn-ghost">
+                  See pricing
+                </Link>
+              </div>
             </div>
           </div>
         </section>

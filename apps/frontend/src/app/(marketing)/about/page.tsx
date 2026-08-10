@@ -1,5 +1,10 @@
 import type { Metadata } from 'next';
-import { MarketingFooter, MarketingNav } from '@gitroom/frontend/components/marketing/chrome';
+import Link from 'next/link';
+import {
+  MarketingFooter,
+  MarketingNav,
+} from '@gitroom/frontend/components/marketing/chrome';
+import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
 export const metadata: Metadata = { title: 'About' };
 
@@ -7,26 +12,82 @@ export default function AboutPage() {
   return (
     <>
       <MarketingNav />
-      <main className="mk-prose">
-        <h1>About Publishly</h1>
-        <p>
-          Publishly is social-publishing infrastructure for teams that want a
-          clear calendar, provider-aware controls, and recoverable background
-          jobs instead of a browser tab that must stay open.
-        </p>
-        <h2>Built in the open</h2>
-        <p>
-          The product is based on Postiz and distributed under AGPL-3.0. The
-          corresponding source for the running service is offered to its users.
-          Publishly is an independent brand and does not imply endorsement by
-          Postiz or any connected social network.
-        </p>
-        <h2>How claims are made</h2>
-        <p>
-          No fabricated customer totals, reviews, partnerships, or unavailable
-          metrics. Provider features are exposed only when an implemented
-          official API adapter supports them.
-        </p>
+      <main id="mk-main">
+        <section className="mk-section">
+          <div className="mk-container">
+            <header className="mk-reveal" style={{ marginBottom: 48 }}>
+              <span
+                className="mk-eyebrow"
+                style={{ display: 'block', marginBottom: 20 }}
+              >
+                About
+              </span>
+              <h1 className="mk-h2">Publishing, treated like infrastructure.</h1>
+              <p className="mk-section-lede">
+                {MARKETING.brand} schedules &amp; publishes social content for
+                teams that want a clear calendar, per-network control, and
+                recoverable background jobs — not a browser tab that must stay
+                open.
+              </p>
+            </header>
+
+            <div className="mk-prose">
+              <p>
+                The product is deliberately narrow. Connect the accounts you
+                are authorized to manage, write once &amp; tailor each caption
+                per network, and schedule on a month, week, or day calendar. A
+                durable workflow engine carries every post to its destination;
+                when one network fails, the others stay published and only the
+                failed delivery retries.
+              </p>
+              <p>
+                Analytics are snapshots of what each platform reports about
+                your own accounts — nothing modeled, nothing invented.
+              </p>
+            </div>
+
+            <h2
+              style={{
+                fontSize: '22px',
+                letterSpacing: '-0.02em',
+                margin: '56px 0 18px',
+              }}
+            >
+              Commitments
+            </h2>
+            <div className="mk-rows" style={{ maxWidth: 760 }}>
+              <div className="mk-row">
+                <h3>Built in the open</h3>
+                <p>
+                  {MARKETING.brand} is based on Postiz and distributed under
+                  AGPL-3.0. Every user of this service can request the complete
+                  corresponding source of the running version — the offer is
+                  public on the <Link href="/source">source page</Link>.{' '}
+                  {MARKETING.brand} is an independent brand and does not imply
+                  endorsement by Postiz or any connected social network.
+                </p>
+              </div>
+              <div className="mk-row">
+                <h3>How claims are made</h3>
+                <p>
+                  No fabricated customer totals, reviews, partnerships, or
+                  unavailable metrics. A provider feature appears in the
+                  product only when an implemented official API adapter
+                  supports it.
+                </p>
+              </div>
+              <div className="mk-row">
+                <h3>What it will not do</h3>
+                <p>
+                  No engagement bots, no artificial-growth schemes, no posting
+                  without a schedule you created. Connections use each
+                  platform&apos;s official APIs and permission scopes — nothing
+                  else.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
       <MarketingFooter />
     </>

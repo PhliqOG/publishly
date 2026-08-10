@@ -3,6 +3,7 @@ import { CSSProperties } from 'react';
 import { MARKETING } from './marketing.config';
 import { MegaNav } from './mega-nav';
 import { PublishlyWordmark } from './logo';
+import './chrome.css';
 
 // All pages share the mega-menu nav so the chrome never swaps mid-site.
 export const MarketingNav = () => <MegaNav />;
@@ -44,65 +45,93 @@ export const NetworkMarquee = () => (
 // target at or above 24px without touching the shared CSS.
 const FOOT_LINK: CSSProperties = { paddingBlock: '2px' };
 
+// Four groups, real routes only. Analytics points at the marketing page
+// (/product/analytics) — /analytics is the signed-in app.
+const FOOTER_GROUPS: Array<[string, Array<[string, string]>]> = [
+  [
+    'Product',
+    [
+      ['Composer', '/features'],
+      ['Calendar', '/calendar'],
+      ['Publishing', '/publishing'],
+      ['Analytics', '/product/analytics'],
+      ['Engagement', '/engagement'],
+    ],
+  ],
+  [
+    'Resources',
+    [
+      ['Pricing', '/pricing'],
+      ['API docs', '/api-docs'],
+      ['Security', '/security'],
+      ['Get the source', '/source'],
+    ],
+  ],
+  [
+    'Company',
+    [
+      ['About', '/about'],
+      ['Agencies', '/agencies'],
+      ['Contact', '/contact'],
+      ['Sign in', MARKETING.authLogin],
+    ],
+  ],
+  [
+    'Legal',
+    [
+      ['Terms', '/terms'],
+      ['Privacy', '/privacy'],
+      ['Acceptable use', '/acceptable-use'],
+      ['Data deletion', '/data-deletion'],
+    ],
+  ],
+];
+
+// Closing chrome: pale-wash surface flowing out of the CTA panel, five-track
+// grid (brand column + four groups), a thin meta rule, then the one brand
+// moment — the wordmark oversized and cropped by the bottom of the page.
+// Footer-specific styles live in the co-located chrome.css (mk-ft- prefix).
 export const MarketingFooter = () => (
-  <footer className="mk-footer">
+  <footer className="mk-footer mk-ft">
     <div className="mk-container">
       <div className="mk-footer-grid">
         <div>
-          <div className="mk-nav-logo" style={{ marginBottom: 12 }}>
+          <div className="mk-nav-logo">
             <PublishlyWordmark compact />
           </div>
-          <p
-            style={{
-              margin: 0,
-              maxWidth: '40ch',
-              fontSize: '13.5px',
-              lineHeight: 1.65,
-            }}
-          >
-            {MARKETING.openSource.line}
-          </p>
-          <div style={{ marginTop: 10 }}>
-            <Link
-              href="/source"
-              style={{
-                display: 'inline-block',
-                paddingBlock: '2px',
-                textDecoration: 'underline',
-                textUnderlineOffset: '3px',
-              }}
-            >
-              {MARKETING.openSource.linkLabel}
-            </Link>
-          </div>
+          <p className="mk-ft-agpl">{MARKETING.openSource.line}</p>
+          <Link href="/source" className="mk-ft-source">
+            {MARKETING.openSource.linkLabel}
+          </Link>
         </div>
-        <div className="mk-footer-col">
-          <div className="mk-footer-coltitle">Product</div>
-          <Link href="/features" style={FOOT_LINK}>Features</Link>
-          <Link href="/publishing" style={FOOT_LINK}>Publishing</Link>
-          <Link href="/calendar" style={FOOT_LINK}>Calendar</Link>
-          <Link href="/analytics" style={FOOT_LINK}>Analytics</Link>
-          <Link href="/engagement" style={FOOT_LINK}>Engagement</Link>
-          <Link href="/agencies" style={FOOT_LINK}>Agencies</Link>
-        </div>
-        <div className="mk-footer-col">
-          <div className="mk-footer-coltitle">Resources</div>
-          <Link href="/api-docs" style={FOOT_LINK}>API docs</Link>
-          <Link href="/pricing" style={FOOT_LINK}>Pricing</Link>
-          <Link href="/security" style={FOOT_LINK}>Security</Link>
-          <Link href="/source" style={FOOT_LINK}>Source</Link>
-        </div>
-        <div className="mk-footer-col">
-          <div className="mk-footer-coltitle">Company</div>
-          <Link href="/about" style={FOOT_LINK}>About</Link>
-          <Link href="/contact" style={FOOT_LINK}>Contact</Link>
-          <Link href="/terms" style={FOOT_LINK}>Terms</Link>
-          <Link href="/privacy" style={FOOT_LINK}>Privacy</Link>
-          <Link href="/acceptable-use" style={FOOT_LINK}>Acceptable use</Link>
-          <Link href={MARKETING.authLogin} style={FOOT_LINK}>Sign in</Link>
-        </div>
+        {FOOTER_GROUPS.map(([title, links]) => (
+          <nav key={title} className="mk-footer-col" aria-label={title}>
+            <div className="mk-footer-coltitle">{title}</div>
+            {links.map(([label, href]) => (
+              <Link key={label} href={href} style={FOOT_LINK}>
+                {label}
+              </Link>
+            ))}
+          </nav>
+        ))}
       </div>
-      <div className="mk-footer-note">{MARKETING.footerNote}</div>
+      <div className="mk-ft-meta">
+        <p>{MARKETING.footerNote}</p>
+        <span>
+          © {new Date().getFullYear()} {MARKETING.brand}
+        </span>
+      </div>
+    </div>
+    <div className="mk-ft-mark" aria-hidden="true">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/publishly-wordmark.png"
+        alt=""
+        width={1220}
+        height={380}
+        loading="lazy"
+        decoding="async"
+      />
     </div>
   </footer>
 );
