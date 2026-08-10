@@ -93,7 +93,7 @@ export function ProductMarketingPage({
                       </ul>
                     ) : null}
                   </div>
-                  <div className="mk-reveal" data-delay="120">
+                  <div className="mk-reveal mk-dark" data-delay="120">
                     {visual}
                   </div>
                 </div>
@@ -103,7 +103,7 @@ export function ProductMarketingPage({
                     <span className="mk-eyebrow">In the product</span>
                   </div>
                   <div
-                    className="mk-reveal"
+                    className="mk-reveal mk-dark"
                     data-delay="80"
                     style={{ marginTop: 18 }}
                   >

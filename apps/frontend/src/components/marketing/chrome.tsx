@@ -1,32 +1,11 @@
 import Link from 'next/link';
 import { CSSProperties } from 'react';
 import { MARKETING } from './marketing.config';
-import { PublishlyMark } from './logo';
+import { MegaNav } from './mega-nav';
+import { PublishlyWordmark } from './logo';
 
-export const MarketingNav = () => (
-  <nav className="mk-nav">
-    <div className="mk-container mk-nav-inner">
-      <Link href="/" className="mk-nav-logo">
-        <PublishlyMark />
-        {MARKETING.brand}
-      </Link>
-      <div className="mk-nav-links">
-        <Link href="/features">Features</Link>
-        <Link href="/publishing">Publishing</Link>
-        <Link href="/calendar">Calendar</Link>
-        <Link href="/analytics">Analytics</Link>
-        <Link href="/pricing">Pricing</Link>
-      </div>
-      <div className="mk-nav-spacer" />
-      <Link href={MARKETING.authLogin} className="mk-signin">
-        Sign in
-      </Link>
-      <Link href={MARKETING.authRegister} className="mk-btn mk-btn-primary">
-        {MARKETING.cta.primary}
-      </Link>
-    </div>
-  </nav>
-);
+// All pages share the mega-menu nav so the chrome never swaps mid-site.
+export const MarketingNav = () => <MegaNav />;
 
 const NETWORKS: Array<[string, string]> = [
   ['Instagram', 'var(--net-instagram)'],
@@ -71,7 +50,7 @@ export const MarketingFooter = () => (
       <div className="mk-footer-grid">
         <div>
           <div className="mk-nav-logo" style={{ marginBottom: 12 }}>
-            <PublishlyMark />
+            <PublishlyWordmark compact />
             {MARKETING.brand}
           </div>
           <p
