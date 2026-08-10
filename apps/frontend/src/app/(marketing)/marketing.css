@@ -440,11 +440,20 @@ html {
 
 /* ---------- halftone hero panel ---------- */
 
+/* full-bleed wrapper: small gutter from the browser edges, Cloudflare-style */
+.mk-hero-bleed {
+  padding: 12px 12px 0;
+}
 .mk-hero-panel {
   position: relative;
-  border-radius: 22px;
+  border-radius: 26px;
   overflow: hidden;
-  padding: 84px 28px 96px;
+  min-height: calc(100svh - 64px - 24px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 28px;
   text-align: center;
   box-shadow: var(--mk-shadow-lg);
   /* fallback layer 1: gradient + glow (always painted, canvas covers it) */
@@ -479,6 +488,11 @@ html {
 .mk-hero-panel-content {
   position: relative;
   z-index: 1;
+  max-width: 880px;
+  margin: 0 auto;
+}
+.mk-hero-panel .mk-h1 {
+  font-size: clamp(3rem, 6.4vw, 5.4rem);
 }
 .mk-hero-panel .mk-h1 {
   color: #fff;
@@ -511,9 +525,13 @@ html {
   outline-color: #fff;
 }
 @media (max-width: 640px) {
+  .mk-hero-bleed {
+    padding: 8px 8px 0;
+  }
   .mk-hero-panel {
-    padding: 60px 20px 68px;
-    border-radius: 16px;
+    padding: 48px 20px;
+    border-radius: 18px;
+    min-height: calc(100svh - 64px - 16px);
   }
 }
 

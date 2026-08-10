@@ -115,7 +115,7 @@ export default function MarketingHome() {
       <MegaNav />
       <main id="mk-main">
         <header className="mk-hero mk-hero-c">
-          <div className="mk-container">
+          <div className="mk-hero-bleed">
             <div className="mk-hero-panel">
               <HalftoneHeroBackground />
               <div className="mk-hero-panel-content">
@@ -143,6 +143,8 @@ export default function MarketingHome() {
                 </p>
               </div>
             </div>
+          </div>
+          <div className="mk-container">
             <div className="mk-shot" data-hero-el>
               <div className="mk-shot-frame">
                 <CalendarBoard />
