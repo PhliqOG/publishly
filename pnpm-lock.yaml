@@ -403,9 +403,6 @@ importers:
       googleapis:
         specifier: ^137.1.0
         version: 137.1.0
-      gsap:
-        specifier: ^3.15.0
-        version: 3.15.0
       hot-reload-extension-vite:
         specifier: ^1.0.13
         version: 1.1.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
@@ -574,6 +571,9 @@ importers:
       sharp:
         specifier: ^0.33.4
         version: 0.33.5
+      simple-icons:
+        specifier: ^16.28.0
+        version: 16.28.0
       simple-statistics:
         specifier: ^7.8.3
         version: 7.8.8
@@ -773,6 +773,9 @@ importers:
       fs-extra:
         specifier: ^11.3.0
         version: 11.3.4
+      gsap:
+        specifier: ^3.15.0
+        version: 3.15.0
       jest:
         specifier: 29.7.0
         version: 29.7.0(@types/node@18.16.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.5.7(@swc/helpers@0.5.13))(@types/node@18.16.9)(typescript@5.5.4))
@@ -16391,6 +16394,10 @@ packages:
 
   simple-get@3.1.1:
     resolution: {integrity: sha512-CQ5LTKGfCpvE1K0n2us+kuMPbk/q0EKl82s4aheV9oXjFEz6W/Y7oQFVJuU6QG77hRT4Ghb5RURteF5vnWjupA==}
+
+  simple-icons@16.28.0:
+    resolution: {integrity: sha512-sQPR5AtK/ijRjou7zw7mlLp08oB6FH7i0lOy5XJ2zp9mJs/yejgiOn7KvQoe2q4YJIx6VmgUSW5AOefebPt5kg==}
+    engines: {node: '>=0.12.18'}
 
   simple-statistics@7.8.8:
     resolution: {integrity: sha512-CUtP0+uZbcbsFpqEyvNDYjJCl+612fNgjT8GaVuvMG7tBuJg8gXGpsP5M7X658zy0IcepWOZ6nPBu1Qb9ezA1w==}
@@ -37900,6 +37907,8 @@ snapshots:
       decompress-response: 4.2.1
       once: 1.4.0
       simple-concat: 1.0.1
+
+  simple-icons@16.28.0: {}
 
   simple-statistics@7.8.8: {}
 

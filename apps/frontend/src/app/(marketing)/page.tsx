@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { CSSProperties } from 'react';
 import { MarketingFooter } from '@gitroom/frontend/components/marketing/chrome';
 import { MegaNav } from '@gitroom/frontend/components/marketing/mega-nav';
+import { HalftoneHeroBackground } from '@gitroom/frontend/components/marketing/halftone';
+import { PlatformIcon } from '@gitroom/frontend/components/marketing/icons';
 import { CalendarBoard } from '@gitroom/frontend/components/marketing/hero-cinema';
 import { Tabs } from '@gitroom/frontend/components/marketing/motion';
 import { ApiTerminal } from '@gitroom/frontend/components/marketing/terminal';
@@ -114,24 +116,33 @@ export default function MarketingHome() {
       <main id="mk-main">
         <header className="mk-hero mk-hero-c">
           <div className="mk-container">
-            <h1 className="mk-h1" data-hero-el>
-              Plan once. Publish everywhere.
-            </h1>
-            <p className="mk-hero-sub" data-hero-el>
-              {MARKETING.brand} is one calendar for every channel you own —
-              captions tailored per network, delivery you don&rsquo;t babysit.
-            </p>
-            <div className="mk-hero-ctas" data-hero-el>
-              <Link href={MARKETING.authRegister} className="mk-btn mk-btn-primary">
-                Create free account
-              </Link>
-              <Link href="#product" className="mk-btn mk-btn-ghost">
-                See how it works
-              </Link>
+            <div className="mk-hero-panel">
+              <HalftoneHeroBackground />
+              <div className="mk-hero-panel-content">
+                <h1 className="mk-h1" data-hero-el>
+                  Plan once. Publish everywhere.
+                </h1>
+                <p className="mk-hero-sub" data-hero-el>
+                  {MARKETING.brand} is one calendar for every channel you own
+                  — captions tailored per network, delivery you don&rsquo;t
+                  babysit.
+                </p>
+                <div className="mk-hero-ctas" data-hero-el>
+                  <Link
+                    href={MARKETING.authRegister}
+                    className="mk-btn mk-btn-primary"
+                  >
+                    Create free account
+                  </Link>
+                  <Link href="#product" className="mk-btn mk-btn-ghost">
+                    See how it works
+                  </Link>
+                </div>
+                <p className="mk-hero-note" data-hero-el>
+                  No card required. Every plan starts with a 7-day trial.
+                </p>
+              </div>
             </div>
-            <p className="mk-hero-note" data-hero-el>
-              No card required. Every plan starts with a 7-day trial.
-            </p>
             <div className="mk-shot" data-hero-el>
               <div className="mk-shot-frame">
                 <CalendarBoard />
@@ -147,12 +158,8 @@ export default function MarketingHome() {
             </p>
             <div className="mk-netrow-items">
               {MARKETING.networks.map((n) => (
-                <span
-                  key={n}
-                  className="mk-netrow-item"
-                  style={{ '--net': NET_COLOR[n] } as CSSProperties}
-                >
-                  <i />
+                <span key={n} className="mk-netrow-item">
+                  <PlatformIcon name={n} />
                   {n}
                 </span>
               ))}

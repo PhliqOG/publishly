@@ -21,6 +21,33 @@ export function Tabs({
   const [active, setActive] = useState(0);
   const baseId = useId();
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+  const firstRender = useRef(true);
+
+  // GSAP micro-transition: the newly revealed panel rises in gently.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let cancelled = false;
+    import('gsap').then(({ gsap }) => {
+      if (cancelled) return;
+      const panel = document.getElementById(
+        `${baseId}-panel-${tabs[active].id}`
+      );
+      if (panel) {
+        gsap.fromTo(
+          panel,
+          { autoAlpha: 0, y: 14 },
+          { autoAlpha: 1, y: 0, duration: 0.35, ease: 'power2.out', clearProps: 'all' }
+        );
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [active, baseId, tabs]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const last = tabs.length - 1;
@@ -150,6 +177,13 @@ export function MotionRuntime(): null {
       mm = gsap.matchMedia();
 
       mm.add('(prefers-reduced-motion: no-preference)', () => {
+        // nav settles in from above, once
+        gsap.fromTo(
+          '.mk-nav',
+          { autoAlpha: 0, y: -12 },
+          { autoAlpha: 1, y: 0, duration: 0.45, ease: 'power2.out', clearProps: 'all' }
+        );
+
         const heroEls = gsap.utils.toArray<HTMLElement>('[data-hero-el]');
         if (heroEls.length) {
           gsap.fromTo(
@@ -165,6 +199,28 @@ export function MotionRuntime(): null {
             }
           );
         }
+
+        // calendar chips populate the board as it scrolls into view
+        gsap.utils
+          .toArray<HTMLElement>('.mk-shot-frame')
+          .forEach((frameEl) => {
+            const chips = frameEl.querySelectorAll('.mk-chip');
+            if (!chips.length) return;
+            gsap.fromTo(
+              chips,
+              { autoAlpha: 0, y: 10, scale: 0.94 },
+              {
+                autoAlpha: 1,
+                y: 0,
+                scale: 1,
+                duration: 0.45,
+                ease: 'power2.out',
+                stagger: 0.05,
+                clearProps: 'all',
+                scrollTrigger: { trigger: frameEl, start: 'top 82%', once: true },
+              }
+            );
+          });
         gsap.utils.toArray<HTMLElement>('.mk-reveal').forEach((el) => {
           gsap.fromTo(
             el,

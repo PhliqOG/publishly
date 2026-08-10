@@ -1,5 +1,6 @@
 export interface PricingInnerInterface {
   current: string;
+  display_name: string;
   month_price: number;
   year_price: number;
   channel?: number;
@@ -15,6 +16,11 @@ export interface PricingInnerInterface {
   public_api: boolean;
   webhooks: number;
   autoPost: boolean;
+  workspaces: number;
+  seats: number;
+  storage_gb: number;
+  analytics_retention_days: number;
+  bulk_tools: boolean;
 }
 export interface PricingInterface {
   [key: string]: PricingInnerInterface;
@@ -22,6 +28,7 @@ export interface PricingInterface {
 const defaultPricing: PricingInterface = {
   FREE: {
     current: 'FREE',
+    display_name: 'Free',
     month_price: 0,
     year_price: 0,
     channel: 0,
@@ -37,12 +44,18 @@ const defaultPricing: PricingInterface = {
     webhooks: 0,
     autoPost: false,
     generate_videos: 0,
+    workspaces: 1,
+    seats: 1,
+    storage_gb: 0.25,
+    analytics_retention_days: 7,
+    bulk_tools: false,
   },
   STANDARD: {
     current: 'STANDARD',
-    month_price: 29,
-    year_price: 278,
-    channel: 5,
+    display_name: 'Starter',
+    month_price: 20,
+    year_price: 200,
+    channel: 10,
     posts_per_month: 1000000,
     image_generation_count: 20,
     team_members: false,
@@ -55,12 +68,18 @@ const defaultPricing: PricingInterface = {
     webhooks: 2,
     autoPost: false,
     generate_videos: 3,
+    workspaces: 1,
+    seats: 1,
+    storage_gb: 10,
+    analytics_retention_days: 90,
+    bulk_tools: false,
   },
   TEAM: {
     current: 'TEAM',
-    month_price: 39,
-    year_price: 374,
-    channel: 10,
+    display_name: 'Pro',
+    month_price: 45,
+    year_price: 450,
+    channel: 25,
     posts_per_month: 1000000,
     image_generation_count: 100,
     community_features: true,
@@ -73,12 +92,18 @@ const defaultPricing: PricingInterface = {
     webhooks: 10,
     autoPost: true,
     generate_videos: 10,
+    workspaces: 2,
+    seats: 5,
+    storage_gb: 50,
+    analytics_retention_days: 365,
+    bulk_tools: true,
   },
   PRO: {
     current: 'PRO',
-    month_price: 49,
-    year_price: 470,
-    channel: 30,
+    display_name: 'Agency',
+    month_price: 100,
+    year_price: 1000,
+    channel: 60,
     posts_per_month: 1000000,
     image_generation_count: 300,
     community_features: true,
@@ -91,12 +116,18 @@ const defaultPricing: PricingInterface = {
     webhooks: 30,
     autoPost: true,
     generate_videos: 30,
+    workspaces: 10,
+    seats: 20,
+    storage_gb: 250,
+    analytics_retention_days: 730,
+    bulk_tools: true,
   },
   ULTIMATE: {
     current: 'ULTIMATE',
-    month_price: 99,
-    year_price: 950,
-    channel: 100,
+    display_name: 'Business',
+    month_price: 209,
+    year_price: 2090,
+    channel: 145,
     posts_per_month: 1000000,
     image_generation_count: 500,
     community_features: true,
@@ -109,6 +140,11 @@ const defaultPricing: PricingInterface = {
     webhooks: 10000,
     autoPost: true,
     generate_videos: 60,
+    workspaces: 50,
+    seats: 100,
+    storage_gb: 1000,
+    analytics_retention_days: 1825,
+    bulk_tools: true,
   },
 };
 

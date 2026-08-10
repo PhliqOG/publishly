@@ -7,13 +7,17 @@ import { MARKETING } from './marketing.config';
 // defaults; server-side overrides only tighten or relabel entitlements.)
 
 const PLAN_FOR: Record<string, string> = {
-  STANDARD: 'For one brand, run properly',
-  TEAM: 'For small teams sharing one calendar',
+  STANDARD: 'For creators & small brands',
+  TEAM: 'For teams sharing one calendar',
   PRO: 'For multi-brand operators',
-  ULTIMATE: 'For agencies and heavy pipelines',
+  ULTIMATE: 'For agencies at scale',
 };
 
 const ORDER = ['STANDARD', 'TEAM', 'PRO', 'ULTIMATE'];
+
+// 1,000,000 is the internal "no practical cap" sentinel — say it like a human.
+const posts = (n: number) =>
+  n >= 1_000_000 ? 'Unlimited scheduled posts' : `${n.toLocaleString()} scheduled posts / month`;
 
 export const PricingCards = ({ compact = false }: { compact?: boolean }) => (
   <div className="mk-pricing-grid">
@@ -31,22 +35,22 @@ export const PricingCards = ({ compact = false }: { compact?: boolean }) => (
             <span> /month</span>
           </div>
           <ul>
-            <li>{plan.channel} connected channels</li>
             <li>
-              Up to {plan.posts_per_month.toLocaleString()} scheduled posts / month
+              <strong>{plan.channel} social profiles</strong>
             </li>
-            {!compact && <li>{plan.webhooks} outgoing webhooks</li>}
-            {!compact && <li>{plan.storage_gb} GB media storage</li>}
-            {!compact && <li>{plan.analytics_retention_days} days analytics retention</li>}
+            <li>{posts(plan.posts_per_month)}</li>
+            <li>Unlimited scheduling calendar</li>
             {plan.team_members ? (
-              <li>Team members &amp; roles</li>
+              <li>{plan.seats} team members</li>
             ) : (
-              <li>Single seat</li>
+              <li>1 seat</li>
             )}
-            {plan.public_api && <li>API access with scoped keys</li>}
+            {!compact && <li>{plan.workspaces > 1 ? `${plan.workspaces} workspaces` : '1 workspace'}</li>}
+            {!compact && <li>{plan.analytics_retention_days >= 365 ? `${Math.round(plan.analytics_retention_days / 365)}-year` : `${plan.analytics_retention_days}-day`} analytics history</li>}
+            {!compact && <li>{plan.storage_gb} GB media storage</li>}
+            {plan.public_api && <li>API access</li>}
+            {plan.bulk_tools && <li>Bulk CSV scheduling</li>}
             {plan.autoPost && <li>RSS auto-posting</li>}
-            {!compact && plan.bulk_tools && <li>Bulk scheduling tools</li>}
-            {!compact && plan.ai && <li>AI writing assistance</li>}
           </ul>
           <Link
             href={MARKETING.authRegister}

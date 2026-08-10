@@ -438,6 +438,85 @@ html {
   font-size: 13.5px;
 }
 
+/* ---------- halftone hero panel ---------- */
+
+.mk-hero-panel {
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  padding: 84px 28px 96px;
+  text-align: center;
+  box-shadow: var(--mk-shadow-lg);
+  /* fallback layer 1: gradient + glow (always painted, canvas covers it) */
+  background:
+    radial-gradient(90% 70% at 50% 112%, rgba(255, 233, 184, 0.5), transparent 70%),
+    linear-gradient(120deg, #2563eb, #3b82f6);
+}
+/* fallback layer 2: static dot grid — ::before paints under the canvas */
+.mk-hero-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    circle,
+    rgba(244, 248, 255, 0.5) 1px,
+    transparent 1.35px
+  );
+  background-size: 7px 7px;
+  opacity: 0.45;
+  -webkit-mask-image: radial-gradient(85% 75% at 50% 55%, rgba(0, 0, 0, 0.5), #000 78%);
+  mask-image: radial-gradient(85% 75% at 50% 55%, rgba(0, 0, 0, 0.5), #000 78%);
+  pointer-events: none;
+}
+.mk-halftone {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+.mk-hero-panel-content {
+  position: relative;
+  z-index: 1;
+}
+.mk-hero-panel .mk-h1 {
+  color: #fff;
+}
+.mk-hero-panel .mk-hero-sub {
+  color: rgba(255, 255, 255, 0.94);
+}
+.mk-hero-panel .mk-hero-note {
+  color: rgba(255, 255, 255, 0.82);
+}
+.mk-hero-panel .mk-btn-primary {
+  background-color: #fff;
+  color: var(--mk-blue);
+  box-shadow: 0 2px 8px rgba(13, 37, 64, 0.28);
+}
+.mk-hero-panel .mk-btn-primary:hover {
+  background-color: #f2f7ff;
+  transform: translateY(-1px);
+}
+.mk-hero-panel .mk-btn-ghost {
+  border-color: rgba(255, 255, 255, 0.55);
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.mk-hero-panel .mk-btn-ghost:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.85);
+}
+.mk-hero-panel :focus-visible {
+  outline-color: #fff;
+}
+@media (max-width: 640px) {
+  .mk-hero-panel {
+    padding: 60px 20px 68px;
+    border-radius: 16px;
+  }
+}
+
 /* full-width product shot under the hero */
 .mk-shot {
   margin-top: 56px;
@@ -487,6 +566,13 @@ html {
   border-radius: 50%;
   background: var(--net, var(--mk-text-3));
   font-style: normal;
+}
+.mk-netrow-item svg {
+  flex: none;
+  opacity: 0.9;
+}
+.mk-netrow-item:hover {
+  color: var(--mk-text-2);
 }
 
 /* ---------- sections (centered rhythm) ---------- */
