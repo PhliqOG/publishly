@@ -1,74 +1,95 @@
-// ConnectionDiagram — a technical product visual, not decoration: authorized
-// platform connections flow into one Publishly pipeline and out as published
-// posts. Pure SVG; MotionRuntime draws the paths & activates nodes on scroll
-// (once). Fully legible with animation disabled.
+// ConnectionDiagram v2 — bold, smooth, on-brand: card nodes with network
+// dots, thick rounded connectors, a gradient Publishly hub, and pulses that
+// travel the paths (MotionRuntime drives draw-in + traveling pulses).
+// Fully legible with animation disabled.
 
 const SOURCES = [
-  { y: 60, label: 'Instagram' },
-  { y: 120, label: 'TikTok' },
-  { y: 180, label: 'YouTube' },
-  { y: 240, label: 'LinkedIn' },
-  { y: 300, label: '+ 26 more' },
+  { y: 62, label: 'Instagram', dot: '#E1306C' },
+  { y: 136, label: 'TikTok', dot: '#0E0E0C' },
+  { y: 210, label: 'YouTube', dot: '#FF0033' },
+  { y: 284, label: 'LinkedIn', dot: '#0A66C2' },
+  { y: 358, label: '+ 26 more', dot: '#55B0FF' },
 ];
 
 export const ConnectionDiagram = () => (
   <svg
     className="mk-diagram"
-    viewBox="0 0 640 360"
+    viewBox="0 0 660 420"
     role="img"
     aria-label="Connected social accounts publish through one Publishly pipeline"
   >
-    {/* connector paths: sources → hub */}
+    <defs>
+      <linearGradient id="mkdHub" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#3298e8" />
+        <stop offset="100%" stopColor="#1878c4" />
+      </linearGradient>
+      <filter id="mkdSoft" x="-30%" y="-30%" width="160%" height="160%">
+        <feDropShadow
+          dx="0"
+          dy="2"
+          stdDeviation="5"
+          floodColor="#071521"
+          floodOpacity="0.1"
+        />
+      </filter>
+    </defs>
+
+    {/* connectors: smooth, thick, rounded */}
     {SOURCES.map((s) => (
       <path
         key={s.label}
         className="mk-d-path"
-        d={`M 150 ${s.y} C 260 ${s.y}, 300 180, 388 180`}
+        d={`M 172 ${s.y} C 290 ${s.y}, 310 210, 402 210`}
       />
     ))}
-    {/* hub → published */}
-    <path className="mk-d-path" d="M 452 180 L 560 180" />
+    <path className="mk-d-path" d="M 486 210 L 566 210" />
 
-    {/* source nodes */}
+    {/* traveling pulses (one per connector; MotionRuntime moves them) */}
+    {SOURCES.map((s, i) => (
+      <circle
+        key={`p-${s.label}`}
+        className="mk-d-pulse"
+        data-path-index={i}
+        r="4.5"
+        cx="172"
+        cy={s.y}
+      />
+    ))}
+
+    {/* source cards */}
     {SOURCES.map((s) => (
-      <g key={s.label}>
-        <rect
-          className="mk-d-node"
-          x="34"
-          y={s.y - 16}
-          width="116"
-          height="32"
-          rx="9"
-        />
-        <text className="mk-d-label" x="52" y={s.y + 4}>
+      <g key={s.label} className="mk-d-node" filter="url(#mkdSoft)">
+        <rect x="28" y={s.y - 24} width="144" height="48" rx="14" className="mk-d-card" />
+        <circle cx="52" cy={s.y} r="5.5" fill={s.dot} />
+        <text className="mk-d-name" x="68" y={s.y + 5}>
           {s.label}
         </text>
       </g>
     ))}
 
     {/* the hub */}
-    <g>
-      <rect className="mk-d-hub" x="388" y="152" width="64" height="56" rx="14" />
-      <circle className="mk-d-pulse" cx="420" cy="172" r="5" fill="#fff" />
+    <g className="mk-d-node" filter="url(#mkdSoft)">
+      <rect x="402" y="172" width="84" height="76" rx="20" fill="url(#mkdHub)" />
+      <circle cx="444" cy="198" r="6" fill="#fff" />
       <text
-        className="mk-d-label"
-        x="420"
-        y="196"
+        className="mk-d-name"
+        x="444"
+        y="228"
         textAnchor="middle"
-        style={{ fill: 'rgba(255,255,255,0.9)' }}
+        style={{ fill: '#ffffff', fontSize: 13, fontWeight: 700 }}
       >
-        publishly
+        Publishly
       </text>
-      <text className="mk-d-label" x="420" y="228" textAnchor="middle">
-        one pipeline
+      <text className="mk-d-sub" x="444" y="268" textAnchor="middle">
+        One pipeline
       </text>
     </g>
 
     {/* result */}
-    <g>
-      <rect className="mk-d-node" x="560" y="164" width="70" height="32" rx="9" />
-      <text className="mk-d-label" x="574" y="184">
-        ✓ live
+    <g className="mk-d-node" filter="url(#mkdSoft)">
+      <rect x="566" y="186" width="74" height="48" rx="14" className="mk-d-card" />
+      <text className="mk-d-name" x="603" y="215" textAnchor="middle">
+        ✓ Live
       </text>
     </g>
   </svg>

@@ -133,14 +133,14 @@ export default function MarketingHome() {
                     href={MARKETING.authRegister}
                     className="mk-btn mk-btn-primary"
                   >
-                    Create free account
+                    {MARKETING.cta.primary}
                   </Link>
                   <Link href="#product" className="mk-btn mk-btn-ghost">
                     See how it works
                   </Link>
                 </div>
                 <p className="mk-hero-note" data-hero-el>
-                  No card required. Every plan starts with a 7-day trial.
+                  No credit card needed. 7-day trial on every plan.
                 </p>
               </div>
             </div>
@@ -176,9 +176,9 @@ export default function MarketingHome() {
             <div className="mk-split">
               <div>
                 <h2 className="mk-h2">
-                  Connect once.
+                  Every channel.
                   <br />
-                  Publish everywhere.
+                  One pipeline.
                   <span className="mk-sundot" aria-hidden />
                 </h2>
                 <p className="mk-section-lede">
@@ -438,7 +438,7 @@ export default function MarketingHome() {
                   href={MARKETING.authRegister}
                   className="mk-btn mk-btn-primary"
                 >
-                  Create free account
+                  {MARKETING.cta.primary}
                 </Link>
                 <Link href="/pricing" className="mk-btn mk-btn-ghost">
                   See pricing

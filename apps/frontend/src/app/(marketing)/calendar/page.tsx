@@ -33,7 +33,7 @@ export default function CalendarPage() {
           body: 'Narrow by platform, connected account or publishing state when the board gets busy.',
         },
         {
-          title: 'Bulk control',
+          title: 'Bulk changes with a preview first',
           body: 'Preview CSV validation before committing, shift selected dates or cancel a group — handled server-side, not in one long browser request.',
         },
       ]}

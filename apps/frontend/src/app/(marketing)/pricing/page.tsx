@@ -10,7 +10,7 @@ import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.conf
 export const metadata: Metadata = {
   title: 'Pricing',
   description:
-    'Four plans, one variable: how many channels you run. Every paid plan starts with a 7-day trial & no card is required to create an account.',
+    '4 plans, one variable: how many channels you run. Every paid plan starts with a 7-day trial & no card is required to create an account.',
 };
 
 // Everything below the cards is true of every tier — the cards themselves
@@ -18,23 +18,23 @@ export const metadata: Metadata = {
 
 const EVERY_PLAN = [
   {
-    h: 'Official APIs',
+    h: 'Official APIs, never password sharing',
     p: 'Every connection uses the platform’s official OAuth flow & permission scopes — on every plan, at every price.',
   },
   {
-    h: 'Durable publishing',
-    p: 'Each post runs as a durable, duplicate-resistant workflow with honest per-network status. Reliability is not an upsell.',
+    h: 'Reliability is not an upsell',
+    p: 'Each post runs as a durable, duplicate-resistant workflow with honest per-network status — the same engine on every tier.',
   },
   {
-    h: 'The full calendar',
+    h: 'The whole calendar, every view',
     p: 'Month, week & day views with drag-and-drop rescheduling & timezone-aware slots.',
   },
   {
-    h: 'Per-network captions',
+    h: 'Captions tailored to each network',
     p: 'Write once & tailor the caption for each destination, with real limits checked before scheduling.',
   },
   {
-    h: 'The source offer',
+    h: 'AGPL-3.0 — read the source',
     p: 'The engine is AGPL-3.0 & the corresponding source of the running service is available to every user.',
   },
 ];
@@ -46,7 +46,7 @@ const FAQ = [
   },
   {
     q: 'What counts as a channel?',
-    a: 'One connected social profile — an Instagram account, a Facebook page, a YouTube channel. Ten networks are first-class, with 20+ more targets inherited from the open-source engine.',
+    a: 'One connected social profile — an Instagram account, a Facebook page, a YouTube channel. 10 networks are first-class, with 20+ more targets inherited from the open-source engine.',
   },
   {
     q: 'Is there a free tier?',
@@ -77,7 +77,7 @@ export default function PricingPage() {
                 className="mk-h2-lg"
                 style={{ marginTop: 18, maxWidth: '14ch' }}
               >
-                Four plans. One variable.
+                4 plans. One variable.
               </h1>
               <p className="mk-section-lede">
                 The number you&rsquo;re choosing is connected channels —
@@ -149,7 +149,7 @@ export default function PricingPage() {
             <div className="mk-cta-panel">
               <h2 className="mk-h2">Pick a channel count. Fill the week.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                Seven days to watch the board clear itself — cancel from the
+                7 days to watch the board clear itself — cancel from the
                 billing portal if it doesn&rsquo;t.
               </p>
               <div className="mk-hero-ctas">

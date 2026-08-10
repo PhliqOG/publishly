@@ -1,13 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 28 28" fill="none">
-  <style>
-    .ink { fill: #0E0E0C; }
-    .ink-stroke { stroke: #0E0E0C; }
-    @media (prefers-color-scheme: dark) {
-      .ink { fill: #FAFAF7; }
-      .ink-stroke { stroke: #FAFAF7; }
-    }
-  </style>
-  <rect x="4.5" y="3.5" width="4.6" height="21" class="ink"/>
-  <path d="M9.1 5.75 H 21.25 V 15.55 H 9.1" class="ink-stroke" stroke-width="4.5" fill="none"/>
-  <circle cx="15" cy="10.65" r="2.7" fill="#4F46E5"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3298e8"/>
+      <stop offset="100%" stop-color="#1878c4"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#g)"/>
+  <path d="M12.5 24.5 V 8.5 H 18 A 5.6 5.6 0 0 1 18 19.7 H 12.5"
+        fill="none" stroke="#ffffff" stroke-width="4.4"
+        stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

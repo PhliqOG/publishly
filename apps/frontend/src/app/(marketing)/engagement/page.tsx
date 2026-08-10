@@ -24,15 +24,15 @@ export default function EngagementPage() {
       statement="No scraped inboxes, no ghost sessions. Where a network offers no comments API, the inbox says so instead of faking a control."
       items={[
         {
-          title: 'Unified feed',
+          title: 'Every supported comment in one feed',
           body: 'Filter supported comments by connected account & platform in one workspace-scoped inbox.',
         },
         {
-          title: 'Authorized replies',
+          title: 'Replies leave as the authorized account',
           body: 'Facebook & Instagram adapters send replies through their official Graph API permissions — the same authorization that connected the account.',
         },
         {
-          title: 'Capability-gated',
+          title: 'Only real controls, per network',
           body: 'Networks without an implemented comments API read as unavailable rather than showing a control that cannot work.',
         },
       ]}

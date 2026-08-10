@@ -178,12 +178,14 @@ export function MotionRuntime(): null {
     let cancelled = false;
 
     (async () => {
-      const [{ gsap }, { ScrollTrigger }] = await Promise.all([
-        import('gsap'),
-        import('gsap/ScrollTrigger'),
-      ]);
+      const [{ gsap }, { ScrollTrigger }, { MotionPathPlugin }] =
+        await Promise.all([
+          import('gsap'),
+          import('gsap/ScrollTrigger'),
+          import('gsap/MotionPathPlugin'),
+        ]);
       if (cancelled) return;
-      gsap.registerPlugin(ScrollTrigger);
+      gsap.registerPlugin(ScrollTrigger, MotionPathPlugin);
       mm = gsap.matchMedia();
 
       mm.add('(prefers-reduced-motion: no-preference)', () => {
@@ -207,8 +209,8 @@ export function MotionRuntime(): null {
         // — connection diagram: paths draw, then nodes & labels activate
         gsap.utils.toArray<SVGSVGElement>('.mk-diagram').forEach((svg) => {
           const paths = svg.querySelectorAll<SVGPathElement>('.mk-d-path');
-          const nodes = svg.querySelectorAll('.mk-d-node, .mk-d-hub');
-          const labels = svg.querySelectorAll('.mk-d-label');
+          const nodes = svg.querySelectorAll('.mk-d-node');
+          const labels = svg.querySelectorAll('.mk-d-name, .mk-d-sub');
           paths.forEach((p) => {
             const len = p.getTotalLength();
             p.style.strokeDasharray = `${len}`;
@@ -234,6 +236,31 @@ export function MotionRuntime(): null {
               { autoAlpha: 1, duration: MOTION.fast, stagger: 0.05 },
               '-=0.6'
             );
+
+          // traveling pulses: each rides its connector on a slow loop,
+          // paused whenever the diagram is offscreen
+          const pathList = Array.from(paths);
+          svg
+            .querySelectorAll<SVGCircleElement>('.mk-d-pulse')
+            .forEach((pulse, i) => {
+              const path = pathList[i % pathList.length];
+              if (!path) return;
+              gsap.to(pulse, {
+                motionPath: { path, align: path, alignOrigin: [0.5, 0.5] },
+                opacity: 1,
+                duration: 2.8,
+                delay: 1.2 + i * 0.55,
+                repeat: -1,
+                repeatDelay: 1.4,
+                ease: 'power1.inOut',
+                scrollTrigger: {
+                  trigger: svg,
+                  start: 'top bottom',
+                  end: 'bottom top',
+                  toggleActions: 'play pause resume pause',
+                },
+              });
+            });
         });
         // nav settles in from above, once
         gsap.fromTo(
@@ -242,7 +269,24 @@ export function MotionRuntime(): null {
           { autoAlpha: 1, y: 0, duration: 0.45, ease: 'power2.out', clearProps: 'all' }
         );
 
-        const heroEls = gsap.utils.toArray<HTMLElement>('[data-hero-el]');
+        // hero: headline unmasks with a clip reveal, the rest rises after
+        const heroH1 = document.querySelector<HTMLElement>('.mk-hero-panel .mk-h1');
+        if (heroH1) {
+          gsap.fromTo(
+            heroH1,
+            { clipPath: 'inset(0 0 100% 0)', y: 20 },
+            {
+              clipPath: 'inset(0 0 -8% 0)',
+              y: 0,
+              duration: 0.9,
+              ease: MOTION.easeStrong,
+              clearProps: 'clipPath,transform',
+            }
+          );
+        }
+        const heroEls = gsap.utils
+          .toArray<HTMLElement>('[data-hero-el]')
+          .filter((el) => !el.classList.contains('mk-h1'));
         if (heroEls.length) {
           gsap.fromTo(
             heroEls,
@@ -253,10 +297,25 @@ export function MotionRuntime(): null {
               duration: 0.7,
               ease: 'power3.out',
               stagger: 0.09,
+              delay: 0.25,
               clearProps: 'all',
             }
           );
         }
+
+        // product shot: gentle parallax drift while scrolling past
+        gsap.utils.toArray<HTMLElement>('.mk-shot-frame').forEach((el) => {
+          gsap.to(el, {
+            yPercent: -5,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: el,
+              start: 'top bottom',
+              end: 'bottom top',
+              scrub: 0.6,
+            },
+          });
+        });
 
         // calendar chips populate the board as it scrolls into view
         gsap.utils

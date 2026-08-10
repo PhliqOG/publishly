@@ -29,7 +29,7 @@ export default function SourcePage() {
               <p>
                 {MARKETING.brand} is built on the open-source{' '}
                 <a href="https://github.com/gitroomhq/postiz-app">Postiz</a>{' '}
-                engine and is licensed under the GNU Affero General Public
+                engine &amp; is licensed under the GNU Affero General Public
                 License v3.0 (AGPL-3.0). Under section 13 of that license,
                 everyone who uses this service over the network is entitled to
                 receive the complete corresponding source of the version that
@@ -47,7 +47,7 @@ export default function SourcePage() {
                   {MARKETING.supportEmail
                     ? ` at ${MARKETING.supportEmail}`
                     : ''}{' '}
-                  and it will be provided as a source archive. (Operators: set
+                  &amp; it will be provided as a source archive. (Operators: set
                   NEXT_PUBLIC_SOURCE_URL to link a public mirror directly.)
                 </p>
               )}

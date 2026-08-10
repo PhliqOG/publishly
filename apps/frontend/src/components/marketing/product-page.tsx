@@ -336,7 +336,7 @@ export function ProductMarketingPage({
             <div className="mk-cta-panel">
               <h2 className="mk-h2">Connect a channel &amp; fill your first week.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                No card required — every paid plan starts with a 7-day trial.
+                No credit card needed. 7-day trial on every plan.
               </p>
               <div className="mk-hero-ctas">
                 <Link

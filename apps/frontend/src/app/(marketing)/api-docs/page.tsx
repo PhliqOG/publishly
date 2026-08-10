@@ -64,15 +64,15 @@ export default function ApiMarketingPage() {
       statement="Everything the app does, a scoped key can do — & nothing a scoped key was not granted."
       items={[
         {
-          title: 'Hashed keys',
+          title: 'Keys shown once, hashed forever',
           body: 'Keys are hashed before storage — the raw value appears once at creation, is never recoverable from the database & revokes independently.',
         },
         {
-          title: 'Narrow scopes',
+          title: 'Scopes end where the grant ends',
           body: 'Grant read or write per resource — posts, integrations, media, notifications — & nothing beyond the grant.',
         },
         {
-          title: 'Operational limits',
+          title: 'Integrations you can watch & throttle',
           body: 'Server-side rate limiting & last-used timestamps keep every customer integration observable.',
         },
       ]}

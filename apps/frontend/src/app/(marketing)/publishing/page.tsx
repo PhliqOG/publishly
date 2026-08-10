@@ -21,10 +21,10 @@ export default function PublishingPage() {
           'First comments & platform settings',
         ],
       }}
-      statement="A post to six networks is six deliveries. One failure retries alone — the other five stay published & the calendar reports each destination honestly."
+      statement="A post to 6 networks is 6 deliveries. One failure retries alone — the other 5 stay published & the calendar reports each destination honestly."
       items={[
         {
-          title: 'Universal composer',
+          title: 'Every format in one draft',
           body: 'Compose images, video, carousels & per-network captions in one draft. First comments, thumbnails & platform settings appear only where a network supports them.',
           points: [
             '1 draft, 10 possible destinations',
@@ -32,7 +32,7 @@ export default function PublishingPage() {
           ],
         },
         {
-          title: 'Validation before queueing',
+          title: 'No failures the composer could foresee',
           body: 'Character limits, attachment counts, MIME types, file sizes & provider settings are checked before a job ever enters the schedule.',
           points: [
             'Checked against each provider’s real limits',
@@ -40,7 +40,7 @@ export default function PublishingPage() {
           ],
         },
         {
-          title: 'Independent destinations',
+          title: 'Each destination delivers on its own',
           body: 'Each destination publishes as its own durable delivery. A failed network retries alone while the rest stay published.',
           points: [
             'Honest per-network status',

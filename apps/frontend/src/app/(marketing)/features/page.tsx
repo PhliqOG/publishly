@@ -40,8 +40,8 @@ const COMPOSE = [
 
 const SCHEDULE = [
   {
-    h: 'Three altitudes',
-    p: 'Month for the plan, week for the rhythm, day for the detail — the same posts at three zoom levels.',
+    h: '3 altitudes, one schedule',
+    p: 'Month for the plan, week for the rhythm, day for the detail — the same posts at 3 zoom levels.',
   },
   {
     h: 'Drag & drop',
@@ -72,7 +72,7 @@ const DELIVER = [
   },
   {
     h: 'Partial success',
-    p: 'A post to six networks is six deliveries. If one fails, five stay published & only the failed one retries.',
+    p: 'A post to 6 networks is 6 deliveries. If one fails, the other 5 stay published & only the failed one retries.',
   },
   {
     h: 'Honest status',
@@ -86,7 +86,7 @@ const DELIVER = [
 
 const AROUND = [
   {
-    h: 'Ten networks, first-class',
+    h: '10 networks, first-class',
     p: 'Instagram, Facebook, TikTok, YouTube, X, Threads, LinkedIn, Pinterest, Bluesky & Mastodon — all through official APIs, plus 20+ more publishing targets from the engine.',
   },
   {
@@ -148,7 +148,7 @@ export default function FeaturesPage() {
                 Compose. Schedule. Deliver.
               </h1>
               <p className="mk-section-lede">
-                The whole job in three moves. Everything on this page ships in
+                The whole job in 3 moves. Everything on this page ships in
                 the product today — where a network limits a feature, the
                 interface says so instead of pretending.
               </p>

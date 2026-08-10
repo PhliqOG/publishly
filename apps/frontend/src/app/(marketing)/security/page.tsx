@@ -34,11 +34,11 @@ const DD: CSSProperties = {
 
 const BOUNDARIES = [
   {
-    h: 'Tenant isolation',
+    h: 'One workspace never sees another',
     p: 'Every workspace’s data is scoped at the query layer & covered by automated cross-tenant access tests that run against the real API.',
   },
   {
-    h: 'Roles & membership',
+    h: 'Roles decide, the audit log records',
     p: 'Channels, media, keys & analytics live inside a workspace. Roles & invitations decide who can act; the audit log records who did.',
   },
   {
@@ -80,7 +80,7 @@ export default function SecurityPage() {
           <div className="mk-container">
             <div style={{ maxWidth: '58ch' }}>
               <h2 id="sec-commitments" className="mk-h2">
-                Four commitments.
+                4 commitments.
               </h2>
               <p className="mk-section-lede">
                 Not aspirations — descriptions of how the system works today.

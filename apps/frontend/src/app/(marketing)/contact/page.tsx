@@ -24,7 +24,7 @@ export default function ContactPage() {
               </span>
               <h1 className="mk-h2">Write to the operator.</h1>
               <p className="mk-section-lede">
-                Onboarding, platform permissions, billing, privacy, and
+                Onboarding, platform permissions, billing, privacy &amp;
                 account-export questions are handled by the operator support
                 address configured for this deployment.
               </p>
@@ -37,7 +37,7 @@ export default function ContactPage() {
                     Email support
                   </h2>
                   <p>
-                    Name the workspace and the affected network so the first
+                    Name the workspace &amp; the affected network so the first
                     reply can resolve it.
                   </p>
                 </div>
@@ -58,13 +58,13 @@ export default function ContactPage() {
             <div className="mk-prose" style={{ marginTop: 40 }}>
               <h2>Security reports</h2>
               <p>
-                Include a concise reproduction and never place access tokens
+                Include a concise reproduction &amp; never place access tokens
                 or customer data in email. Disclosure expectations are on the{' '}
                 <Link href="/security">security page</Link>.
               </p>
               <h2>Data requests</h2>
               <p>
-                Export and erasure are described in the{' '}
+                Export &amp; erasure are described in the{' '}
                 <Link href="/privacy">privacy policy</Link>. Accounts connected
                 through Meta can also use the{' '}
                 <Link href="/data-deletion">data-deletion flow</Link>.

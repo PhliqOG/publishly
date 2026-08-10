@@ -24,16 +24,16 @@ export default function AnalyticsMarketingPage() {
       statement="If a platform does not report a number, the dashboard does not invent one. Missing stays missing — labelled, never estimated."
       items={[
         {
-          title: 'Comparable views',
+          title: 'Comparisons the data can support',
           body: 'Compare date ranges, platforms, accounts & best posts wherever provider data allows the comparison.',
         },
         {
-          title: 'Historical snapshots',
+          title: 'History beyond platform lookback windows',
           body: 'Refresh-time snapshots preserve history beyond short API lookback windows, where platform terms permit storage.',
         },
         {
-          title: 'Honest availability',
-          body: 'Reach, saves, follower trends & other metrics read as unavailable when a connected platform does not expose them.',
+          title: 'When a number is missing, it says so',
+          body: 'Reach, saves, follower trends & other metrics read as unavailable when a connected platform doesn’t expose them.',
         },
       ]}
     />

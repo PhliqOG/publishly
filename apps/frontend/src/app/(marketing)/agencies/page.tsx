@@ -13,15 +13,15 @@ export default function AgenciesPage() {
       statement="One client per workspace: connections, media, keys, posts & analytics stay inside the boundary — enforced in the queries, not just the interface."
       items={[
         {
-          title: 'Workspace boundaries',
+          title: 'Isolation enforced in every query',
           body: 'Every private query & mutation carries an organization constraint, backed by tenant-isolation tests.',
         },
         {
-          title: 'Team access',
+          title: 'Client teams, without exposed tokens',
           body: 'Invite owners, admins & members per workspace — provider tokens never appear in the interface.',
         },
         {
-          title: 'Operator visibility',
+          title: 'See failures before clients do',
           body: 'Audit logs, provider health, queue health & publishing failures stay visible to internal operators.',
         },
       ]}
