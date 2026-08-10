@@ -10,6 +10,9 @@
 
 html {
   color-scheme: light;
+  /* symmetric gutters so the page centers on the true viewport middle
+     instead of sitting a scrollbar-width left of it */
+  scrollbar-gutter: stable both-edges;
 }
 
 :root {
@@ -411,8 +414,9 @@ html {
   letter-spacing: -0.04em;
   line-height: 1.03;
   font-weight: 700;
-  max-width: 17ch;
+  max-width: 20ch;
   margin: 0 auto;
+  text-wrap: balance;
 }
 .mk-hero-sub {
   color: var(--mk-text-2);
@@ -506,6 +510,7 @@ html {
   letter-spacing: -0.035em;
   line-height: 1.1;
   max-width: 24ch;
+  text-wrap: balance;
 }
 .mk-section-lede {
   color: var(--mk-text-2);
@@ -1085,15 +1090,20 @@ html {
   min-height: 210px;
 }
 .mk-chip {
-  border: 1px solid var(--mk-line);
+  border: 1px solid rgba(20, 35, 59, 0.08);
   border-left: 3px solid var(--net, var(--mk-blue));
-  border-radius: var(--mk-radius-sm);
+  border-radius: 10px;
   background: #fff;
-  padding: 7px 9px;
+  padding: 9px 11px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  box-shadow: 0 1px 2px rgba(20, 35, 59, 0.04);
+  gap: 4px;
+  box-shadow: 0 1px 3px rgba(20, 35, 59, 0.06);
+  transition: box-shadow 0.2s var(--mk-ease), transform 0.2s var(--mk-ease);
+}
+.mk-chip:hover {
+  box-shadow: 0 3px 10px rgba(20, 35, 59, 0.1);
+  transform: translateY(-1px);
 }
 .mk-chip-meta {
   display: flex;

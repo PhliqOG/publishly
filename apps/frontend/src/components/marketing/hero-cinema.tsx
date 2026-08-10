@@ -18,20 +18,16 @@ type Chip = {
 };
 
 const CHIPS: Chip[] = [
-  { day: 0, net: 'instagram', time: '09:00', title: 'Spring drop teaser', set: true, s: 0.3 },
-  { day: 0, net: 'tiktok', time: '17:30', title: 'Studio tour, cut two', s: 0.44, from: 'left' },
-  { day: 1, net: 'linkedin', time: '08:30', title: 'Case study: the Q2 run', set: true, s: 0.34 },
-  { day: 1, net: 'youtube', time: '12:00', title: 'Tutorial — your first week', s: 0.5, from: 'below' },
-  { day: 1, net: 'x', time: '18:00', title: 'How-to thread, 9 parts', s: 0.66, from: 'right' },
-  { day: 2, net: 'threads', time: '10:00', title: 'Poll: pick the colorway', set: true, s: 0.38 },
-  { day: 2, net: 'instagram', time: '19:00', title: 'UGC repost — @thestudio', s: 0.47, from: 'left' },
-  { day: 2, net: 'pinterest', time: '13:00', title: 'Lookbook, 12 pins', s: 0.72, from: 'below' },
-  { day: 3, net: 'facebook', time: '09:30', title: 'Event recap album', s: 0.53, from: 'right' },
-  { day: 3, net: 'mastodon', time: '11:00', title: 'Release notes, honest', set: true, s: 0.42 },
-  { day: 3, net: 'bluesky', time: '16:00', title: 'Feature deep-dive', s: 0.62, from: 'left' },
-  { day: 4, net: 'x', time: '09:00', title: 'Weekly digest', set: true, s: 0.46 },
-  { day: 4, net: 'youtube', time: '15:00', title: 'Launch announcement', s: 0.58, from: 'below' },
-  { day: 4, net: 'instagram', time: '20:00', title: 'Weekend reel', s: 0.69, from: 'right' },
+  { day: 0, net: 'instagram', time: '9:00', title: 'New product photos', set: true, s: 0.3 },
+  { day: 0, net: 'tiktok', time: '5:30', title: 'Behind the scenes', s: 0.44, from: 'left' },
+  { day: 1, net: 'linkedin', time: '8:30', title: 'Company update', set: true, s: 0.34 },
+  { day: 1, net: 'youtube', time: '12:00', title: 'Product demo', s: 0.5, from: 'below' },
+  { day: 2, net: 'facebook', time: '10:00', title: 'Customer story', set: true, s: 0.38 },
+  { day: 2, net: 'pinterest', time: '1:00', title: 'Spring lookbook', s: 0.72, from: 'below' },
+  { day: 3, net: 'x', time: '9:30', title: 'Quick tips', s: 0.53, from: 'right' },
+  { day: 3, net: 'threads', time: '4:00', title: 'Q&A answers', set: true, s: 0.42 },
+  { day: 4, net: 'instagram', time: '11:00', title: 'Weekly recap', set: true, s: 0.46 },
+  { day: 4, net: 'youtube', time: '3:00', title: 'Launch video', s: 0.58, from: 'below' },
 ];
 
 const VECTORS: Record<NonNullable<Chip['from']>, CSSProperties> = {
@@ -59,8 +55,8 @@ const ChipEl = ({ chip }: { chip: Chip }) => (
     </div>
     <div className="mk-chip-title">{chip.title}</div>
     <div className="mk-chip-state">
-      <span className="mk-queued">queued</span>
-      <span className="mk-published">published ✓</span>
+      <span className="mk-queued">Scheduled</span>
+      <span className="mk-published">✓ Posted</span>
     </div>
   </div>
 );
@@ -71,7 +67,7 @@ export const CalendarBoard = ({ mini = false }: { mini?: boolean }) => (
       <span>
         <strong>This week</strong> · {MARKETING.brand}
       </span>
-      <span>{CHIPS.length} scheduled · 0 failed</span>
+      <span>{CHIPS.length} posts this week</span>
     </div>
     <div className="mk-board-days">
       {DAYS.map((d) => (
