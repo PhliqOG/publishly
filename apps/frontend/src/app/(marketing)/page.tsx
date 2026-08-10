@@ -1,13 +1,13 @@
 import Link from 'next/link';
+import { CSSProperties } from 'react';
 import {
   MarketingFooter,
   MarketingNav,
-  NetworkMarquee,
 } from '@gitroom/frontend/components/marketing/chrome';
-import {
-  CalendarBoard,
-  HeroCinema,
-} from '@gitroom/frontend/components/marketing/hero-cinema';
+import { HeroDeck } from '@gitroom/frontend/components/marketing/hero-deck';
+import { CalendarBoard } from '@gitroom/frontend/components/marketing/hero-cinema';
+import { Tabs } from '@gitroom/frontend/components/marketing/motion';
+import { ApiTerminal } from '@gitroom/frontend/components/marketing/terminal';
 import { ComposerReplica } from '@gitroom/frontend/components/marketing/replicas/composer-replica';
 import { PipelineDiagram } from '@gitroom/frontend/components/marketing/replicas/pipeline-diagram';
 import { AnalyticsReplica } from '@gitroom/frontend/components/marketing/replicas/analytics-replica';
@@ -15,285 +15,346 @@ import { InboxReplica } from '@gitroom/frontend/components/marketing/replicas/in
 import { PricingCards } from '@gitroom/frontend/components/marketing/pricing-cards';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
-const Feature = ({
-  num,
-  label,
-  id,
-  flip,
-  title,
-  lede,
-  points,
-  stage,
-}: {
-  num: string;
-  label: string;
-  id: string;
-  flip?: boolean;
-  title: string;
-  lede: string;
-  points: string[];
-  stage: React.ReactNode;
-}) => (
-  <section className={`mk-feature ${flip ? 'mk-feature-flip' : ''}`} id={id}>
-    <div className="mk-container">
-      <div className="mk-feature-head">
-        <span className="mk-num">{num}</span>
-        <span className="mk-num-label">{label}</span>
-      </div>
-      <div className="mk-feature-grid">
-        <div className="mk-feature-copy mk-reveal">
-          <h2 className="mk-h2">{title}</h2>
-          <p>{lede}</p>
-          <ul className="mk-feature-points">
-            {points.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
-        </div>
-        <div className="mk-feature-stage mk-reveal" data-delay="120">
-          {stage}
-        </div>
-      </div>
-    </div>
-  </section>
-);
+const NET_COLOR: Record<string, string> = {
+  Instagram: 'var(--net-instagram)',
+  Facebook: 'var(--net-facebook)',
+  TikTok: 'var(--net-tiktok)',
+  YouTube: 'var(--net-youtube)',
+  X: 'var(--net-x)',
+  Threads: 'var(--net-threads)',
+  LinkedIn: 'var(--net-linkedin)',
+  Pinterest: 'var(--net-pinterest)',
+  Bluesky: 'var(--net-bluesky)',
+  Mastodon: 'var(--net-mastodon)',
+};
 
 export default function MarketingHome() {
   return (
     <>
       <MarketingNav />
-      <HeroCinema />
-      <NetworkMarquee />
+      <main id="mk-main">
+        <HeroDeck />
 
-      <Feature
-        num="01"
-        label="Compose"
-        id="compose"
-        title="One draft, every voice."
-        lede="Write the core message once, then tailor captions, tags, and first comments per network — with each platform's real limits enforced before you hit schedule."
-        points={[
-          'Per-network captions from a single draft',
-          'Character limits and media rules checked live',
-          'First comments, tags, and per-platform settings',
-        ]}
-        stage={<ComposerReplica />}
-      />
-
-      <Feature
-        num="02"
-        label="Schedule"
-        id="schedule"
-        flip
-        title="The week, at a glance."
-        lede="Month, week, and day views with drag-and-drop rescheduling. Move a slot and the publishing pipeline moves with it — no orphaned jobs, no stale queues."
-        points={[
-          'Drag a post; the workflow follows',
-          'CSV bulk import with a full validation preview',
-          'Shift or clear whole ranges in one operation',
-        ]}
-        stage={
-          <div className="mk-static-board">
-            <CalendarBoard mini />
+        <section className="mk-section" id="api">
+          <div className="mk-container">
+            <div className="mk-tabpanel" style={{ paddingTop: 0 }}>
+              <div className="mk-tabpanel-copy mk-reveal">
+                <span className="mk-eyebrow">Public API</span>
+                <h2 className="mk-h2" style={{ marginTop: 14 }}>
+                  Schedule from anywhere.
+                </h2>
+                <p>
+                  Everything the app does, your scripts can do. Hashed, scoped
+                  API keys you can revoke at any time — shown once, never
+                  stored in recoverable form.
+                </p>
+                <ul className="mk-points">
+                  <li>Scoped keys with deny-by-default permissions</li>
+                  <li>Rate limits that protect your workspace</li>
+                  <li>Bulk scheduling &amp; status reads</li>
+                </ul>
+              </div>
+              <div className="mk-reveal" data-delay="120">
+                <ApiTerminal />
+              </div>
+            </div>
           </div>
-        }
-      />
+        </section>
 
-      <Feature
-        num="03"
-        label="Deliver"
-        id="deliver"
-        title="Publishing is infrastructure."
-        lede="Every scheduled destination runs as a durable workflow with a deterministic identity. Provider-aware status checks and conservative retry rules keep ambiguous failures from becoming blind duplicate attempts."
-        points={[
-          'Duplicate-resistant, idempotent execution',
-          'Partial success: five networks stay up while one retries',
-          'An hourly sweeper re-queues anything that missed its slot',
-        ]}
-        stage={<PipelineDiagram />}
-      />
-
-      <Feature
-        num="04"
-        label="Measure"
-        id="measure"
-        flip
-        title="Numbers with receipts."
-        lede="Analytics come from each platform's official reporting APIs and are snapshotted whenever they refresh. If a platform doesn't report a metric, we show you that — never an estimate dressed up as data."
-        points={[
-          'Platform-reported values only, never interpolated',
-          'Refresh-time snapshots build an honest history',
-          'Per-channel drill-down and API access',
-        ]}
-        stage={<AnalyticsReplica />}
-      />
-
-      <Feature
-        num="05"
-        label="Reply"
-        id="reply"
-        title="Every conversation, one inbox."
-        lede="Comments from your connected channels, in one queue, with replies that post through the same official APIs. Channels that don't support it say so — honestly."
-        points={[
-          'Unified comment stream per workspace',
-          'Reply in place, through official APIs',
-          'Capability-gated: no faked features',
-        ]}
-        stage={<InboxReplica />}
-      />
-
-      <section className="mk-section" id="open">
-        <div className="mk-container">
-          <div className="mk-feature-head">
-            <span className="mk-num">06</span>
-            <span className="mk-num-label">Open</span>
+        <section className="mk-section" id="platform">
+          <div className="mk-container">
+            <div className="mk-reveal">
+              <span className="mk-eyebrow">Platform</span>
+              <h2 className="mk-h2" style={{ marginTop: 14 }}>
+                Everything a publishing team runs on.
+              </h2>
+            </div>
+            <div className="mk-bento">
+              <div className="mk-tile mk-tile-wide mk-reveal">
+                <span className="mk-tile-label">Composer</span>
+                <h3>One draft, every voice</h3>
+                <p>
+                  Write once, tailor captions per network — with each
+                  platform&rsquo;s real limits enforced before you hit
+                  schedule.
+                </p>
+                <div className="mk-tile-chiprow">
+                  {MARKETING.networks.slice(0, 6).map((n) => (
+                    <span
+                      className="mk-minichip"
+                      key={n}
+                      style={{ '--net': NET_COLOR[n] } as CSSProperties}
+                    >
+                      <i />
+                      {n}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="mk-tile mk-reveal" data-delay="80">
+                <span className="mk-tile-label">Networks</span>
+                <div className="mk-tile-stat">
+                  10<span> networks</span>
+                </div>
+                <p>Official OAuth &amp; permission models only. No password
+                  sharing, no browser puppets.</p>
+              </div>
+              <div className="mk-tile mk-reveal" data-delay="60">
+                <span className="mk-tile-label">Bulk</span>
+                <h3>CSV import with receipts</h3>
+                <p>
+                  Validate, preview, then commit — every rejected row tells
+                  you why before anything is scheduled.
+                </p>
+              </div>
+              <div className="mk-tile mk-reveal" data-delay="120">
+                <span className="mk-tile-label">Delivery</span>
+                <h3>Duplicate-resistant by design</h3>
+                <p>
+                  Each post runs as a durable workflow with a deterministic
+                  identity — retries converge instead of double-posting.
+                </p>
+              </div>
+              <div className="mk-tile mk-reveal" data-delay="180">
+                <span className="mk-tile-label">Analytics</span>
+                <h3>No estimated metrics</h3>
+                <p>
+                  Platform-reported values only. If a network doesn&rsquo;t
+                  report it, we say so instead of inventing it.
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="mk-reveal">
-            <h2 className="mk-h2">Ten networks. Official APIs only.</h2>
-            <p className="mk-section-lede">
-              Connections use each platform&apos;s official OAuth and
-              permission model. No password sharing, no browser puppets,
-              nothing that breaks when a platform sneezes.
-            </p>
+        </section>
+
+        <section className="mk-section" id="pillars">
+          <div className="mk-container">
+            <div className="mk-reveal">
+              <span className="mk-eyebrow">The work</span>
+              <h2 className="mk-h2" style={{ marginTop: 14 }}>
+                Compose. Schedule. Deliver.
+              </h2>
+            </div>
+            <Tabs
+              tabs={[
+                {
+                  id: 'compose',
+                  label: 'Compose',
+                  content: (
+                    <>
+                      <div className="mk-tabpanel-copy">
+                        <h3>Write once, tailor everywhere</h3>
+                        <p>
+                          The core message stays one draft. Captions, tags,
+                          and first comments adapt per network — with live
+                          previews &amp; real character limits.
+                        </p>
+                        <ul className="mk-points">
+                          <li>Per-network caption variants</li>
+                          <li>Media rules checked before scheduling</li>
+                          <li>First comments &amp; platform settings</li>
+                        </ul>
+                      </div>
+                      <ComposerReplica />
+                    </>
+                  ),
+                },
+                {
+                  id: 'schedule',
+                  label: 'Schedule',
+                  content: (
+                    <>
+                      <div className="mk-tabpanel-copy">
+                        <h3>The week, at a glance</h3>
+                        <p>
+                          Month, week &amp; day views with drag-and-drop
+                          rescheduling. Move a slot and the pipeline moves
+                          with it.
+                        </p>
+                        <ul className="mk-points">
+                          <li>Drag a post; the workflow follows</li>
+                          <li>Bulk shift or clear whole ranges</li>
+                          <li>Timezone-safe slots</li>
+                        </ul>
+                      </div>
+                      <CalendarBoard mini />
+                    </>
+                  ),
+                },
+                {
+                  id: 'deliver',
+                  label: 'Deliver',
+                  content: (
+                    <>
+                      <div className="mk-tabpanel-copy">
+                        <h3>Publishing is infrastructure</h3>
+                        <p>
+                          A durable workflow engine executes every post, so
+                          crashes, rate limits &amp; expired tokens stay
+                          boring.
+                        </p>
+                        <ul className="mk-points">
+                          <li>Partial success, honest per-network status</li>
+                          <li>An hourly sweeper re-queues missed slots</li>
+                          <li>Conservative retries, never blind re-posts</li>
+                        </ul>
+                      </div>
+                      <PipelineDiagram />
+                    </>
+                  ),
+                },
+              ]}
+            />
+          </div>
+        </section>
+
+        <section className="mk-band-cream" id="reliability">
+          <div className="mk-container">
+            <div className="mk-reveal">
+              <span className="mk-eyebrow" style={{ color: 'var(--mk-olive)' }}>
+                Reliability
+              </span>
+              <h2 className="mk-h2" style={{ marginTop: 14 }}>
+                Built like rail, not like a cron job.
+              </h2>
+              <p className="mk-section-lede">
+                Most schedulers are a cron job with a nice calendar.{' '}
+                {MARKETING.brand} treats publishing like infrastructure — the
+                worst moments stay boring.
+              </p>
+            </div>
+            <div className="mk-cards">
+              {MARKETING.reliability.map((card, i) => (
+                <div
+                  className="mk-card mk-reveal"
+                  key={card.title}
+                  data-delay={i * 80}
+                >
+                  <span className="mk-card-num">
+                    RAIL {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <h3>{card.title}</h3>
+                  <p>{card.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mk-section" id="measure-reply">
+          <div className="mk-container">
+            <div className="mk-reveal">
+              <span className="mk-eyebrow">Signals</span>
+              <h2 className="mk-h2" style={{ marginTop: 14 }}>
+                Measure &amp; reply, one place.
+              </h2>
+            </div>
+            <div className="mk-duo">
+              <div className="mk-duo-cell mk-reveal">
+                <h3>Numbers with receipts</h3>
+                <p>
+                  Official reporting APIs, snapshotted as they refresh — an
+                  honest history you can drill into per channel.
+                </p>
+                <AnalyticsReplica />
+              </div>
+              <div className="mk-duo-cell mk-reveal" data-delay="120">
+                <h3>Every conversation, one inbox</h3>
+                <p>
+                  Comments from connected channels in one queue, replies
+                  through the same official APIs. Unsupported channels say so.
+                </p>
+                <InboxReplica />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mk-section" id="networks">
+          <div className="mk-container">
+            <div className="mk-reveal">
+              <span className="mk-eyebrow">Connections</span>
+              <h2 className="mk-h2" style={{ marginTop: 14 }}>
+                10 networks. Official APIs only.
+              </h2>
+              <p className="mk-section-lede">
+                Connections use each platform&rsquo;s official OAuth &amp;
+                permission model — nothing that breaks when a platform
+                sneezes.
+              </p>
+            </div>
             <div className="mk-networks">
-              {MARKETING.networks.map((n) => (
-                <span className="mk-network-chip" key={n}>
+              {MARKETING.networks.map((n, i) => (
+                <span
+                  className="mk-network-chip mk-reveal"
+                  key={n}
+                  data-delay={i * 40}
+                  style={{ '--net': NET_COLOR[n] } as CSSProperties}
+                >
                   {n}
                 </span>
               ))}
             </div>
             <p className="mk-networks-note">
-              Plus twenty more communities and publishing targets inherited
-              from the open-source engine underneath.{' '}
+              Plus 20 more communities &amp; publishing targets inherited from
+              the open-source engine underneath.{' '}
               <Link href="/source" style={{ textDecoration: 'underline' }}>
                 {MARKETING.openSource.linkLabel}
               </Link>
               .
             </p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="mk-section" id="collaboration">
-        <div className="mk-container">
-          <div className="mk-feature-head">
-            <span className="mk-num">07</span>
-            <span className="mk-num-label">Collaborate</span>
-          </div>
-          <h2 className="mk-h2">One workspace, clear ownership.</h2>
-          <p className="mk-section-lede">
-            Invite teammates, separate client workspaces, leave internal notes,
-            and keep security-relevant actions in an operator-readable audit log.
-          </p>
-          <div className="mk-cards">
-            <div className="mk-card">
-              <h3>Roles that make sense</h3>
-              <p>Owner, admin, and member responsibilities stay visible in the interface.</p>
+        <section className="mk-section" id="pricing">
+          <div className="mk-container">
+            <div className="mk-reveal">
+              <span className="mk-eyebrow">Pricing</span>
+              <h2 className="mk-h2" style={{ marginTop: 14 }}>
+                Pricing that reads like a timetable.
+              </h2>
+              <p className="mk-section-lede">
+                4 plans, one variable that matters: how much you publish.
+                Every plan starts with a 7-day trial.
+              </p>
             </div>
-            <div className="mk-card">
-              <h3>Agency-ready separation</h3>
-              <p>Connections, posts, media, keys, and analytics remain scoped to their workspace.</p>
-            </div>
-            <div className="mk-card">
-              <h3>Traceable changes</h3>
-              <p>Invitations, channel changes, keys, and bulk operations leave an audit record.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mk-section" id="developers">
-        <div className="mk-container">
-          <div className="mk-feature-head">
-            <span className="mk-num">08</span>
-            <span className="mk-num-label">Develop</span>
-          </div>
-          <h2 className="mk-h2">A real API, not an afterthought.</h2>
-          <p className="mk-section-lede">
-            Create one-time-visible, hashed API keys with narrow scopes for
-            accounts, media, schedules, posts, and status automation.
-          </p>
-          <Link href="/api-docs" className="mk-btn mk-btn-ghost">
-            Explore the API
-          </Link>
-        </div>
-      </section>
-
-      <section className="mk-section" aria-labelledby="stories-title">
-        <div className="mk-container">
-          <div className="mk-feature-head">
-            <span className="mk-num">09</span>
-            <span className="mk-num-label">Customer stories</span>
-          </div>
-          <h2 className="mk-h2" id="stories-title">Proof belongs to customers.</h2>
-          <p className="mk-section-lede">
-            No testimonials are published yet. This space is intentionally
-            reserved for verified customer stories after launch.
-          </p>
-        </div>
-      </section>
-
-      <section className="mk-section" id="faq">
-        <div className="mk-container mk-prose">
-          <div className="mk-feature-head">
-            <span className="mk-num">10</span>
-            <span className="mk-num-label">FAQ</span>
-          </div>
-          <h2 className="mk-h2">Before you connect.</h2>
-          <h3>Does Publishly use official APIs?</h3>
-          <p>Yes for the ten featured networks. Each connection still depends on that platform granting the required app permissions.</p>
-          <h3>Will every feature work on every network?</h3>
-          <p>No. The composer and inbox read the provider capability registry and hide or label unsupported controls.</p>
-          <h3>What happens during a provider outage?</h3>
-          <p>Durable jobs retain their state, classify the failure, and retry only when the provider operation is safe to repeat.</p>
-        </div>
-      </section>
-
-      <section className="mk-section" id="pricing">
-        <div className="mk-container">
-          <div className="mk-feature-head">
-            <span className="mk-num">11</span>
-            <span className="mk-num-label">Fare</span>
-          </div>
-          <div className="mk-reveal">
-            <h2 className="mk-h2">Pricing that reads like a timetable.</h2>
-            <p className="mk-section-lede">
-              Four plans, one variable that matters: how much you publish.
-              Every plan starts with a 7-day trial.
+            <PricingCards compact />
+            <p className="mk-free-line">
+              There&rsquo;s also a free plan for trying the composer &amp;
+              calendar — upgrade when a channel goes live. Full detail on the{' '}
+              <Link href="/pricing" style={{ textDecoration: 'underline' }}>
+                pricing page
+              </Link>
+              .
             </p>
           </div>
-          <PricingCards compact />
-          <p className="mk-free-line">
-            Create an account and inspect the workspace before selecting a
-            paid plan; a live channel requires an entitlement. Full detail on the{' '}
-            <Link href="/pricing" style={{ textDecoration: 'underline' }}>
-              pricing page
-            </Link>
-            .
-          </p>
-        </div>
-      </section>
+        </section>
 
-      <section className="mk-finale mk-on-ink">
-        <div className="mk-container">
-          <h2 className="mk-finale-head mk-reveal">
-            Monday, planned by Friday.
-          </h2>
-          <p className="mk-finale-sub mk-reveal" data-delay="100">
-            Connect a channel, fill the week, and watch the board clear
-            itself. Create your workspace before selecting a paid plan.
-          </p>
-          <div className="mk-finale-ctas mk-reveal" data-delay="180">
-            <Link href={MARKETING.authRegister} className="mk-btn mk-btn-primary">
-              {MARKETING.cta.primary}
-            </Link>
-            <Link href="/pricing" className="mk-btn mk-btn-ghost">
-              See pricing
-            </Link>
+        <section className="mk-finale">
+          <div className="mk-container">
+            <h2 className="mk-finale-head mk-reveal">
+              Monday, planned by Friday.
+            </h2>
+            <p className="mk-finale-sub mk-reveal" data-delay="100">
+              Connect a channel, fill the week &amp; watch the board clear
+              itself. Free plan included — no card required to start.
+            </p>
+            <div className="mk-finale-ctas mk-reveal" data-delay="180">
+              <Link
+                href={MARKETING.authRegister}
+                className="mk-btn mk-btn-primary"
+              >
+                {MARKETING.cta.primary}
+              </Link>
+              <Link href="/pricing" className="mk-btn mk-btn-ghost">
+                See pricing
+              </Link>
+            </div>
+            <hr className="mk-finale-rule" />
           </div>
-          <hr className="mk-finale-rule" />
-        </div>
-        <MarketingFooter />
-      </section>
+          <MarketingFooter />
+        </section>
+      </main>
     </>
   );
 }

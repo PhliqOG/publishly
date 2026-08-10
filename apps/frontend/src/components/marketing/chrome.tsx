@@ -28,7 +28,7 @@ export const MarketingNav = () => (
   </nav>
 );
 
-const MARQUEE: Array<[string, string]> = [
+const NETWORKS: Array<[string, string]> = [
   ['Instagram', 'var(--net-instagram)'],
   ['Facebook', 'var(--net-facebook)'],
   ['TikTok', 'var(--net-tiktok)'],
@@ -41,60 +41,87 @@ const MARQUEE: Array<[string, string]> = [
   ['Mastodon', 'var(--net-mastodon)'],
 ];
 
-// Ten networks, official APIs only — stated as a ticker. The track is
-// rendered twice for a seamless -50% loop; the duplicate is aria-hidden.
+// Kept for compatibility — the v3 home no longer renders this. Now a static,
+// non-animated strip of the ten networks (platform dots are data/trademark).
 export const NetworkMarquee = () => (
-  <div className="mk-marquee" aria-label="Ten networks, official APIs only">
-    <div className="mk-marquee-track">
-      {[0, 1].map((dup) => (
-        <span key={dup} aria-hidden={dup === 1} style={{ display: 'contents' }}>
-          {MARQUEE.map(([name, color]) => (
-            <span
-              key={name}
-              className="mk-marquee-item"
-              style={{ '--net': color } as CSSProperties}
-            >
-              {name}
-            </span>
-          ))}
-        </span>
-      ))}
-    </div>
+  <div
+    aria-label="Ten networks, official APIs only"
+    style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}
+  >
+    {NETWORKS.map(([name, color]) => (
+      <span
+        key={name}
+        className="mk-minichip"
+        style={{ '--net': color } as CSSProperties}
+      >
+        <i />
+        {name}
+      </span>
+    ))}
   </div>
 );
 
+// Footer links are 14px text; a touch of block padding keeps every hit
+// target at or above 24px without touching the shared CSS.
+const FOOT_LINK: CSSProperties = { paddingBlock: '2px' };
+
 export const MarketingFooter = () => (
-  <footer className="mk-footer mk-on-ink">
+  <footer className="mk-footer">
     <div className="mk-container">
       <div className="mk-footer-grid">
         <div>
-          <div className="mk-nav-logo" style={{ marginBottom: 10 }}>
+          <div className="mk-nav-logo" style={{ marginBottom: 12 }}>
             <PublishlyMark />
             {MARKETING.brand}
           </div>
-          <div style={{ maxWidth: '44ch' }}>{MARKETING.openSource.line}</div>
-          <div style={{ marginTop: 8 }}>
-            <Link href="/source" style={{ textDecoration: 'underline' }}>
+          <p
+            style={{
+              margin: 0,
+              maxWidth: '40ch',
+              fontSize: '13.5px',
+              lineHeight: 1.65,
+            }}
+          >
+            {MARKETING.openSource.line}
+          </p>
+          <div style={{ marginTop: 10 }}>
+            <Link
+              href="/source"
+              style={{
+                display: 'inline-block',
+                paddingBlock: '2px',
+                textDecoration: 'underline',
+                textUnderlineOffset: '3px',
+              }}
+            >
               {MARKETING.openSource.linkLabel}
             </Link>
           </div>
         </div>
-        <div className="mk-footer-links">
-          <Link href="/features">Features</Link>
-          <Link href="/publishing">Publishing</Link>
-          <Link href="/calendar">Calendar</Link>
-          <Link href="/analytics">Analytics</Link>
-          <Link href="/engagement">Engagement</Link>
-          <Link href="/api-docs">API</Link>
-          <Link href="/agencies">Agencies</Link>
-          <Link href="/pricing">Pricing</Link>
-          <Link href="/about">About</Link>
-          <Link href="/contact">Contact</Link>
-          <Link href="/security">Security</Link>
-          <Link href="/terms">Terms</Link>
-          <Link href="/privacy">Privacy</Link>
-          <Link href="/acceptable-use">Acceptable use</Link>
-          <Link href={MARKETING.authLogin}>Sign in</Link>
+        <div className="mk-footer-col">
+          <div className="mk-footer-coltitle">Product</div>
+          <Link href="/features" style={FOOT_LINK}>Features</Link>
+          <Link href="/publishing" style={FOOT_LINK}>Publishing</Link>
+          <Link href="/calendar" style={FOOT_LINK}>Calendar</Link>
+          <Link href="/analytics" style={FOOT_LINK}>Analytics</Link>
+          <Link href="/engagement" style={FOOT_LINK}>Engagement</Link>
+          <Link href="/agencies" style={FOOT_LINK}>Agencies</Link>
+        </div>
+        <div className="mk-footer-col">
+          <div className="mk-footer-coltitle">Resources</div>
+          <Link href="/api-docs" style={FOOT_LINK}>API docs</Link>
+          <Link href="/pricing" style={FOOT_LINK}>Pricing</Link>
+          <Link href="/security" style={FOOT_LINK}>Security</Link>
+          <Link href="/source" style={FOOT_LINK}>Source</Link>
+        </div>
+        <div className="mk-footer-col">
+          <div className="mk-footer-coltitle">Company</div>
+          <Link href="/about" style={FOOT_LINK}>About</Link>
+          <Link href="/contact" style={FOOT_LINK}>Contact</Link>
+          <Link href="/terms" style={FOOT_LINK}>Terms</Link>
+          <Link href="/privacy" style={FOOT_LINK}>Privacy</Link>
+          <Link href="/acceptable-use" style={FOOT_LINK}>Acceptable use</Link>
+          <Link href={MARKETING.authLogin} style={FOOT_LINK}>Sign in</Link>
         </div>
       </div>
       <div className="mk-footer-note">{MARKETING.footerNote}</div>

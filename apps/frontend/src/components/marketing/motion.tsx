@@ -1,7 +1,81 @@
 'use client';
 
-import { ReactElement, ReactNode, useEffect, useRef } from 'react';
+import {
+  KeyboardEvent,
+  ReactElement,
+  ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 import { usePathname } from 'next/navigation';
+
+// Accessible tabs (WAI-ARIA pattern): arrow-key navigation, roving focus,
+// aria-selected indicator. Content nodes are server-rendered JSX passed in.
+export function Tabs({
+  tabs,
+}: {
+  tabs: Array<{ id: string; label: string; content: ReactNode }>;
+}): ReactElement {
+  const [active, setActive] = useState(0);
+  const baseId = useId();
+  const refs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const last = tabs.length - 1;
+    let next: number | null = null;
+    if (e.key === 'ArrowRight') next = active === last ? 0 : active + 1;
+    else if (e.key === 'ArrowLeft') next = active === 0 ? last : active - 1;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = last;
+    if (next === null) return;
+    e.preventDefault();
+    setActive(next);
+    refs.current[next]?.focus();
+  };
+
+  return (
+    <div className="mk-tabs">
+      <div
+        role="tablist"
+        className="mk-tablist"
+        aria-label="Product areas"
+        onKeyDown={onKeyDown}
+      >
+        {tabs.map((t, i) => (
+          <button
+            key={t.id}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
+            role="tab"
+            id={`${baseId}-tab-${t.id}`}
+            aria-selected={i === active}
+            aria-controls={`${baseId}-panel-${t.id}`}
+            tabIndex={i === active ? 0 : -1}
+            className="mk-tab"
+            onClick={() => setActive(i)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tabs.map((t, i) => (
+        <div
+          key={t.id}
+          role="tabpanel"
+          id={`${baseId}-panel-${t.id}`}
+          aria-labelledby={`${baseId}-tab-${t.id}`}
+          hidden={i !== active}
+          className="mk-tabpanel"
+        >
+          {t.content}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ScrollScene pins its children for the scene's height and scrubs the CSS
 // custom property --p (0..1) with scroll position. All choreography lives in

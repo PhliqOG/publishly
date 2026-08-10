@@ -1,28 +1,21 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { ReactNode } from 'react';
-import {
-  Bricolage_Grotesque,
-  Public_Sans,
-  IBM_Plex_Mono,
-} from 'next/font/google';
+import { Geist, Geist_Mono } from 'next/font/google';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 import { MotionRuntime } from '@gitroom/frontend/components/marketing/motion';
 import './marketing.css';
 
-const display = Bricolage_Grotesque({
+const display = Geist({
   subsets: ['latin'],
   variable: '--mk-font-display',
-  weight: ['600', '700', '800'],
 });
-const body = Public_Sans({
+const body = Geist({
   subsets: ['latin'],
   variable: '--mk-font-body',
-  weight: ['400', '500', '600', '700'],
 });
-const mono = IBM_Plex_Mono({
+const mono = Geist_Mono({
   subsets: ['latin'],
   variable: '--mk-font-mono',
-  weight: ['400', '500', '600'],
 });
 
 export const metadata: Metadata = {
@@ -51,6 +44,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: '#133458',
+};
+
 export default function MarketingLayout({
   children,
 }: {
@@ -61,6 +58,9 @@ export default function MarketingLayout({
       <body
         className={`mk-body ${display.variable} ${body.variable} ${mono.variable}`}
       >
+        <a href="#mk-main" className="mk-skip">
+          Skip to content
+        </a>
         {children}
         <MotionRuntime />
       </body>

@@ -1,13 +1,19 @@
 /* ============================================================
    Analytics replica — mkr-ana-
-   A believable slice of the reach/analytics panel: mono top
-   bar, 14-bar ink chart (max bar in accent) over a hairline
-   baseline, three tabular stat rows. Bars grow in once on
-   load (scaleY, staggered), disabled under reduced motion.
+   Night Rail slice of the reach/analytics panel: mono top bar,
+   14-bar chart in muted cream (max bar in amber) over a
+   hairline baseline, three tabular stat rows. Bars grow in
+   once on load (scaleY, staggered), disabled under reduced
+   motion. Sits nested inside .mk-duo-cell on the navy canvas.
    ============================================================ */
 
 .mkr-ana-root {
   width: 100%;
+  background: var(--mk-surface-1);
+  border: 1px solid var(--mk-line);
+  border-radius: var(--mk-radius);
+  box-shadow: var(--mk-shadow);
+  overflow: hidden;
 }
 
 /* ---------- top bar ---------- */
@@ -18,16 +24,16 @@
   justify-content: space-between;
   gap: 16px;
   padding: 13px 18px;
-  border-bottom: 1px solid var(--mk-hairline);
+  border-bottom: 1px solid var(--mk-line);
   font-family: var(--mk-font-mono), monospace;
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--mk-ink-2);
+  color: var(--mk-text-2);
 }
 .mkr-ana-top-note {
-  color: var(--mk-ink-3);
+  color: var(--mk-text-3);
   font-size: 10.5px;
   letter-spacing: 0.12em;
 }
@@ -40,17 +46,17 @@
   gap: 2px;
   height: 156px;
   padding: 0 18px;
-  border-bottom: 1px solid var(--mk-hairline); /* baseline */
+  border-bottom: 1px solid var(--mk-line); /* baseline */
 }
 .mkr-ana-bar {
   flex: 1 1 0;
   min-width: 0;
-  background: var(--mk-ink);
+  background: rgba(250, 247, 187, 0.34);
   transform-origin: bottom;
   animation: mkr-ana-grow 0.55s var(--mk-ease-out) backwards;
 }
 .mkr-ana-bar-max {
-  background: var(--mk-accent);
+  background: var(--mk-amber);
 }
 @keyframes mkr-ana-grow {
   from {
@@ -113,7 +119,7 @@
   padding: 13px 0;
 }
 .mkr-ana-row + .mkr-ana-row {
-  border-top: 1px solid var(--mk-hairline);
+  border-top: 1px solid var(--mk-line);
 }
 .mkr-ana-label {
   font-family: var(--mk-font-mono), monospace;
@@ -121,7 +127,7 @@
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--mk-ink-2);
+  color: var(--mk-text-2);
 }
 .mkr-ana-val {
   font-family: var(--mk-font-mono), monospace;
@@ -130,7 +136,7 @@
   letter-spacing: 0.06em;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  color: var(--mk-ink);
+  color: var(--mk-text);
 }
 .mkr-ana-delta {
   font-family: var(--mk-font-mono), monospace;
@@ -139,7 +145,7 @@
   letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  color: var(--mk-accent);
+  color: var(--mk-amber);
 }
 .mkr-ana-na {
   grid-column: 2 / 4;
@@ -148,7 +154,7 @@
   font-weight: 500;
   letter-spacing: 0.08em;
   text-align: right;
-  color: var(--mk-ink-3);
+  color: var(--mk-text-3);
 }
 
 /* ---------- reduced motion ---------- */

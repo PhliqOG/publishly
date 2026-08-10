@@ -44,7 +44,7 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
 const ChipEl = ({ chip }: { chip: Chip }) => (
   <div
-    className={`mk-chip ${chip.set ? 'mk-chip-set' : ''}`}
+    className={`mk-chip ${chip.set ? 'mk-chip-set mk-chip-live' : ''}`}
     style={
       {
         '--net': `var(--net-${chip.net})`,
