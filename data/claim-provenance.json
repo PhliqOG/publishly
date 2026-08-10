@@ -1,0 +1,89 @@
+{
+  "_meta": {
+    "purpose": "Provenance for every competitor/third-party claim published on Publishly pages. Comparison pages must render 'Pricing last checked: <verified_at>' from this file. Stale policy: competitor pricing older than 30 days or platform facts older than 90 days must be flagged for re-verification before the page rebuilds.",
+    "stale_after_days": { "competitor_pricing": 30, "platform_facts": 90 },
+    "full_findings": ".building/reposition/competitor-pricing.md"
+  },
+  "claims": [
+    {
+      "id": "ayrshare-100-profiles",
+      "claim": "Ayrshare's published Business plan pricing works out to $1,228.30/mo at 100 profiles ($599 base incl. 30 profiles + 70 × $8.99, monthly billing).",
+      "source_url": "https://www.ayrshare.com/pricing",
+      "publisher": "Ayrshare (official pricing page)",
+      "retrieved": "2026-08-10",
+      "verified_at": "2026-08-10",
+      "confidence": "confirmed",
+      "party": "third",
+      "pages": ["/compare/ayrshare", "/pricing", "/resources/best-ayrshare-alternatives"]
+    },
+    {
+      "id": "buffer-30-channels",
+      "claim": "Buffer's published Team rate is $10/channel/mo — 30 channels ≈ $300/mo.",
+      "source_url": "https://buffer.com/pricing",
+      "publisher": "Buffer (official pricing page)",
+      "retrieved": "2026-08-10",
+      "verified_at": "2026-08-10",
+      "confidence": "confirmed",
+      "note": "Operator spec said $360; published rates give $300 — use $300.",
+      "party": "third",
+      "pages": ["/compare/buffer", "/pricing"]
+    },
+    {
+      "id": "hootsuite-entry",
+      "claim": "Hootsuite's entry plan is $99/mo billed annually for 10 social accounts; unlimited accounts start at Professional $199/mo.",
+      "source_url": "https://www.hootsuite.com/plans",
+      "publisher": "Hootsuite (official plans page)",
+      "retrieved": "2026-08-10",
+      "verified_at": "2026-08-10",
+      "confidence": "confirmed",
+      "note": "Do NOT publish 'price hikes + complaints' framing as fact — pricing only.",
+      "party": "third",
+      "pages": ["/compare/hootsuite"]
+    },
+    {
+      "id": "bundle-social-entry",
+      "claim": "bundle.social's first paid tier is PRO at $100/mo; its free tier covers 3 accounts and 20 posts/mo; paid tiers have unlimited accounts.",
+      "source_url": "https://bundle.social",
+      "publisher": "bundle.social (official site)",
+      "retrieved": "2026-08-10",
+      "verified_at": "2026-08-10",
+      "confidence": "confirmed",
+      "party": "third",
+      "pages": ["/compare/bundle-social"]
+    },
+    {
+      "id": "metricool-tiers",
+      "claim": "Metricool's published tiers run Free / Starter $20–36 / Advanced $53–159 with a 50-brand maximum — no unlimited-accounts tier.",
+      "source_url": "https://metricool.com/pricing",
+      "publisher": "Metricool (official pricing page)",
+      "retrieved": "2026-08-10",
+      "verified_at": "2026-08-10",
+      "confidence": "confirmed",
+      "party": "third",
+      "pages": ["/compare/metricool", "/resources/best-social-posting-apis-2026"]
+    },
+    {
+      "id": "upload-post-tiers",
+      "claim": "Upload-Post's published plans are $0 / $24 / $50 / $147 / $438 per month for 2 / 5 / 25 / 75 / 225 profiles.",
+      "source_url": "https://upload-post.com",
+      "publisher": "Upload-Post (vendor llms-full.txt)",
+      "retrieved": "2026-08-10",
+      "verified_at": "2026-08-10",
+      "confidence": "confirmed",
+      "party": "third",
+      "pages": ["/compare/upload-post", "/resources/best-social-posting-apis-2026"]
+    },
+    {
+      "id": "meta-token-expiry",
+      "claim": "Long-lived Meta and LinkedIn access tokens expire on the order of ~60 days and must be refreshed; TikTok refresh tokens also expire and require re-auth.",
+      "source_url": "https://developers.facebook.com/docs/facebook-login/guides/access-tokens/get-long-lived",
+      "publisher": "Meta / LinkedIn / TikTok developer docs",
+      "retrieved": "2026-08-10",
+      "verified_at": "2026-08-10",
+      "confidence": "confirmed-directional",
+      "note": "Use as directional ('tokens on major platforms expire in roughly 60 days'), not per-platform legal precision — full per-platform table belongs to /platforms pages with their own verification.",
+      "party": "third",
+      "pages": ["/reliability", "/"]
+    }
+  ]
+}

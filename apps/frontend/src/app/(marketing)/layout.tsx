@@ -3,6 +3,7 @@ import { ReactNode } from 'react';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 import { MotionRuntime } from '@gitroom/frontend/components/marketing/motion';
+import { EntityJsonLd } from '@gitroom/frontend/components/marketing/geo';
 import './marketing.css';
 
 const display = Geist({
@@ -21,7 +22,7 @@ const mono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.MAIN_URL || 'http://localhost:4200'),
   title: {
-    default: `${MARKETING.brand} — social scheduling that leaves on time`,
+    default: `${MARKETING.brand} — social media posting API with unlimited accounts`,
     template: `%s — ${MARKETING.brand}`,
   },
   description: MARKETING.sub,
@@ -62,6 +63,7 @@ export default function MarketingLayout({
           Skip to content
         </a>
         {children}
+        <EntityJsonLd />
         <MotionRuntime />
       </body>
     </html>

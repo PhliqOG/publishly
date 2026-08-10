@@ -3,37 +3,111 @@
 import { ReactElement, ReactNode, useEffect, useRef, useState } from 'react';
 
 // ApiTerminal — the one client component in the marketing tree (it types).
-// Types the curl exchange character-by-character the first time it enters
-// the viewport; under prefers-reduced-motion the full text renders at once.
-// A hidden full-text copy sizes the body up front, so typing never shifts
-// layout, and doubles as the screen-reader text while the animated layer
-// stays aria-hidden.
+// Plays a two-act post lifecycle on loop: the happy path (queued → published →
+// post.published webhook), then the failure path (token expired →
+// post.failure webhook → "you knew before the client did"). Types
+// character-by-character while in the viewport, holds ~4s on the closing
+// line, then replays from the top; the interval only runs while animating
+// and is cleared when done or offscreen. Under prefers-reduced-motion the
+// full transcript renders at once. A hidden full-text copy sizes the body up
+// front, so typing never shifts layout, and doubles as the screen-reader
+// text while the animated layer stays aria-hidden.
 
-type Segment = { text: string; cls?: string };
+type Segment = { text: string; cls?: string; id?: string };
 
 // Newlines live inside the text — .mk-term-body is white-space: pre-wrap.
+// Webhook payload shapes mirror data/public-product-facts.json
+// (reliability.success_webhook / reliability.failure_webhook).
 const SEGMENTS: Segment[] = [
+  // — loop 1: the happy path
   { text: '$', cls: 'mk-term-prompt' },
   { text: ' curl -X POST https://api.yourdomain.com/public/v1/posts \\\n' },
   { text: "    -H 'Authorization: " },
-  { text: 'YOUR_API_TOKEN_HERE', cls: 'mk-term-key' },
+  { text: 'YOUR_API_KEY', cls: 'mk-term-key' },
   { text: "' \\\n" },
   {
     text: '    -d \'{ "content": "Launch day.", "when": "2026-08-14T18:00" }\'\n',
+    id: 'cmd1',
   },
-  { text: '\n' },
-  { text: '{ "id": "post_0123456789", "state": ' },
+  { text: '\n{ "id": "post_01HZX4", "state": ' },
   { text: '"QUEUED"', cls: 'mk-term-key' },
-  { text: ' }\n' },
-  { text: '✓ scheduled — Thu 18:00', cls: 'mk-term-ok' },
+  { text: ' }\n', id: 'q1' },
+  { text: '→ PROCESSING\n', cls: 'mk-term-state', id: 'proc1' },
+  {
+    text: '→ PUBLISHED ✓ live: instagram.com/p/DLm4…\n',
+    cls: 'mk-term-ok',
+    id: 'pub1',
+  },
+  { text: '↳ webhook: post.published\n', cls: 'mk-term-state' },
+  {
+    text:
+      '  { "id": "post_01HZX4",\n' +
+      '    "type": "post.published",\n' +
+      '    "providerUrl": "instagram.com/p/DLm4…" }\n',
+    id: 'wh1',
+  },
+  // — loop 2: the failure path
+  { text: '\n' },
+  { text: '$', cls: 'mk-term-prompt' },
+  {
+    text: ' curl -X POST …/public/v1/posts -d \'{ "content": "New drop." }\'\n',
+    id: 'cmd2',
+  },
+  { text: '\n{ "id": "post_01HZX5", "state": ' },
+  { text: '"QUEUED"', cls: 'mk-term-key' },
+  { text: ' }\n', id: 'q2' },
+  {
+    text: '→ FAILED — token expired (reconnect_required)\n',
+    cls: 'mk-term-fail',
+    id: 'fail',
+  },
+  { text: '↳ webhook: post.failure\n', cls: 'mk-term-retry' },
+  {
+    text:
+      '  { "id": "post_01HZX5",\n' +
+      '    "type": "post.failure",\n' +
+      '    "failure": { "class": "user_action_needed",\n' +
+      '      "code": "reconnect_required", "willRetry": false } }\n',
+    id: 'wh2',
+  },
+  { text: '✓ you knew before the client did', cls: 'mk-term-ok' },
 ];
 
 const TOTAL = SEGMENTS.reduce((n, s) => n + s.text.length, 0);
-// The command (through the blank line) types at ~18ms/char; the response
-// after it arrives in fast bursts from the same interval.
-const COMMAND_END = SEGMENTS.slice(0, 7).reduce((n, s) => n + s.text.length, 0);
+
+// Cumulative character offset through the segment tagged `id`.
+function offsetAfter(id: string): number {
+  let n = 0;
+  for (const s of SEGMENTS) {
+    n += s.text.length;
+    if (s.id === id) return n;
+  }
+  return n;
+}
+
+const CMD1_END = offsetAfter('cmd1');
+const LOOP2_START = offsetAfter('wh1');
+const CMD2_END = offsetAfter('cmd2');
+
+// Lifecycle beats: at these offsets the typing pauses briefly (in ticks),
+// so states read as events instead of one burst. Ascending order.
+const HOLDS: Array<[number, number]> = [
+  [offsetAfter('q1'), 26],
+  [offsetAfter('proc1'), 36],
+  [offsetAfter('pub1'), 22],
+  [LOOP2_START, 44],
+  [offsetAfter('q2'), 26],
+  [offsetAfter('fail'), 24],
+  [offsetAfter('wh2'), 18],
+];
+
+// Commands type at ~18ms/char; responses arrive in fast bursts.
 const TICK_MS = 18;
 const FAST_STEP = 5;
+const REPLAY_HOLD_MS = 4000;
+
+const inCommand = (c: number) =>
+  c < CMD1_END || (c >= LOOP2_START && c < CMD2_END);
 
 function renderTyped(count: number, withCaret: boolean): ReactNode[] {
   const out: ReactNode[] = [];
@@ -62,7 +136,10 @@ function renderTyped(count: number, withCaret: boolean): ReactNode[] {
 export function ApiTerminal(): ReactElement {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const replayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countRef = useRef(0);
+  const holdRef = useRef(0);
+  const heldRef = useRef<Set<number>>(new Set());
   const [count, setCount] = useState(0);
   // 'static' (SSR/no-JS/reduced motion: full text visible) -> 'armed' (JS will
   // animate: full text hidden, overlay empty) -> typing fills the overlay.
@@ -82,28 +159,69 @@ export function ApiTerminal(): ReactElement {
     }
     setMode('armed');
 
-    const start = () => {
-      if (intervalRef.current || countRef.current >= TOTAL) return;
-      intervalRef.current = setInterval(() => {
-        const c = countRef.current;
-        const next =
-          c < COMMAND_END ? c + 1 : Math.min(TOTAL, c + FAST_STEP);
-        countRef.current = next;
-        setCount(next);
-        if (next >= TOTAL && intervalRef.current) {
-          // Done — nothing keeps running after the exchange completes.
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
+    const reset = () => {
+      heldRef.current.clear();
+      holdRef.current = 0;
+      countRef.current = 0;
+      setCount(0);
+    };
+
+    const stop = () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      if (replayRef.current) {
+        clearTimeout(replayRef.current);
+        replayRef.current = null;
+      }
+    };
+
+    const tick = () => {
+      if (holdRef.current > 0) {
+        holdRef.current -= 1;
+        return;
+      }
+      const c = countRef.current;
+      const hold = HOLDS.find(([at]) => at === c);
+      if (hold && !heldRef.current.has(c)) {
+        heldRef.current.add(c);
+        holdRef.current = hold[1];
+        return;
+      }
+      let next = Math.min(TOTAL, c + (inCommand(c) ? 1 : FAST_STEP));
+      // Never burst past an unconsumed beat — land on it exactly.
+      for (const [at] of HOLDS) {
+        if (at > c && at < next && !heldRef.current.has(at)) {
+          next = at;
+          break;
         }
-      }, TICK_MS);
+      }
+      countRef.current = next;
+      setCount(next);
+      if (next >= TOTAL && intervalRef.current) {
+        // Loop 2 done — clear the interval, hold on the closing line,
+        // then replay from the top of loop 1.
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        replayRef.current = setTimeout(() => {
+          replayRef.current = null;
+          reset();
+          start();
+        }, REPLAY_HOLD_MS);
+      }
+    };
+
+    const start = () => {
+      if (intervalRef.current || replayRef.current) return;
+      if (countRef.current >= TOTAL) reset();
+      intervalRef.current = setInterval(tick, TICK_MS);
     };
 
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          io.disconnect();
-          start();
-        }
+        if (entries.some((e) => e.isIntersecting)) start();
+        else stop();
       },
       { threshold: 0.35 }
     );
@@ -111,10 +229,7 @@ export function ApiTerminal(): ReactElement {
 
     return () => {
       io.disconnect();
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      stop();
     };
   }, []);
 

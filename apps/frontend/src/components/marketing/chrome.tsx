@@ -59,28 +59,49 @@ const FOOTER_GROUPS: Array<[string, Array<[string, string]>]> = [
     ],
   ],
   [
-    'Resources',
+    'Compare',
     [
-      ['Pricing', '/pricing'],
-      ['API docs', '/api-docs'],
-      ['Security', '/security'],
-      ['Get the source', '/source'],
+      ['Publishly vs Ayrshare', '/compare/ayrshare'],
+      ['Publishly vs Buffer', '/compare/buffer'],
+      ['Publishly vs Metricool', '/compare/metricool'],
+      ['Publishly vs Upload-Post', '/compare/upload-post'],
+      ['Publishly vs Hootsuite', '/compare/hootsuite'],
+      ['How we compare', '/methodology/api-comparisons'],
     ],
   ],
+  [
+    'Solutions',
+    [
+      ['Agencies', '/for-agencies'],
+      ['Multi-brand', '/for-multi-brand'],
+      ['Creator networks', '/for-creator-networks'],
+      ['Developers', '/for-developers'],
+    ],
+  ],
+  [
+    'Resources',
+    [
+      ['Resources', '/resources'],
+      ['Best posting APIs', '/resources/best-social-posting-apis-2026'],
+      ['Ayrshare alternatives', '/resources/best-ayrshare-alternatives-2026'],
+      ['Flat-pricing APIs', '/resources/best-flat-pricing-posting-apis'],
+      ['Changelog', '/changelog'],
+      ['Error codes', '/docs/errors'],
+    ],
+  ],
+  // Company & legal must stay reachable from every page: platform app reviews
+  // (Meta especially) require a discoverable privacy policy and data-deletion
+  // route, and the security page answers procurement questions. The grid fits
+  // five groups beside the brand column, so legal lives inside Company.
   [
     'Company',
     [
       ['About', '/about'],
-      ['Agencies', '/agencies'],
+      ['Security', '/security'],
+      ['Platforms', '/platforms'],
       ['Contact', '/contact'],
-      ['Sign in', MARKETING.authLogin],
-    ],
-  ],
-  [
-    'Legal',
-    [
-      ['Terms', '/terms'],
       ['Privacy', '/privacy'],
+      ['Terms', '/terms'],
       ['Acceptable use', '/acceptable-use'],
       ['Data deletion', '/data-deletion'],
     ],

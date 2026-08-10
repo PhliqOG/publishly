@@ -1,0 +1,114 @@
+{
+  "_meta": {
+    "purpose": "Single source of truth for every externally stated Publishly fact. Marketing pages consume these values (or pricing.ts directly); nothing user-facing may hardcode a claim that lives here. Consistency spec: libraries/nestjs-libraries/src/database/prisma/subscriptions/public-facts.spec.ts",
+    "site_status": "pre-launch — site not deployed; claims marked pre_release exist in the working tree but are not yet in a released build",
+    "updated": "2026-08-10"
+  },
+  "entity": {
+    "name": "Publishly",
+    "canonical_definition": "Publishly is a social publishing API and scheduler that gives every post a delivery receipt, a failure reason, and an automatic retry — built for teams running many brands, clients, and locations.",
+    "category": "social media posting API / scheduling platform",
+    "icp": "agencies, multi-brand and multi-location businesses, media networks, creator teams, and developers embedding posting into their SaaS",
+    "engine": "Built on the open-source Postiz engine (AGPL-3.0); corresponding source offered to every user.",
+    "byline": { "author": "Liam, founder of Publishly" }
+  },
+  "pricing": {
+    "currency": "USD",
+    "model": "Plans are sized by monthly post volume. Connected social accounts are unlimited on every paid plan.",
+    "billing_language_allowed": "sized by posts, unlimited accounts; failed-post quota language may NOT be used until per-post metering ships",
+    "yearly_multiplier": 10,
+    "tiers": [
+      { "key": "FREE", "name": "Free", "month_price": 0, "posts_per_month": 50, "accounts": 5, "api_access": true },
+      { "key": "STANDARD", "name": "Starter", "month_price": 29, "posts_per_month": 2000, "accounts": "unlimited", "api_access": true },
+      { "key": "TEAM", "name": "Growth", "month_price": 99, "posts_per_month": 15000, "accounts": "unlimited", "api_access": true },
+      { "key": "PRO", "name": "Scale", "month_price": 299, "posts_per_month": 100000, "accounts": "unlimited", "api_access": true }
+    ],
+    "hidden_tiers": ["ULTIMATE (Enterprise placeholder — operator finalizes with Stripe setup; never shown on marketing pages)"],
+    "verified_at": "2026-08-10",
+    "source": "libraries/nestjs-libraries/src/database/prisma/subscriptions/pricing.ts"
+  },
+  "networks": {
+    "posting": ["Instagram", "Facebook", "TikTok", "YouTube", "X", "Threads", "LinkedIn", "Pinterest", "Bluesky", "Mastodon"],
+    "analytics": ["Facebook", "Instagram", "TikTok", "YouTube", "X", "Threads", "LinkedIn Pages", "Pinterest"],
+    "analytics_excluded_note": "Bluesky, Mastodon and personal LinkedIn do not report analytics — never claim analytics breadth for them.",
+    "total_registered_providers": 34,
+    "featured_count": 10,
+    "additional_count": 24,
+    "count_derivation": "integration.manager.ts registers 35 providers; TestProvider is excluded → 34 real. The site features 10 and says '+24 more'. Per-instance availability still depends on configured credentials and platform approval (docs/platform-approval/).",
+    "verified_at": "2026-08-10",
+    "source": "libraries/nestjs-libraries/src/integrations/integration.manager.ts"
+  },
+  "reliability": {
+    "delivery_receipt": {
+      "claim": "Every destination post carries a publishing job with full state history (SCHEDULED → QUEUED → PROCESSING → PUBLISHED / RETRYING / FAILED), and successful posts store the provider post ID and live URL.",
+      "status": "shipping",
+      "verified_at": "2026-08-10",
+      "source": "schema.prisma PublishingJob; posts.service.ts"
+    },
+    "failure_reason": {
+      "claim": "Every failed post records a plain-English reason and a failure code with a class: recoverable, needs-your-action, or content problem.",
+      "status": "pre_release",
+      "codes": 20,
+      "classes": ["recoverable", "user_action_needed", "data_problem"],
+      "source": "libraries/nestjs-libraries/src/reliability/post.failure.ts (POST_FAILURE_CATALOG)"
+    },
+    "failure_webhook": {
+      "claim": "Post failures fire a signed webhook (HMAC-SHA256, retried 3x, delivery-attempt ledger) with the failure class, code, reason, and whether Publishly will retry.",
+      "status": "pre_release",
+      "event_type": "post.failure",
+      "source": "libraries/nestjs-libraries/src/database/prisma/publishing-jobs/publishing-failure.service.ts"
+    },
+    "success_webhook": {
+      "claim": "Published posts fire a signed post.published webhook with the same delivery guarantees.",
+      "status": "shipping",
+      "source": "apps/orchestrator/src/activities/post.activity.ts"
+    },
+    "retries": {
+      "claim": "Transient failures retry automatically with backoff (15s to 30m); publish mutations deliberately fire exactly once so a retry can never double-post; an hourly sweeper re-queues missed slots.",
+      "status": "shipping",
+      "source": "post.workflow.v1.0.6.ts; missing.post.workflow.ts"
+    },
+    "token_handling": {
+      "claim": "Tokens refresh automatically on schedule; the moment a refresh fails you get an in-app alert and an email, and the account is flagged before more posts are lost.",
+      "status": "shipping",
+      "advance_warning_note": "A days-ahead expiry warning is planned, not shipping — do not claim 'warned N days before' yet.",
+      "source": "refresh.token.workflow.ts; integration.service.ts informAboutRefreshError"
+    },
+    "dead_account_detection": {
+      "claim": "Disconnected or revoked accounts are detected, flagged, excluded from delivery, and surfaced with a reconnect alert — one dead account never breaks the rest of the calendar.",
+      "status": "shipping",
+      "source": "refresh.integration.service.ts; posts.repository.ts sweeper exclusion"
+    }
+  },
+  "api": {
+    "public_api": true,
+    "base_path": "/public/v1",
+    "auth": "scoped API keys, shown once, hashed at rest, revocable",
+    "post_status_endpoint": "GET /public/v1/posts/:id/status",
+    "mcp": { "available": true, "source": "apps/backend/src/main.ts startMcp" },
+    "n8n": { "available": "via REST API + webhooks (no first-party node yet)" },
+    "make": { "available": "via REST API + webhooks (no first-party module yet)" },
+    "verified_at": "2026-08-10"
+  },
+  "security": {
+    "token_encryption": "AES-256-GCM authenticated encryption before database write",
+    "oauth_only": "Official platform OAuth for 9 of the 10 featured networks. EXCEPTION (verified 2026-08-10 in bluesky.provider.ts customFields): Bluesky offers no third-party OAuth for posting apps — it uses a user-generated, revocable Bluesky app password (never the account password). Never write blanket 'OAuth only / no passwords' copy. No browser automation on any provider.",
+    "api_keys": "hashed, scope-limited, revocable, shown once",
+    "audit_trail": "per-workspace audit log: invitations, channel changes, key management, bulk operations",
+    "verified_at": "2026-08-10"
+  },
+  "ai": {
+    "shipping": ["AI caption drafting", "image generation", "slides and voice generation", "chat copilot"],
+    "in_development": [
+      "Caption Memory — per-brand learning from each post's measured performance",
+      "Brand Folders — per-brand knowledge base grounding every generated caption",
+      "Video Understanding — frames + transcript inform per-video captions",
+      "Self-tuning schedule — bounded, explainable slot shifts toward measured best hours"
+    ],
+    "copy_rule": "in_development items may be described as product direction; never as shipped behavior with screenshots"
+  },
+  "compliance_language": {
+    "rule": "All multi-account language is multi-brand / multi-client / multi-location / multi-market. Banned framings: autopilot accounts, mass accounts, bot/farm anything.",
+    "banned_regex": "autopilot|mass[- ]account|account farm|bot network"
+  }
+}

@@ -5,62 +5,69 @@ import {
   MarketingNav,
 } from '@gitroom/frontend/components/marketing/chrome';
 import { PricingCards } from '@gitroom/frontend/components/marketing/pricing-cards';
+import { GrowthTax } from '@gitroom/frontend/components/marketing/growth-tax';
+import {
+  Byline,
+  FactLine,
+  FaqBlock,
+  LastChecked,
+  QuickAnswer,
+} from '@gitroom/frontend/components/marketing/geo';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
 export const metadata: Metadata = {
-  title: 'Pricing',
+  title: 'Publishly pricing — flat plans, unlimited social accounts',
   description:
-    '4 plans, one variable: how many channels you run. Every paid plan starts with a 7-day trial & no card is required to create an account.',
+    'A social media API with unlimited accounts on every paid plan: free, then $29 / $99 / $299 flat, sized by post volume. Ayrshare alternative pricing without the per-profile tax.',
 };
 
-// Everything below the cards is true of every tier — the cards themselves
-// render from the entitlement config the server enforces.
+// Publishly numbers come from pricing.ts via PricingCards; competitor numbers
+// on this page come only from data/claim-provenance.json (verified 2026-08-10).
 
-const EVERY_PLAN = [
+const MODELS = [
   {
-    h: 'Official APIs, never password sharing',
-    p: 'Every connection uses the platform’s official OAuth flow & permission scopes — on every plan, at every price.',
+    h: 'Per-profile',
+    p: 'Every account you connect has a price on it. Ayrshare’s Business plan is $599/mo including 30 profiles, then $8.99/mo for each one after — the published math works out to $1,228.30/mo at 100 profiles. The model scales cleanly for the vendor, and against you.',
   },
   {
-    h: 'Reliability is not an upsell',
-    p: 'Each post runs as a durable, duplicate-resistant workflow with honest per-network status — the same engine on every tier.',
+    h: 'Per-channel',
+    p: 'Buffer’s Team plan is $10 per channel per month. Fair at 5 channels; at 100 it’s $1,000/mo for scheduling. Your software bill tracks your account count instead of your workload.',
   },
   {
-    h: 'The whole calendar, every view',
-    p: 'Month, week & day views with drag-and-drop rescheduling & timezone-aware slots.',
-  },
-  {
-    h: 'Captions tailored to each network',
-    p: 'Write once & tailor the caption for each destination, with real limits checked before scheduling.',
-  },
-  {
-    h: 'AGPL-3.0 — read the source',
-    p: 'The engine is AGPL-3.0 & the corresponding source of the running service is available to every user.',
+    h: 'Flat, sized by posts',
+    p: 'Publishly prices the work — how much you publish — and makes accounts free to add. $29, $99, or $299 flat, unlimited connected accounts on all three. Winning another brand or client changes your revenue, not your bill.',
   },
 ];
 
 const FAQ = [
   {
-    q: 'How does the trial work?',
-    a: 'Every paid plan starts with a 7-day trial. No card is required to create an account & you can cancel from the billing portal at any time.',
+    q: 'How much does it cost to post to 100 accounts?',
+    a: 'On Publishly, the same as posting to 5: $29–$299/mo depending on how much you post, because every paid plan includes unlimited connected accounts. For comparison, Ayrshare’s published Business pricing works out to $1,228.30/mo at 100 profiles, and Buffer’s Team rate of $10/channel comes to $1,000/mo.',
   },
   {
-    q: 'What counts as a channel?',
-    a: 'One connected social profile — an Instagram account, a Facebook page, a YouTube channel. 10 networks are first-class, with 20+ more targets inherited from the open-source engine.',
+    q: 'Is there a free social media posting API?',
+    a: 'Yes. Publishly’s Free plan is $0 and includes API access — 50 posts a month across 5 connected accounts. Paid plans start at $29/mo with unlimited connected accounts.',
   },
   {
-    q: 'Is there a free tier?',
-    a: 'You can create an account & explore the workspace without paying. Connecting a live channel requires a plan entitlement.',
+    q: 'Do failed posts count against my plan?',
+    a: 'Honest answer: today your quota counts posts when they’re scheduled, so a failed post isn’t automatically credited back. A metering upgrade is in development. In the meantime, failures don’t die silently — each one carries a reason, and transient failures retry automatically without ever double-posting.',
   },
   {
-    q: 'Do prices include tax?',
-    a: 'Prices are shown excluding VAT & sales tax where applicable.',
+    q: 'What happens if I exceed my monthly posts?',
+    a: 'You move up a tier — there are no per-post overage fees. Starter’s 2,000 posts step up to Growth’s 15,000, and Growth steps up to Scale’s 100,000. Your account count never factors into it: connected accounts are unlimited on every paid plan.',
   },
   {
-    q: 'What happens to my data if I leave?',
-    a: 'You own it. Export your workspace at any time; disconnecting a channel destroys its tokens immediately.',
+    q: 'Is there a yearly discount?',
+    a: 'Yes. Yearly billing is 10× the monthly price — two months free. Starter is $290/yr, Growth is $990/yr, Scale is $2,990/yr.',
   },
 ];
+
+const honestyStyle = {
+  margin: '14px 0 0',
+  fontSize: 15.5,
+  lineHeight: 1.7,
+  color: 'var(--mk-text-2)',
+} as const;
 
 export default function PricingPage() {
   return (
@@ -75,26 +82,37 @@ export default function PricingPage() {
               </span>
               <h1
                 className="mk-h2-lg"
-                style={{ marginTop: 18, maxWidth: '14ch' }}
+                style={{ marginTop: 18, maxWidth: '18ch' }}
               >
-                4 plans. One variable.
+                Stop paying a tax on your own growth.
               </h1>
               <p className="mk-section-lede">
-                The number you&rsquo;re choosing is connected channels —
-                everything else scales with it. Every paid plan starts with a
-                7-day trial & no card is required to create an account.
+                Plans are sized by how much you post. Connected accounts are
+                unlimited on every paid plan &mdash; your 10th brand and your
+                100th cost the same to run.
               </p>
+              <QuickAnswer>
+                Publishly pricing starts free and tops out at $299/mo. Every
+                paid plan includes unlimited connected social accounts &mdash;
+                plans are sized by how much you post, not how many accounts you
+                run.
+              </QuickAnswer>
             </div>
           </div>
         </header>
 
-        <section className="mk-section" aria-label="Plans">
+        <section
+          className="mk-section"
+          aria-label="Plans"
+          style={{ paddingBottom: 48 }}
+        >
           <div className="mk-container">
             <div className="mk-reveal" data-delay="80">
               <PricingCards />
             </div>
             <p className="mk-free-line">
-              Prices are in USD & exclude VAT or sales tax where applicable.
+              Prices in USD, excluding VAT or sales tax where applicable.
+              Yearly billing is 10&times; monthly &mdash; two months free.
               These cards render from the same entitlement config the server
               enforces, so this page can&rsquo;t drift from what billing
               grants.
@@ -102,68 +120,117 @@ export default function PricingPage() {
           </div>
         </section>
 
+        <section aria-label="Pricing facts" style={{ padding: '0 0 72px' }}>
+          <div className="mk-container">
+            <FactLine>
+              Publishly&rsquo;s Starter plan is $29/mo for 2,000 posts and
+              unlimited connected accounts.
+            </FactLine>
+            <FactLine>
+              Publishly&rsquo;s Growth plan is $99/mo for 15,000 posts and
+              unlimited connected accounts.
+            </FactLine>
+            <FactLine>
+              Publishly&rsquo;s Scale plan is $299/mo for 100,000 posts and
+              unlimited connected accounts.
+            </FactLine>
+            <FactLine>
+              Publishly&rsquo;s Free plan is $0 for 50 posts a month across 5
+              connected accounts, with API access included.
+            </FactLine>
+          </div>
+        </section>
+
         <section
           className="mk-section mk-section-tint"
-          aria-labelledby="pr-floor"
+          aria-labelledby="pr-tax"
         >
+          <div className="mk-container">
+            <span className="mk-eyebrow" style={{ display: 'block' }}>
+              The math
+            </span>
+            <h2 id="pr-tax" className="mk-h2" style={{ marginTop: 14 }}>
+              The growth-tax calculator
+            </h2>
+            <p className="mk-section-lede">
+              Slide to your account count. Competitor totals come from their
+              published pricing pages &mdash; Publishly stays flat because
+              plans are sized by post volume.
+            </p>
+            <div style={{ marginTop: 36 }}>
+              <GrowthTax />
+            </div>
+            <LastChecked date="2026-08-10" />
+          </div>
+        </section>
+
+        <section className="mk-section" aria-labelledby="pr-models">
           <div className="mk-container">
             <div className="mk-split">
               <div>
-                <h2 id="pr-floor" className="mk-h2">
-                  In every plan.
+                <span className="mk-eyebrow" style={{ display: 'block' }}>
+                  An honest note
+                </span>
+                <h2 id="pr-models" className="mk-h2" style={{ marginTop: 14 }}>
+                  Three ways to price the same job.
                 </h2>
                 <p className="mk-section-lede">
-                  The floor doesn&rsquo;t move between tiers.
+                  None of these models is a scam &mdash; they just reward
+                  different customers. Here&rsquo;s who each one actually fits.
                 </p>
               </div>
               <div className="mk-rows">
-                {EVERY_PLAN.map((item) => (
-                  <div className="mk-row" key={item.h}>
-                    <h3>{item.h}</h3>
-                    <p>{item.p}</p>
+                {MODELS.map((m) => (
+                  <div className="mk-row" key={m.h}>
+                    <h3>{m.h}</h3>
+                    <p>{m.p}</p>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-        </section>
-
-        <section className="mk-section" aria-labelledby="pr-faq">
-          <div className="mk-container">
-            <h2 id="pr-faq" className="mk-h2">
-              Fair questions.
-            </h2>
-            <div className="mk-faq" style={{ marginLeft: 0 }}>
-              {FAQ.map((f) => (
-                <details key={f.q}>
-                  <summary>{f.q}</summary>
-                  <p>{f.a}</p>
-                </details>
-              ))}
+            <div style={{ maxWidth: '68ch', marginTop: 40 }}>
+              <p style={honestyStyle}>
+                <strong>Choose Ayrshare if</strong> you&rsquo;re buying
+                enterprise API breadth &mdash; it&rsquo;s a deep, API-first
+                platform &mdash; and per-profile pricing fits the number of
+                profiles you actually run.
+              </p>
+              <p style={honestyStyle}>
+                <strong>Choose Metricool if</strong> you want an all-in-one
+                analytics suite and you&rsquo;ll stay under its 50-brand cap.
+              </p>
+              <p style={honestyStyle}>
+                <strong>Choose Publishly if</strong> you&rsquo;re running a
+                growing fleet of brands or clients and want your bill to stop
+                tracking your account count.
+              </p>
             </div>
           </div>
         </section>
 
+        <FaqBlock title="Fair questions" entries={FAQ} />
+
         <section style={{ padding: '8px 0 112px' }}>
           <div className="mk-container">
             <div className="mk-cta-panel">
-              <h2 className="mk-h2">Pick a channel count. Fill the week.</h2>
+              <h2 className="mk-h2">Add the accounts. Keep the price.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                7 days to watch the board clear itself — cancel from the
-                billing portal if it doesn&rsquo;t.
+                Start free &mdash; 50 posts a month, 5 accounts, API included.
+                Upgrade when the volume does.
               </p>
               <div className="mk-hero-ctas">
                 <Link
                   href={MARKETING.authRegister}
                   className="mk-btn mk-btn-primary"
                 >
-                  {MARKETING.cta.primary}
+                  Start free
                 </Link>
                 <Link href="/features" className="mk-btn mk-btn-ghost">
                   Compare features
                 </Link>
               </div>
             </div>
+            <Byline published="2026-08-10" updated="2026-08-10" />
           </div>
         </section>
       </main>

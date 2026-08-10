@@ -22,42 +22,59 @@ export interface PricingInnerInterface {
   analytics_retention_days: number;
   bulk_tools: boolean;
 }
+
+export const PAID_BILLING_TIERS = [
+  'STANDARD',
+  'TEAM',
+  'PRO',
+  'ULTIMATE',
+] as const;
+export type PaidBillingTier = (typeof PAID_BILLING_TIERS)[number];
+export type BillingTier = 'FREE' | PaidBillingTier;
+
 export interface PricingInterface {
   [key: string]: PricingInnerInterface;
 }
+// Tier model (operator decision 2026-08-10): plans are sized by monthly post
+// volume, connected accounts are UNLIMITED on every paid tier. UNLIMITED_CHANNELS
+// is a sentinel (never rendered as a number — UIs display "Unlimited"). ULTIMATE
+// doubles as the self-hosted/no-Stripe full-access tier and is not shown on the
+// marketing site; its price is a placeholder pending the operator's Stripe setup.
+export const UNLIMITED_CHANNELS = 10000;
+
 const defaultPricing: PricingInterface = {
   FREE: {
     current: 'FREE',
     display_name: 'Free',
     month_price: 0,
     year_price: 0,
-    channel: 0,
+    channel: 5,
     image_generation_count: 0,
-    posts_per_month: 0,
+    posts_per_month: 50,
     team_members: false,
     community_features: false,
     featured_by_gitroom: false,
     ai: false,
     import_from_channels: false,
     image_generator: false,
-    public_api: false,
-    webhooks: 0,
+    public_api: true,
+    webhooks: 1,
     autoPost: false,
     generate_videos: 0,
     workspaces: 1,
     seats: 1,
-    storage_gb: 0.25,
-    analytics_retention_days: 7,
+    storage_gb: 1,
+    analytics_retention_days: 30,
     bulk_tools: false,
   },
   STANDARD: {
     current: 'STANDARD',
     display_name: 'Starter',
-    month_price: 20,
-    year_price: 200,
-    channel: 10,
-    posts_per_month: 1000000,
-    image_generation_count: 20,
+    month_price: 29,
+    year_price: 290,
+    channel: UNLIMITED_CHANNELS,
+    posts_per_month: 2000,
+    image_generation_count: 50,
     team_members: false,
     ai: true,
     community_features: false,
@@ -65,23 +82,23 @@ const defaultPricing: PricingInterface = {
     import_from_channels: true,
     image_generator: false,
     public_api: true,
-    webhooks: 2,
+    webhooks: 5,
     autoPost: false,
-    generate_videos: 3,
+    generate_videos: 5,
     workspaces: 1,
     seats: 1,
-    storage_gb: 10,
+    storage_gb: 25,
     analytics_retention_days: 90,
-    bulk_tools: false,
+    bulk_tools: true,
   },
   TEAM: {
     current: 'TEAM',
-    display_name: 'Pro',
-    month_price: 45,
-    year_price: 450,
-    channel: 25,
-    posts_per_month: 1000000,
-    image_generation_count: 100,
+    display_name: 'Growth',
+    month_price: 99,
+    year_price: 990,
+    channel: UNLIMITED_CHANNELS,
+    posts_per_month: 15000,
+    image_generation_count: 200,
     community_features: true,
     team_members: true,
     featured_by_gitroom: true,
@@ -89,23 +106,23 @@ const defaultPricing: PricingInterface = {
     import_from_channels: true,
     image_generator: true,
     public_api: true,
-    webhooks: 10,
+    webhooks: 25,
     autoPost: true,
-    generate_videos: 10,
-    workspaces: 2,
-    seats: 5,
-    storage_gb: 50,
+    generate_videos: 20,
+    workspaces: 5,
+    seats: 10,
+    storage_gb: 100,
     analytics_retention_days: 365,
     bulk_tools: true,
   },
   PRO: {
     current: 'PRO',
-    display_name: 'Agency',
-    month_price: 100,
-    year_price: 1000,
-    channel: 60,
-    posts_per_month: 1000000,
-    image_generation_count: 300,
+    display_name: 'Scale',
+    month_price: 299,
+    year_price: 2990,
+    channel: UNLIMITED_CHANNELS,
+    posts_per_month: 100000,
+    image_generation_count: 500,
     community_features: true,
     team_members: true,
     featured_by_gitroom: true,
@@ -113,23 +130,23 @@ const defaultPricing: PricingInterface = {
     import_from_channels: true,
     image_generator: true,
     public_api: true,
-    webhooks: 30,
+    webhooks: 100,
     autoPost: true,
-    generate_videos: 30,
-    workspaces: 10,
-    seats: 20,
-    storage_gb: 250,
+    generate_videos: 60,
+    workspaces: 25,
+    seats: 50,
+    storage_gb: 500,
     analytics_retention_days: 730,
     bulk_tools: true,
   },
   ULTIMATE: {
     current: 'ULTIMATE',
-    display_name: 'Business',
-    month_price: 209,
-    year_price: 2090,
-    channel: 145,
+    display_name: 'Enterprise',
+    month_price: 599,
+    year_price: 5990,
+    channel: UNLIMITED_CHANNELS,
     posts_per_month: 1000000,
-    image_generation_count: 500,
+    image_generation_count: 1000,
     community_features: true,
     team_members: true,
     featured_by_gitroom: true,
@@ -139,23 +156,21 @@ const defaultPricing: PricingInterface = {
     public_api: true,
     webhooks: 10000,
     autoPost: true,
-    generate_videos: 60,
-    workspaces: 50,
-    seats: 100,
-    storage_gb: 1000,
+    generate_videos: 120,
+    workspaces: 100,
+    seats: 250,
+    storage_gb: 2000,
     analytics_retention_days: 1825,
     bulk_tools: true,
   },
 };
 
-// Entitlements are deploy-time configuration: PRICING_OVERRIDES_JSON may hold
-// partial per-tier overrides ({"PRO": {"channel": 50}}) that deep-merge over
-// the defaults above. Server-side only (the client bundle sees defaults; the
-// UI displays server-resolved billing state anyway). Prices must still match
-// the Stripe Price lookup_keys the operator configures - this governs
-// entitlement limits and displayed amounts, never what Stripe actually
-// charges (the server resolves real prices from Stripe by lookup key; client
-// input is never trusted for pricing).
+// Plans are deploy-time configuration: PRICING_OVERRIDES_JSON may hold partial
+// per-tier overrides ({"PRO": {"channel": 50}}) that deep-merge over the
+// defaults above. The authenticated plan endpoint returns this server-resolved
+// catalog so the UI and checkout remain aligned. Stripe Products and Prices are
+// resolved or created by the server from this catalog; client input is never
+// trusted for either price or entitlements.
 function loadPricing(): PricingInterface {
   const overrideJson =
     typeof process !== 'undefined'

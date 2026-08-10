@@ -1,23 +1,36 @@
 import Link from 'next/link';
-import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
+import {
+  pricing,
+  UNLIMITED_CHANNELS,
+} from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { MARKETING } from './marketing.config';
 
 // Rendered from the same entitlement config the server enforces - the page
 // can never drift from what billing actually grants. (Client bundles see the
 // defaults; server-side overrides only tighten or relabel entitlements.)
+// ULTIMATE exists internally (self-hosted / enterprise placeholder) and is
+// deliberately absent from ORDER - never display it.
 
 const PLAN_FOR: Record<string, string> = {
-  STANDARD: 'For creators & small brands',
-  TEAM: 'For teams sharing one calendar',
-  PRO: 'For multi-brand operators',
-  ULTIMATE: 'For agencies at scale',
+  FREE: 'Try the pipeline',
+  STANDARD: 'For your first brands',
+  TEAM: 'For growing fleets',
+  PRO: 'For agencies & networks',
 };
 
-const ORDER = ['STANDARD', 'TEAM', 'PRO', 'ULTIMATE'];
+const ORDER = ['FREE', 'STANDARD', 'TEAM', 'PRO'];
 
 // 1,000,000 is the internal "no practical cap" sentinel — say it like a human.
 const posts = (n: number) =>
-  n >= 1_000_000 ? 'Unlimited scheduled posts' : `${n.toLocaleString()} scheduled posts / month`;
+  n >= 1_000_000
+    ? 'Unlimited posts / month'
+    : `${n.toLocaleString()} posts / month`;
+
+// UNLIMITED_CHANNELS is a sentinel, never a number to print.
+const accounts = (n?: number) =>
+  (n ?? 0) >= UNLIMITED_CHANNELS
+    ? 'Unlimited social accounts'
+    : `${n ?? 0} social accounts`;
 
 export const PricingCards = ({ compact = false }: { compact?: boolean }) => (
   <div className="mk-pricing-grid">
@@ -36,17 +49,29 @@ export const PricingCards = ({ compact = false }: { compact?: boolean }) => (
           </div>
           <ul>
             <li>
-              <strong>{plan.channel} social profiles</strong>
+              <strong>{accounts(plan.channel)}</strong>
             </li>
             <li>{posts(plan.posts_per_month)}</li>
-            <li>Unlimited scheduling calendar</li>
             {plan.team_members ? (
               <li>{plan.seats} team members</li>
             ) : (
               <li>1 seat</li>
             )}
-            {!compact && <li>{plan.workspaces > 1 ? `${plan.workspaces} workspaces` : '1 workspace'}</li>}
-            {!compact && <li>{plan.analytics_retention_days >= 365 ? `${Math.round(plan.analytics_retention_days / 365)}-year` : `${plan.analytics_retention_days}-day`} analytics history</li>}
+            {!compact && (
+              <li>
+                {plan.workspaces > 1
+                  ? `${plan.workspaces} workspaces`
+                  : '1 workspace'}
+              </li>
+            )}
+            {!compact && (
+              <li>
+                {plan.analytics_retention_days >= 365
+                  ? `${Math.round(plan.analytics_retention_days / 365)}-year`
+                  : `${plan.analytics_retention_days}-day`}{' '}
+                analytics history
+              </li>
+            )}
             {!compact && <li>{plan.storage_gb} GB media storage</li>}
             {plan.public_api && <li>API access</li>}
             {plan.bulk_tools && <li>Bulk CSV scheduling</li>}
@@ -58,7 +83,7 @@ export const PricingCards = ({ compact = false }: { compact?: boolean }) => (
               tier === 'TEAM' ? 'mk-btn-primary' : 'mk-btn-ghost'
             }`}
           >
-            Start 7-day trial
+            {tier === 'FREE' ? 'Start free' : 'Start 7-day trial'}
           </Link>
         </div>
       );

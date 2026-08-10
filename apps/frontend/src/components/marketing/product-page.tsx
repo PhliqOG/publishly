@@ -50,7 +50,7 @@ export function ProductMarketingPage({
   endpoints?: Array<{ method: string; path: string; note: string }>;
 }) {
   const foundations = [
-    ...MARKETING.reliability.map((entry) => ({ tag: 'Delivery', ...entry })),
+    ...MARKETING.answers.slice(0, 4).map((entry) => ({ tag: 'Delivery', ...entry })),
     ...MARKETING.security.map((entry) => ({ tag: 'Security', ...entry })),
     {
       tag: 'Source',

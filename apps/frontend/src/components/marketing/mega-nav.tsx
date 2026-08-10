@@ -22,6 +22,7 @@ const MENUS: Menu[] = [
   {
     label: 'Products',
     items: [
+      { label: 'Reliability', href: '/reliability', sub: 'Receipts, webhooks & retries' },
       { label: 'Composer', href: '/features', sub: 'One draft, every voice' },
       { label: 'Calendar', href: '/calendar', sub: 'The week at a glance' },
       { label: 'Publishing', href: '/publishing', sub: 'Durable delivery' },
@@ -33,22 +34,31 @@ const MENUS: Menu[] = [
   {
     label: 'Solutions',
     items: [
-      { label: 'Agencies', href: '/agencies', sub: 'Isolated workspaces' },
-      { label: 'Teams', href: '/features', sub: 'Roles & audit trail' },
-      { label: 'Open source', href: '/source', sub: 'AGPL engine' },
+      { label: 'Agencies', href: '/for-agencies', sub: 'Isolated client workspaces' },
+      { label: 'Multi-brand', href: '/for-multi-brand', sub: 'One roster, no account tax' },
+      { label: 'Creator networks', href: '/for-creator-networks', sub: 'Many creators, one calendar' },
+      { label: 'Developers', href: '/for-developers', sub: 'Posting, embedded' },
     ],
   },
   {
     label: 'Developers',
     items: [
       { label: 'API docs', href: '/api-docs', sub: 'REST, scoped keys' },
-      { label: 'Get the source', href: '/source', sub: 'AGPL-3.0' },
-      { label: 'Security', href: '/security', sub: 'How we protect data' },
+      { label: 'Integrations', href: '/integrations', sub: 'API, webhooks, MCP & more' },
+      { label: 'MCP server', href: '/integrations/mcp', sub: 'Post from an AI assistant' },
+      { label: 'Error codes', href: '/docs/errors', sub: 'Every failure, documented' },
+      { label: 'Platforms', href: '/platforms', sub: 'What each network supports' },
+      { label: 'Security', href: '/security', sub: 'Tokens, keys & audit trail' },
+      { label: 'Source', href: '/source', sub: 'AGPL-3.0 engine' },
     ],
   },
   {
     label: 'Resources',
     items: [
+      { label: 'Resources', href: '/resources', sub: 'Guides for multi-brand teams' },
+      { label: 'Compare', href: '/compare', sub: 'Publishly vs the field' },
+      { label: 'How we compare', href: '/methodology/api-comparisons', sub: 'Our sourcing rules' },
+      { label: 'Changelog', href: '/changelog', sub: 'What shipped' },
       { label: 'About', href: '/about', sub: 'What Publishly is' },
       { label: 'Contact', href: '/contact', sub: 'Talk to the operator' },
       { label: 'Terms', href: '/terms', sub: 'The agreement' },
