@@ -1,8 +1,11 @@
 import React from 'react';
+import { BRAND_NAME } from '@gitroom/react/brand/brand';
 
 // Publishly lockup: mark + wordmark. Same 101x33 viewBox contract as the old
-// component so surrounding layout is unaffected; wordmark inherits
-// currentColor for dark/light contexts.
+// component so surrounding layout is unaffected. The mark reuses the canonical
+// 28-unit geometry (stem, square calendar-cell bowl, accent dot) scaled into
+// the 25px slot the old tile occupied; stem/bowl and wordmark inherit
+// currentColor for dark/light contexts. Dot is static - no marketing CSS.
 export const LogoTextComponent = () => {
   return (
     <svg
@@ -12,10 +15,18 @@ export const LogoTextComponent = () => {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect x="1" y="4" width="25" height="25" rx="7" fill="#4F46E5" />
-      <path d="M5.6 17.3 L21.9 8.6 L13.2 19.5 Z" fill="#FFFFFF" />
-      <path d="M21.9 8.6 L17 24.6 L13.2 19.5 Z" fill="#7DD3FC" />
-      <path d="M13.2 19.5 L11.6 23.9 L14.5 21.2 Z" fill="#0EA5E9" />
+      <g transform="translate(1 4) scale(0.8929)">
+        {/* stem */}
+        <rect x="4.5" y="3.5" width="4.6" height="21" fill="currentColor" />
+        {/* square bowl - the calendar cell */}
+        <path
+          d="M9.1 5.75 H 21.25 V 15.55 H 9.1"
+          stroke="currentColor"
+          strokeWidth="4.5"
+        />
+        {/* the post, in its slot */}
+        <circle cx="15" cy="10.65" r="2.7" fill="#4F46E5" />
+      </g>
       <text
         x="31"
         y="22.5"
@@ -25,7 +36,7 @@ export const LogoTextComponent = () => {
         fontFamily="inherit"
         letterSpacing="-0.02em"
       >
-        Publishly
+        {BRAND_NAME}
       </text>
     </svg>
   );

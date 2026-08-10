@@ -1,25 +1,30 @@
 'use client';
 
-// Original Publishly mark: a rounded post-tile with a paper-plane facet pair -
-// "compose once, send everywhere". Two-tone indigo/sky, no resemblance to the
-// upstream mark. Keep the 60x60 contract so layout spacing is unchanged.
+// The Publishly mark: a P whose stem carries a square calendar-cell bowl with
+// one accent dot - a post, in its slot. Same geometry as the canonical
+// marketing mark; drawn in currentColor so it follows the shell's text color.
+// Keep the 60x60 contract so layout spacing is unchanged. Dot is static here -
+// no dependency on marketing CSS.
 export const Logo = () => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="60"
       height="60"
-      viewBox="0 0 60 60"
+      viewBox="0 0 28 28"
       fill="none"
       className="mt-[8px] min-w-[60px] min-h-[60px]"
     >
-      <rect x="7" y="7" width="46" height="46" rx="13" fill="#4F46E5" />
-      <path d="M15.5 31.5 L45.5 15.5 L29.5 35.5 Z" fill="#FFFFFF" />
-      <path d="M45.5 15.5 L36.5 45 L29.5 35.5 Z" fill="#7DD3FC" />
+      {/* stem */}
+      <rect x="4.5" y="3.5" width="4.6" height="21" fill="currentColor" />
+      {/* square bowl - the calendar cell */}
       <path
-        d="M29.5 35.5 L26.5 43.5 L31.8 38.6 Z"
-        fill="#0EA5E9"
+        d="M9.1 5.75 H 21.25 V 15.55 H 9.1"
+        stroke="currentColor"
+        strokeWidth="4.5"
       />
+      {/* the post, in its slot */}
+      <circle cx="15" cy="10.65" r="2.7" fill="#4F46E5" />
     </svg>
   );
 };

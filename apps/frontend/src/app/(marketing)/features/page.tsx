@@ -32,8 +32,8 @@ const GROUPS = [
   {
     title: 'Publishing pipeline',
     items: [
-      'Durable workflow per post - survives restarts and deploys',
-      'Exactly-once delivery by construction, not by luck',
+      'Durable workflow per post — survives restarts and deploys',
+      'Duplicate-resistant execution with deterministic workflow identities',
       'Per-network partial success: only failed destinations retry',
       'Automatic token refresh, honest error reporting per channel',
       'Hourly sweeper re-queues anything that missed its slot',
@@ -52,8 +52,8 @@ const GROUPS = [
     title: 'Analytics',
     items: [
       'Platform-reported metrics via official APIs',
-      'Daily snapshots build history beyond each platform’s lookback window',
-      'Metrics a platform does not expose are labelled unavailable - never estimated',
+      'Historical snapshots are captured whenever analytics refresh',
+      'Metrics a platform does not expose are labelled unavailable — never estimated',
     ],
   },
   {
@@ -70,18 +70,45 @@ export default function FeaturesPage() {
   return (
     <>
       <MarketingNav />
+
+      <section style={{ padding: '96px 0 88px' }}>
+        <div className="mk-container">
+          <div className="mk-reveal">
+            <span className="mk-eyebrow" style={{ display: 'block' }}>
+              Features
+            </span>
+            <h1
+              className="mk-h1"
+              style={{
+                fontSize: 'clamp(2.7rem, 5.6vw, 4.4rem)',
+                marginTop: 20,
+                maxWidth: '16ch',
+              }}
+            >
+              Every feature, listed.
+            </h1>
+            <p className="mk-section-lede">
+              Everything here ships in the product today. If a network limits a
+              feature, the interface says so instead of pretending.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section className="mk-section">
         <div className="mk-container">
-          <h1 className="mk-h2">Features</h1>
-          <p className="mk-section-lede">
-            Everything here ships in the product today. If a network limits a
-            feature, the interface says so instead of pretending.
-          </p>
-          <div className="mk-cards" style={{ gridTemplateColumns: 'repeat(2, minmax(0,1fr))' }}>
-            {GROUPS.map((group) => (
+          <div className="mk-feature-head">
+            <span className="mk-num">01</span>
+            <span className="mk-num-label">Inventory</span>
+          </div>
+          <div className="mk-cards mk-reveal" data-delay="120">
+            {GROUPS.map((group, i) => (
               <div className="mk-card" key={group.title}>
+                <div className="mk-card-num">
+                  {String(i + 1).padStart(2, '0')}
+                </div>
                 <h3>{group.title}</h3>
-                <ul style={{ margin: '12px 0 0', paddingLeft: 18, color: 'var(--mk-ink-soft)', fontSize: 15.5, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <ul className="mk-feature-points" style={{ marginTop: 16 }}>
                   {group.items.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
@@ -89,13 +116,29 @@ export default function FeaturesPage() {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 40 }}>
+        </div>
+      </section>
+
+      <section className="mk-section">
+        <div className="mk-container">
+          <div className="mk-feature-head">
+            <span className="mk-num">02</span>
+            <span className="mk-num-label">Start</span>
+          </div>
+          <div className="mk-band mk-reveal">
+            <div>
+              <h2 style={{ fontSize: 'clamp(1.7rem, 3.2vw, 2.4rem)' }}>
+                See the board clear itself.
+              </h2>
+              <p>Create the workspace before choosing a paid plan.</p>
+            </div>
             <Link href={MARKETING.authRegister} className="mk-btn mk-btn-primary">
               {MARKETING.cta.primary}
             </Link>
           </div>
         </div>
       </section>
+
       <MarketingFooter />
     </>
   );

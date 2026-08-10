@@ -43,6 +43,22 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(`/auth/login-required`, nextUrl.href));
   }
 
+  if (nextUrl.pathname === '/login') {
+    return NextResponse.redirect(new URL('/auth/login', nextUrl.href));
+  }
+  if (nextUrl.pathname === '/signup') {
+    return NextResponse.redirect(new URL('/auth', nextUrl.href));
+  }
+
+  // `/analytics` is the signed-in dashboard and the public product page. Keep
+  // one canonical URL while rewriting logged-out visitors to the marketing
+  // implementation, avoiding two conflicting App Router routes.
+  if (nextUrl.pathname === '/analytics' && !authCookie) {
+    const marketingAnalytics = nextUrl.clone();
+    marketingAnalytics.pathname = '/product/analytics';
+    return NextResponse.rewrite(marketingAnalytics);
+  }
+
   if (
     nextUrl.pathname.startsWith('/uploads/') ||
     nextUrl.pathname.startsWith('/p/') ||
@@ -92,10 +108,19 @@ export async function proxy(request: NextRequest) {
   const marketingPaths = [
     '/',
     '/features',
+    '/publishing',
+    '/calendar',
+    '/product/analytics',
+    '/engagement',
+    '/api-docs',
+    '/agencies',
     '/pricing',
+    '/about',
+    '/contact',
     '/security',
     '/terms',
     '/privacy',
+    '/acceptable-use',
     '/source',
   ];
   if (marketingPaths.includes(nextUrl.pathname)) {

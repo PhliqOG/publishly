@@ -24,7 +24,7 @@ export const PricingCards = ({ compact = false }: { compact?: boolean }) => (
           key={tier}
           className={`mk-plan ${tier === 'TEAM' ? 'mk-plan-highlight' : ''}`}
         >
-          <h3>{tier.charAt(0) + tier.slice(1).toLowerCase()}</h3>
+          <h3>{plan.display_name}</h3>
           <div className="mk-plan-for">{PLAN_FOR[tier]}</div>
           <div className="mk-plan-price">
             ${plan.month_price}
@@ -32,8 +32,12 @@ export const PricingCards = ({ compact = false }: { compact?: boolean }) => (
           </div>
           <ul>
             <li>{plan.channel} connected channels</li>
-            <li>Unlimited scheduled posts</li>
+            <li>
+              Up to {plan.posts_per_month.toLocaleString()} scheduled posts / month
+            </li>
             {!compact && <li>{plan.webhooks} outgoing webhooks</li>}
+            {!compact && <li>{plan.storage_gb} GB media storage</li>}
+            {!compact && <li>{plan.analytics_retention_days} days analytics retention</li>}
             {plan.team_members ? (
               <li>Team members &amp; roles</li>
             ) : (
@@ -41,6 +45,7 @@ export const PricingCards = ({ compact = false }: { compact?: boolean }) => (
             )}
             {plan.public_api && <li>API access with scoped keys</li>}
             {plan.autoPost && <li>RSS auto-posting</li>}
+            {!compact && plan.bulk_tools && <li>Bulk scheduling tools</li>}
             {!compact && plan.ai && <li>AI writing assistance</li>}
           </ul>
           <Link

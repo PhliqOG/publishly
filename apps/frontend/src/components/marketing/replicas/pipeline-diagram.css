@@ -1,0 +1,280 @@
+/* ============================================================
+   PipelineDiagram — Swiss technical schematic of the publish
+   pipeline. Main rail (Composer → Queue → Publish) forking via
+   a distribution bus into three network endpoints; one branch
+   retries and still converges. All classes prefixed mkr-pipe-.
+   ============================================================ */
+
+.mkr-pipe-root {
+  width: 100%;
+  padding: 38px 44px 30px;
+}
+
+/* ---------- drawing annotation ---------- */
+
+.mkr-pipe-head {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mk-font-mono), monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mk-ink-3);
+  margin-bottom: 46px;
+}
+
+/* ---------- layout ---------- */
+
+/* rail is centered against the 3-row branch block, so the main
+   line lands exactly on the middle branch's axis */
+.mkr-pipe-diagram {
+  display: flex;
+  align-items: center;
+}
+
+/* ---------- main rail ---------- */
+
+.mkr-pipe-rail {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 150px;
+  display: flex;
+  align-items: center;
+}
+.mkr-pipe-node {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--mk-ink);
+  background: var(--mk-paper-raised);
+}
+.mkr-pipe-node-label {
+  position: absolute;
+  top: 19px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--mk-font-mono), monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mk-ink-2);
+  white-space: nowrap;
+  line-height: 1;
+}
+.mkr-pipe-seg {
+  flex: 1 1 auto;
+  min-width: 18px;
+  height: 1px;
+  background: var(--mk-hairline-strong);
+}
+.mkr-pipe-seg-tail {
+  flex: 0 0 52px;
+  min-width: 0;
+}
+
+/* the traveling packet — rides the rail, passes under the nodes */
+.mkr-pipe-dot {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: calc(100% - 6px);
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: var(--mk-accent);
+  animation: mkr-pipe-travel 5.2s linear infinite;
+}
+@keyframes mkr-pipe-travel {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  93% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% - 6px);
+    opacity: 0;
+  }
+}
+
+/* ---------- fork + branches ---------- */
+
+.mkr-pipe-branches {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: 72px 8px max-content max-content;
+  grid-auto-rows: 60px;
+  align-items: center;
+}
+/* distribution bus: first-branch axis → last-branch axis */
+.mkr-pipe-branches::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 30px;
+  bottom: 30px;
+  width: 1px;
+  background: var(--mk-hairline-strong);
+}
+/* branch connector cell; the line is a pseudo so the retry
+   annotation can sit above it in the same cell */
+.mkr-pipe-bcell {
+  position: relative;
+  align-self: stretch;
+}
+.mkr-pipe-bcell::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--mk-hairline-strong);
+}
+
+/* retry loop arc — the branch loops back once, then converges */
+.mkr-pipe-arc {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  transform: translateX(-50%);
+  width: 26px;
+  height: 12px;
+  border: 1px solid var(--mk-hairline-strong);
+  border-bottom: none;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+}
+.mkr-pipe-arc-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(50% + 16px);
+  transform: translateX(-50%);
+  font-family: var(--mk-font-mono), monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mk-ink-3);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* endpoints */
+.mkr-pipe-net {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.mkr-pipe-net-instagram {
+  background: var(--net-instagram);
+}
+.mkr-pipe-net-linkedin {
+  background: var(--net-linkedin);
+}
+.mkr-pipe-net-youtube {
+  background: var(--net-youtube);
+}
+.mkr-pipe-blabel {
+  font-family: var(--mk-font-mono), monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mk-ink-2);
+  padding-left: 14px;
+  white-space: nowrap;
+  line-height: 1;
+}
+.mkr-pipe-bcheck {
+  font-family: var(--mk-font-mono), monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mk-accent);
+  padding-left: 24px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* ---------- caption ---------- */
+
+.mkr-pipe-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin-top: 48px;
+  padding-top: 16px;
+  border-top: 1px solid var(--mk-hairline);
+  font-family: var(--mk-font-mono), monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mk-ink-3);
+}
+.mkr-pipe-caption-sep {
+  color: var(--mk-hairline-strong);
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 480px) {
+  .mkr-pipe-root {
+    padding: 28px 22px 22px;
+  }
+  .mkr-pipe-head {
+    margin-bottom: 38px;
+  }
+  .mkr-pipe-branches {
+    grid-template-columns: 40px 8px max-content max-content;
+    grid-auto-rows: 54px;
+  }
+  .mkr-pipe-branches::before {
+    top: 27px;
+    bottom: 27px;
+  }
+  .mkr-pipe-seg-tail {
+    flex-basis: 30px;
+  }
+  .mkr-pipe-node-label {
+    font-size: 9.5px;
+  }
+  .mkr-pipe-blabel {
+    font-size: 10px;
+    padding-left: 10px;
+  }
+  .mkr-pipe-bcheck {
+    padding-left: 14px;
+  }
+  .mkr-pipe-arc {
+    width: 22px;
+  }
+  .mkr-pipe-caption {
+    margin-top: 40px;
+  }
+}
+@media (max-width: 390px) {
+  .mkr-pipe-bcheck-word {
+    display: none;
+  }
+}
+
+/* ---------- reduced motion: dot parks at the end of the rail ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .mkr-pipe-dot {
+    animation: none;
+  }
+}

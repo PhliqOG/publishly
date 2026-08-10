@@ -1,25 +1,21 @@
 import Link from 'next/link';
+import { CSSProperties } from 'react';
 import { MARKETING } from './marketing.config';
-
-const Mark = () => (
-  <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden>
-    <rect x="1" y="1" width="24" height="24" rx="7" fill="#4F46E5" />
-    <path d="M7 17.5 19.5 7.5l-4.2 11-2.4-4.4L7 17.5Z" fill="#fff" />
-    <path d="M12.9 14.1l6.6-6.6-4.2 11-2.4-4.4Z" fill="#0EA5E9" />
-  </svg>
-);
+import { PublishlyMark } from './logo';
 
 export const MarketingNav = () => (
   <nav className="mk-nav">
     <div className="mk-container mk-nav-inner">
       <Link href="/" className="mk-nav-logo">
-        <Mark />
+        <PublishlyMark />
         {MARKETING.brand}
       </Link>
       <div className="mk-nav-links">
         <Link href="/features">Features</Link>
+        <Link href="/publishing">Publishing</Link>
+        <Link href="/calendar">Calendar</Link>
+        <Link href="/analytics">Analytics</Link>
         <Link href="/pricing">Pricing</Link>
-        <Link href="/security">Security</Link>
       </div>
       <div className="mk-nav-spacer" />
       <Link href={MARKETING.authLogin} className="mk-signin">
@@ -32,26 +28,72 @@ export const MarketingNav = () => (
   </nav>
 );
 
+const MARQUEE: Array<[string, string]> = [
+  ['Instagram', 'var(--net-instagram)'],
+  ['Facebook', 'var(--net-facebook)'],
+  ['TikTok', 'var(--net-tiktok)'],
+  ['YouTube', 'var(--net-youtube)'],
+  ['X', 'var(--net-x)'],
+  ['Threads', 'var(--net-threads)'],
+  ['LinkedIn', 'var(--net-linkedin)'],
+  ['Pinterest', 'var(--net-pinterest)'],
+  ['Bluesky', 'var(--net-bluesky)'],
+  ['Mastodon', 'var(--net-mastodon)'],
+];
+
+// Ten networks, official APIs only — stated as a ticker. The track is
+// rendered twice for a seamless -50% loop; the duplicate is aria-hidden.
+export const NetworkMarquee = () => (
+  <div className="mk-marquee" aria-label="Ten networks, official APIs only">
+    <div className="mk-marquee-track">
+      {[0, 1].map((dup) => (
+        <span key={dup} aria-hidden={dup === 1} style={{ display: 'contents' }}>
+          {MARQUEE.map(([name, color]) => (
+            <span
+              key={name}
+              className="mk-marquee-item"
+              style={{ '--net': color } as CSSProperties}
+            >
+              {name}
+            </span>
+          ))}
+        </span>
+      ))}
+    </div>
+  </div>
+);
+
 export const MarketingFooter = () => (
-  <footer className="mk-footer">
+  <footer className="mk-footer mk-on-ink">
     <div className="mk-container">
       <div className="mk-footer-grid">
         <div>
-          <div className="mk-nav-logo" style={{ marginBottom: 8 }}>
-            <Mark />
+          <div className="mk-nav-logo" style={{ marginBottom: 10 }}>
+            <PublishlyMark />
             {MARKETING.brand}
           </div>
-          <div>{MARKETING.openSource.line}</div>
-          <div style={{ marginTop: 6 }}>
-            <Link href="/source">{MARKETING.openSource.linkLabel}</Link>
+          <div style={{ maxWidth: '44ch' }}>{MARKETING.openSource.line}</div>
+          <div style={{ marginTop: 8 }}>
+            <Link href="/source" style={{ textDecoration: 'underline' }}>
+              {MARKETING.openSource.linkLabel}
+            </Link>
           </div>
         </div>
         <div className="mk-footer-links">
           <Link href="/features">Features</Link>
+          <Link href="/publishing">Publishing</Link>
+          <Link href="/calendar">Calendar</Link>
+          <Link href="/analytics">Analytics</Link>
+          <Link href="/engagement">Engagement</Link>
+          <Link href="/api-docs">API</Link>
+          <Link href="/agencies">Agencies</Link>
           <Link href="/pricing">Pricing</Link>
+          <Link href="/about">About</Link>
+          <Link href="/contact">Contact</Link>
           <Link href="/security">Security</Link>
           <Link href="/terms">Terms</Link>
           <Link href="/privacy">Privacy</Link>
+          <Link href="/acceptable-use">Acceptable use</Link>
           <Link href={MARKETING.authLogin}>Sign in</Link>
         </div>
       </div>

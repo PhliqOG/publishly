@@ -6,7 +6,7 @@
 export const MARKETING = {
   brand: process.env.NEXT_PUBLIC_BRAND_NAME || 'Publishly',
   tagline: 'Every post leaves on time.',
-  sub: 'Plan a week of content across ten networks in one sitting. Write once, tailor each caption, and let a workflow engine built for exactly-once delivery handle the publishing.',
+  sub: 'Plan a week of content across ten networks in one sitting. Write once, tailor each caption, and let a durable, duplicate-resistant workflow engine handle the publishing.',
   cta: { primary: 'Start free', secondary: 'See how it runs' },
   authRegister: '/auth',
   authLogin: '/auth/login',
@@ -28,8 +28,8 @@ export const MARKETING = {
 
   reliability: [
     {
-      title: 'Exactly-once publishing',
-      body: 'Every scheduled post runs as a durable workflow with a deterministic identity. A crash, restart, or retry can never publish the same post twice - the pipeline is built so the dangerous step is simply not repeatable.',
+      title: 'Duplicate-resistant publishing',
+      body: 'Every destination runs as a durable workflow with a deterministic identity. Provider-aware status checks and conservative retry rules reduce duplicate risk, including ambiguous timeout cases.',
     },
     {
       title: 'Partial success, honest status',
