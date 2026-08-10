@@ -70,8 +70,10 @@ export default function PrivacyPage() {
               <p>
                 For accounts connected through Meta (Facebook, Instagram,
                 Threads), you can also trigger removal by de-authorizing the
-                app in your Meta settings; instructions for requesting deletion
-                of data we hold are on this page.
+                app in your Meta settings. The signed callback immediately
+                removes matching provider data and returns a confirmation URL.
+                Full instructions and request status are available on the{' '}
+                <a href="/data-deletion">data-deletion page</a>.
               </p>
             </div>
           </div>

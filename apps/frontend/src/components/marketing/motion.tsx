@@ -77,12 +77,9 @@ export function Tabs({
   );
 }
 
-// ScrollScene pins its children for the scene's height and scrubs the CSS
-// custom property --p (0..1) with scroll position. All choreography lives in
-// CSS calc()/clamp() off that one variable, so nothing re-renders per frame.
-// Elements inside may carry:
-//   data-live-after="0.84"  -> gains .mk-live once p passes the threshold
-//   data-hide-after="0.25"  -> gains .mk-hidden once p passes the threshold
+// Legacy scroll-scene (v3 cinema hero) — no longer used by any page; kept
+// only so historical imports don't break. Safe to delete once hero-cinema's
+// HeroCinema export is removed.
 export function ScrollScene({ children }: { children: ReactNode }): ReactElement {
   const ref = useRef<HTMLElement | null>(null);
 
@@ -129,35 +126,67 @@ export function ScrollScene({ children }: { children: ReactNode }): ReactElement
   );
 }
 
-// MotionRuntime mounts once in the marketing layout and reveals .mk-reveal
-// elements as they enter the viewport (once each). Re-scans on route change
-// so client-side navigations get their reveals too. data-delay="120" staggers.
+// MotionRuntime — GSAP edition. Mounts once in the marketing layout:
+//  · hero intro: [data-hero-el] elements rise in sequence on load
+//  · scroll reveals: .mk-reveal elements rise as they enter the viewport
+//    (ScrollTrigger, once). Elements are visible by default (no-JS safe);
+//    GSAP hides them at setup, so nothing flashes.
+//  · everything sits inside gsap.matchMedia — reduced-motion users get the
+//    static page untouched. Re-runs on route change.
 export function MotionRuntime(): null {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      document
-        .querySelectorAll('.mk-reveal')
-        .forEach((n) => n.classList.add('is-in'));
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting) continue;
-          const el = e.target as HTMLElement;
-          if (el.dataset.delay) el.style.transitionDelay = `${el.dataset.delay}ms`;
-          el.classList.add('is-in');
-          io.unobserve(el);
+    let mm: gsap.MatchMedia | null = null;
+    let cancelled = false;
+
+    (async () => {
+      const [{ gsap }, { ScrollTrigger }] = await Promise.all([
+        import('gsap'),
+        import('gsap/ScrollTrigger'),
+      ]);
+      if (cancelled) return;
+      gsap.registerPlugin(ScrollTrigger);
+      mm = gsap.matchMedia();
+
+      mm.add('(prefers-reduced-motion: no-preference)', () => {
+        const heroEls = gsap.utils.toArray<HTMLElement>('[data-hero-el]');
+        if (heroEls.length) {
+          gsap.fromTo(
+            heroEls,
+            { autoAlpha: 0, y: 26 },
+            {
+              autoAlpha: 1,
+              y: 0,
+              duration: 0.7,
+              ease: 'power3.out',
+              stagger: 0.09,
+              clearProps: 'all',
+            }
+          );
         }
-      },
-      { rootMargin: '0px 0px -10% 0px', threshold: 0.15 }
-    );
-    document
-      .querySelectorAll('.mk-reveal:not(.is-in)')
-      .forEach((n) => io.observe(n));
-    return () => io.disconnect();
+        gsap.utils.toArray<HTMLElement>('.mk-reveal').forEach((el) => {
+          gsap.fromTo(
+            el,
+            { autoAlpha: 0, y: 24 },
+            {
+              autoAlpha: 1,
+              y: 0,
+              duration: 0.65,
+              ease: 'power2.out',
+              delay: (parseFloat(el.dataset.delay || '0') || 0) / 1000,
+              scrollTrigger: { trigger: el, start: 'top 88%', once: true },
+              clearProps: 'all',
+            }
+          );
+        });
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      mm?.revert();
+    };
   }, [pathname]);
 
   return null;

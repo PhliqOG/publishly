@@ -24,14 +24,17 @@ export const PublishlyGlyph = ({ size = 18 }: { size?: number }) => (
 
 import { MARKETING } from './marketing.config';
 
+// Operator-supplied wordmark (blue rounded "Publishly", white ground) —
+// cropped at 1220x380, rendered small; explicit dimensions prevent CLS.
 export const PublishlyWordmark = ({ compact = false }: { compact?: boolean }) => (
-  <span className="mk-wordmark">
-    <PublishlyGlyph />
-    {!compact && (
-      <span className="mk-wordmark-text">
-        {MARKETING.brand.toLowerCase()}
-      </span>
-    )}
+  <span className={`mk-wordmark ${compact ? 'mk-wordmark-footer' : ''}`}>
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img
+      src="/publishly-wordmark.png"
+      alt={MARKETING.brand}
+      width={compact ? 71 : 84}
+      height={compact ? 22 : 26}
+    />
   </span>
 );
 

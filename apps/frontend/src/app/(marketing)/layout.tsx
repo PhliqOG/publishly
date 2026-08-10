@@ -45,7 +45,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#133458',
+  themeColor: '#ffffff',
 };
 
 export default function MarketingLayout({
@@ -58,13 +58,6 @@ export default function MarketingLayout({
       <body
         className={`mk-body ${display.variable} ${body.variable} ${mono.variable}`}
       >
-        {/* Pre-paint JS marker: reveal animations only hide content when this
-            ran, so no-JS visitors always see the full page. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: "document.documentElement.classList.add('mk-js')",
-          }}
-        />
         <a href="#mk-main" className="mk-skip">
           Skip to content
         </a>

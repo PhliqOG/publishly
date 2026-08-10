@@ -51,7 +51,6 @@ export const MarketingFooter = () => (
         <div>
           <div className="mk-nav-logo" style={{ marginBottom: 12 }}>
             <PublishlyWordmark compact />
-            {MARKETING.brand}
           </div>
           <p
             style={{
