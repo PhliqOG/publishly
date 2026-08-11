@@ -6,7 +6,10 @@ import {
 } from '@gitroom/frontend/components/marketing/chrome';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
-export const metadata: Metadata = { title: 'Privacy Policy' };
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+  alternates: { canonical: '/privacy' },
+};
 
 export default function PrivacyPage() {
   return (

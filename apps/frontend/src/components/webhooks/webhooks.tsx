@@ -31,7 +31,9 @@ export const Webhooks: FC = () => {
   const addWebhook = useCallback(
     (data?: any) => () => {
       modal.openModal({
-        title: data ? t('update_webhook', 'Update webhook') : t('add_webhook', 'Add webhook'),
+        title: data
+          ? t('update_webhook', 'Update webhook')
+          : t('add_webhook', 'Add webhook'),
         withCloseButton: true,
         children: <AddOrEditWebhook data={data} reload={mutate} />,
       });
@@ -53,7 +55,10 @@ export const Webhooks: FC = () => {
           method: 'DELETE',
         });
         mutate();
-        toaster.show(t('webhook_deleted_successfully', 'Webhook deleted successfully'), 'success');
+        toaster.show(
+          t('webhook_deleted_successfully', 'Webhook deleted successfully'),
+          'success'
+        );
       }
     },
     []
@@ -141,6 +146,7 @@ export const AddOrEditWebhook: FC<{
   );
   const modal = useModals();
   const toast = useToaster();
+  const [signingSecret, setSigningSecret] = useState('');
   const form = useForm({
     resolver: yupResolver(details),
     values: {
@@ -175,7 +181,7 @@ export const AddOrEditWebhook: FC<{
   });
   const callBack = useCallback(
     async (values: any) => {
-      await fetch('/webhooks', {
+      const response = await fetch('/webhooks', {
         method: data?.id ? 'PUT' : 'POST',
         body: JSON.stringify({
           ...(data?.id
@@ -186,17 +192,49 @@ export const AddOrEditWebhook: FC<{
           ...values,
         }),
       });
+      if (!response.ok) {
+        toast.show(
+          t('webhook_save_failed', 'Could not save webhook'),
+          'warning'
+        );
+        return;
+      }
+      const result = await response.json();
       toast.show(
         data?.id
           ? t('webhook_updated_successfully', 'Webhook updated successfully')
           : t('webhook_added_successfully', 'Webhook added successfully'),
         'success'
       );
-      modal.closeAll();
       reload();
+      if (result.signingSecret) {
+        setSigningSecret(result.signingSecret);
+        return;
+      }
+      modal.closeAll();
     },
     [data, integrations]
   );
+
+  const rotateSecret = useCallback(async () => {
+    if (!data?.id) return;
+    if (
+      !(await deleteDialog(
+        'Rotate this signing secret? Requests signed with the old secret will stop verifying immediately.'
+      ))
+    ) {
+      return;
+    }
+    const response = await fetch(`/webhooks/${data.id}/rotate-secret`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      toast.show('Could not rotate webhook secret', 'warning');
+      return;
+    }
+    const result = await response.json();
+    if (result.signingSecret) setSigningSecret(result.signingSecret);
+  }, [data?.id]);
   const sendTest = useCallback(async () => {
     const url = form.getValues('url');
     toast.show(t('webhook_sent', 'Webhook send'), 'success');
@@ -242,6 +280,29 @@ export const AddOrEditWebhook: FC<{
     }
   }, []);
 
+  if (signingSecret) {
+    return (
+      <div className="flex flex-col gap-[14px] text-textColor">
+        <div>
+          <div className="font-[600]">Save this signing secret now</div>
+          <div className="text-[13px] opacity-70 mt-[4px]">
+            Publishly stores it encrypted and will not show it again. Verify
+            X-Publishly-Signature against the exact request body.
+          </div>
+        </div>
+        <code className="rounded-[6px] border border-newTableBorder bg-newBgColorInner p-[12px] break-all select-all">
+          {signingSecret}
+        </code>
+        <div className="flex gap-[8px]">
+          <Button onClick={() => navigator.clipboard.writeText(signingSecret)}>
+            Copy secret
+          </Button>
+          <Button onClick={() => modal.closeAll()}>Done</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(callBack)}>
@@ -281,6 +342,13 @@ export const AddOrEditWebhook: FC<{
                 isMain={true}
               />
             )}
+            {data?.id ? (
+              <div className="mt-[12px]">
+                <Button type="button" onClick={rotateSecret}>
+                  Rotate signing secret
+                </Button>
+              </div>
+            ) : null}
             <div className="flex gap-[10px]">
               <Button
                 type="submit"

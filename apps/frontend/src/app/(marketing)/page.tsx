@@ -45,7 +45,7 @@ const FAQ = [
   },
   {
     q: 'How do I post to 100 accounts through one API?',
-    a: 'Connect each account once through its platform’s official OAuth flow, then POST to /public/v1/posts with the destinations you want. One call can carry many destinations, and each destination is tracked as its own delivery with its own receipt, state history and live URL — so a failure on one never hides the other 99.',
+    a: 'Connect each account once through the platform’s own authorization flow — official OAuth on nine of the ten featured networks, a revocable Bluesky app password on Bluesky — then POST to /public/v1/posts with the destinations you want. One call can carry many destinations, and each destination is tracked as its own delivery with its own receipt, state history and live URL — so a failure on one never hides the other 99.',
   },
   {
     q: 'Why do scheduled Instagram posts fail silently?',
@@ -83,6 +83,7 @@ export const metadata: Metadata = {
   },
   description:
     'Publishly is a social media posting API and scheduler for teams running many brands, clients and locations. Every post gets a delivery receipt, every failure gets a reason and a signed webhook, and every paid plan includes unlimited connected accounts from $29/mo.',
+  alternates: { canonical: '/' },
 };
 
 /* ---------------------------------------------------------------- page */
@@ -116,7 +117,7 @@ export default function MarketingHome() {
                   </Link>
                 </div>
                 <p className="mk-hero-note" data-hero-el>
-                  No credit card needed. 7-day trial on every plan.
+                  Free forever plan — no credit card. 7-day trial on every paid plan.
                 </p>
               </div>
             </div>
@@ -371,7 +372,7 @@ export default function MarketingHome() {
               className="mk-h2"
               style={{ marginTop: 14 }}
             >
-              Everything the app does, your scripts can do.
+              Scheduling, posts, status, media &amp; integrations — all scriptable.
             </h2>
             <p className="mk-section-lede">
               Scoped keys, one posting endpoint, signed delivery events. No
@@ -407,8 +408,8 @@ export default function MarketingHome() {
             <div className="mk-cta-panel">
               <h2 className="mk-h2">Stop finding out from your clients.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                Connect an account, schedule a post &amp; read its receipt. No
-                credit card needed. 7-day trial on every plan.
+                Connect an account, schedule a post &amp; read its receipt.
+                Free forever plan — no credit card. 7-day trial on every paid plan.
               </p>
               <div className="mk-hero-ctas">
                 <Link

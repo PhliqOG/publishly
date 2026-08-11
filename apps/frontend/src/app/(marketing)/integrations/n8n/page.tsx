@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   title: 'n8n social media posting',
   description:
     'Post to social media from n8n with Publishly: an HTTP Request node schedules posts through the REST API, and a Webhook node receives signed post.published and post.failure events. No custom node required.',
+  alternates: { canonical: '/integrations/n8n' },
 };
 
 // Static code block in the site's terminal styling (mk-term, marketing.css).

@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   title: 'Make.com social media posting API',
   description:
     'Post to social media from Make.com with Publishly: an HTTP module schedules posts through the REST API, and a custom webhook module receives signed post.published and post.failure events. No first-party module required.',
+  alternates: { canonical: '/integrations/make' },
 };
 
 // Static code block in the site's terminal styling (mk-term, marketing.css).

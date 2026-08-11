@@ -231,6 +231,7 @@ export async function generateMetadata({
   return {
     title: `Post to ${spec.name} via API — what Publishly supports`,
     description: `What Publishly supports for ${spec.name}: authentication, posting, analytics & the shared failure catalog — last verified ${LAST_VERIFIED}.`,
+    alternates: { canonical: `/platforms/${network}` },
   };
 }
 

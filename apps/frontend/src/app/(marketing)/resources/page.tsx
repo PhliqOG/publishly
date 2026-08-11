@@ -16,6 +16,7 @@ export const metadata: Metadata = {
     'social media scheduler comparison guides',
     'multi-brand posting tools',
   ],
+  alternates: { canonical: '/resources' },
 };
 
 const ARTICLES = [

@@ -22,6 +22,7 @@ export const metadata: Metadata = {
     'social media posting api 2026',
     'multi-brand posting api',
   ],
+  alternates: { canonical: '/resources/best-social-posting-apis-2026' },
 };
 
 // Competitor numbers: data/claim-provenance.json (ayrshare-100-profiles,

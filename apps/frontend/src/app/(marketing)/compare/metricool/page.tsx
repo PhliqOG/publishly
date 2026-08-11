@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   description:
     'A Metricool alternative API comparison from official pricing pages: Metricool’s published tiers run Free / $20–36 / $53–159 with a 50-brand maximum; Publishly’s paid plans have unlimited connected accounts and a posting API on every tier. Last checked 2026-08-10.',
   keywords: ['metricool alternative api', 'metricool 50 brand limit', 'metricool vs publishly'],
+  alternates: { canonical: '/compare/metricool' },
 };
 
 // Competitor numbers: data/claim-provenance.json (metricool-tiers,

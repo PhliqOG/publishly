@@ -12,7 +12,10 @@ import { AttachToFeedbackIcon } from '@gitroom/frontend/components/new-layout/se
 import NotificationComponent from '@gitroom/frontend/components/notifications/notification.component';
 import dynamic from 'next/dynamic';
 import { LogoTextComponent } from '@gitroom/frontend/components/ui/logo-text.component';
-import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
+import {
+  PricingInterface,
+  pricing,
+} from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { capitalize } from 'lodash';
 import clsx from 'clsx';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
@@ -60,6 +63,19 @@ export const FirstBillingComponent = () => {
   const [datafast_visitor_id] = useCookie('datafast_visitor_id', '');
   const [datafast_session_id] = useCookie('datafast_session_id', '');
 
+  const loadPricing = useCallback(async () => {
+    return (await fetch('/user/subscription/tiers')).json();
+  }, [fetch]);
+  const { data: serverPricing, isLoading: isLoadingPricing } =
+    useSWR<PricingInterface>('/user/subscription/tiers', loadPricing);
+  const planCatalog = useMemo(
+    () =>
+      serverPricing && Object.keys(serverPricing).length
+        ? serverPricing
+        : pricing,
+    [serverPricing]
+  );
+
   useEffect(() => {
     setStripe(loadStripe(stripeClient));
   }, []);
@@ -96,7 +112,7 @@ export const FirstBillingComponent = () => {
   };
 
   const { data, isLoading } = useSWR(
-    `/billing-${tier}-${period}`,
+    isLoadingPricing ? null : `/billing-${tier}-${period}`,
     loadCheckout,
     {
       revalidateOnFocus: false,
@@ -108,8 +124,8 @@ export const FirstBillingComponent = () => {
   );
 
   const price = useMemo(
-    () => Object.entries(pricing).filter(([key, value]) => key !== 'FREE'),
-    []
+    () => Object.entries(planCatalog).filter(([key]) => key !== 'FREE'),
+    [planCatalog]
   );
 
   const JoinOver = () => {
@@ -261,7 +277,7 @@ export const FirstBillingComponent = () => {
                     )}
                   >
                     <div className="text-[20px] mobile:text-[18px] font-[500]">
-                      {capitalize(key)}
+                      {value.display_name || capitalize(key)}
                     </div>
                     <div className="text-[24px] mobile:text-[18px] font-[400]">
                       <span className="text-[44px] mobile:text-[30px] font-[600]">
@@ -285,7 +301,7 @@ export const FirstBillingComponent = () => {
               <div className="text-[24px] font-[700]">
                 {t('billing_features', 'Features')}
               </div>
-              <BillingFeatures tier={tier} />
+              <BillingFeatures tier={tier} tiers={planCatalog} />
             </div>
             <div className="flex flex-col mobile:hidden tablet:hidden">
               {/*<div>asd</div>*/}
@@ -304,10 +320,13 @@ type FeatureItem = {
   prefix?: string | number;
 };
 
-export const BillingFeatures: FC<{ tier: string }> = ({ tier }) => {
+export const BillingFeatures: FC<{
+  tier: string;
+  tiers?: PricingInterface;
+}> = ({ tier, tiers = pricing }) => {
   const t = useT();
   const features = useMemo(() => {
-    const currentPricing = pricing[tier];
+    const currentPricing = tiers[tier];
     const channelsOr = currentPricing.channel;
     const list: FeatureItem[] = [];
 
@@ -362,7 +381,7 @@ export const BillingFeatures: FC<{ tier: string }> = ({ tier }) => {
       });
     }
     return list;
-  }, [tier]);
+  }, [tier, tiers]);
 
   const renderFeature = (feature: FeatureItem) => {
     const translatedText = t(feature.key, feature.defaultValue);

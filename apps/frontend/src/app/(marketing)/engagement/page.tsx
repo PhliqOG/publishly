@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { ProductMarketingPage } from '@gitroom/frontend/components/marketing/product-page';
 import { InboxReplica } from '@gitroom/frontend/components/marketing/replicas/inbox-replica';
 
-export const metadata: Metadata = { title: 'Engagement' };
+export const metadata: Metadata = {
+  title: 'Engagement',
+  alternates: { canonical: '/engagement' },
+};
 
 export default function EngagementPage() {
   return (

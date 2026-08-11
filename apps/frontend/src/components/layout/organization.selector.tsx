@@ -92,10 +92,10 @@ export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
                         {' '}
                         (
                         {org?.users?.[0]?.role === 'SUPERADMIN'
-                          ? 'Super-Admin'
+                          ? 'Owner'
                           : org?.users?.[0]?.role === 'ADMIN'
                           ? 'Admin'
-                          : 'User'}
+                          : 'Member'}
                         )
                       </span>
                     )}

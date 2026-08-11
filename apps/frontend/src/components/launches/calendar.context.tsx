@@ -23,6 +23,7 @@ import useCookie from 'react-use-cookie';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { timer } from '@gitroom/helpers/utils/timer';
 import { expandPostsList, expandPosts } from '@gitroom/helpers/utils/posts.list.minify';
+import type { ProviderCapabilities } from '@gitroom/nestjs-libraries/integrations/provider.capabilities';
 extend(isoWeek);
 extend(weekOfYear);
 
@@ -107,6 +108,7 @@ export interface Integrations {
     name?: string;
     id?: string;
   };
+  capabilities?: ProviderCapabilities;
 }
 
 // Helper function to get start and end dates based on display type

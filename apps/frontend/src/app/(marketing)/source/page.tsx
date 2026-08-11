@@ -1,11 +1,15 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import {
   MarketingFooter,
   MarketingNav,
 } from '@gitroom/frontend/components/marketing/chrome';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
-export const metadata: Metadata = { title: 'Source code' };
+export const metadata: Metadata = {
+  title: 'Source code',
+  alternates: { canonical: '/source' },
+};
 
 export default function SourcePage() {
   const external =
@@ -42,13 +46,15 @@ export default function SourcePage() {
                 </p>
               ) : (
                 <p>
-                  To receive the complete corresponding source of the deployed
-                  revision at no charge, contact the operator
-                  {MARKETING.supportEmail
-                    ? ` at ${MARKETING.supportEmail}`
-                    : ''}{' '}
-                  &amp; it will be provided as a source archive. (Operators: set
-                  NEXT_PUBLIC_SOURCE_URL to link a public mirror directly.)
+                  The source of the currently deployed revision is published
+                  at launch. Until then, the upstream engine this service is
+                  built on is public at{' '}
+                  <a href="https://github.com/gitroomhq/postiz-app">
+                    github.com/gitroomhq/postiz-app
+                  </a>
+                  , and <Link href="/contact">contacting us</Link> gets you
+                  the exact deployed revision as a source archive at no
+                  charge.
                 </p>
               )}
               <h2>License</h2>

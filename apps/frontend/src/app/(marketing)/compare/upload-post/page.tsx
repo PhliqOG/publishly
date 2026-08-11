@@ -23,6 +23,7 @@ export const metadata: Metadata = {
     'upload-post pricing',
     'upload-post vs publishly',
   ],
+  alternates: { canonical: '/compare/upload-post' },
 };
 
 // Competitor numbers: data/claim-provenance.json (upload-post-tiers,

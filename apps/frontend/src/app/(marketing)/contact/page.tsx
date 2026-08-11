@@ -6,7 +6,10 @@ import {
 } from '@gitroom/frontend/components/marketing/chrome';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
-export const metadata: Metadata = { title: 'Contact' };
+export const metadata: Metadata = {
+  title: 'Contact',
+  alternates: { canonical: '/contact' },
+};
 
 export default function ContactPage() {
   return (
@@ -50,8 +53,9 @@ export default function ContactPage() {
               </div>
             ) : (
               <p className="mk-draft" style={{ maxWidth: '70ch', margin: 0 }}>
-                Operator action required: set NEXT_PUBLIC_SUPPORT_EMAIL before
-                launch so this page exposes a working support channel.
+                The support address for this deployment is published at
+                launch. Until then, reach the project through its{' '}
+                <Link href="/source">source repository</Link>.
               </p>
             )}
 

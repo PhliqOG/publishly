@@ -22,6 +22,7 @@ export const metadata: Metadata = {
     'ayrshare alternative 2026',
     'best ayrshare alternative',
   ],
+  alternates: { canonical: '/resources/best-ayrshare-alternatives-2026' },
 };
 
 // Competitor numbers: data/claim-provenance.json (ayrshare-100-profiles,

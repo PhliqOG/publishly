@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   title: 'Posting API for Creator Networks',
   description:
     'One publishing pipeline for media networks & creator teams: every show, newsletter & channel brand on one calendar, CSV bulk scheduling with per-row validation, delivery receipts across the network & one flat price.',
+  alternates: { canonical: '/for-creator-networks' },
 };
 
 // The network angle: a slate of distinct properties — shows, newsletters,
@@ -301,7 +302,7 @@ export default function ForCreatorNetworksPage() {
             <div className="mk-cta-panel">
               <h2 className="mk-h2">Put the slate on rails.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                No credit card needed. 7-day trial on every plan.
+                Free forever plan — no credit card. 7-day trial on every paid plan.
               </p>
               <div className="mk-hero-ctas">
                 <Link

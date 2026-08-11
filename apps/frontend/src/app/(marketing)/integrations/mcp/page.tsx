@@ -14,16 +14,17 @@ export const metadata: Metadata = {
   title: 'Social media MCP server',
   description:
     'Publishly ships a built-in MCP server, so any MCP-capable AI assistant can schedule and manage social posts through your Publishly workspace — authenticated with your own API key.',
+  alternates: { canonical: '/integrations/mcp' },
 };
 
 const STEPS: Array<{ title: string; body: string }> = [
   {
-    title: 'Create a scoped API key',
-    body: 'In your Publishly settings, issue an API key with only the scopes your assistant needs — posts read/write is enough for scheduling. The key is shown once and hashed at rest.',
+    title: 'Authorize with OAuth',
+    body: 'Connect your assistant with OAuth at the /mcp-oauth endpoint — the authorization runs against your Publishly account, the same as any other OAuth client.',
   },
   {
     title: 'Point your assistant at the Publishly MCP endpoint',
-    body: 'Add Publishly as an MCP server in your assistant’s configuration, using your Publishly backend URL and the API key as the credential. The exact connection details for your deployment are in the API docs.',
+    body: 'Add Publishly as an MCP server in your assistant’s configuration, using your Publishly backend URL — most MCP clients handle the OAuth handshake automatically. The exact connection details for your deployment are in the API docs.',
   },
   {
     title: 'Ask for what you want, in plain language',
@@ -55,16 +56,16 @@ export default function McpIntegrationPage() {
               <p className="mk-section-lede">
                 Publishly’s backend ships a Model Context Protocol server. Any
                 MCP-capable AI assistant can drive your posting schedule —
-                authenticated as you, limited by your key’s scopes.
+                authorized against your Publishly account through OAuth.
               </p>
             </header>
             <QuickAnswer>
               Publishly includes a built-in MCP (Model Context Protocol)
               server — it starts with the backend, no plugin to install. Connect
               an MCP-capable assistant to your Publishly backend’s MCP endpoint
-              with a scoped API key, and it can schedule, list and manage posts
-              in your workspace through the same validated pipeline as the
-              dashboard.
+              and authorize it with OAuth, and it can schedule, list and manage
+              posts in your workspace through the same validated pipeline as
+              the dashboard.
             </QuickAnswer>
             <Byline published="2026-08-10" />
 
@@ -87,7 +88,7 @@ export default function McpIntegrationPage() {
                 reschedule a slot — without opening the dashboard. Every action
                 goes through the same server-side validation, delivery
                 tracking, and audit trail as a post created by hand. An
-                assistant can’t do anything your API key wasn’t scoped to do.
+                assistant acts inside the workspace you authorized it against.
               </p>
 
               <h2>Setup, honestly outlined</h2>
@@ -143,8 +144,8 @@ export default function McpIntegrationPage() {
               a: 'Any client that speaks the Model Context Protocol. Publishly implements the server side of the open standard and doesn’t gate specific assistants.',
             },
             {
-              q: 'Can an assistant post something my key can’t?',
-              a: 'No. MCP calls authenticate with your API key and inherit its scopes. Revoke the key and the assistant’s access ends with it.',
+              q: 'Can an assistant post something my workspace hasn’t authorized?',
+              a: 'MCP access is authorized per workspace and can be revoked from your settings. Per-scope limits on MCP tools are in development — today scopes constrain the REST API only.',
             },
           ]}
         />

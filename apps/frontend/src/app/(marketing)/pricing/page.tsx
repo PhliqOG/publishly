@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   title: 'Publishly pricing — flat plans, unlimited social accounts',
   description:
     'A social media API with unlimited accounts on every paid plan: free, then $29 / $99 / $299 flat, sized by post volume. Ayrshare alternative pricing without the per-profile tax.',
+  alternates: { canonical: '/pricing' },
 };
 
 // Publishly numbers come from pricing.ts via PricingCards; competitor numbers

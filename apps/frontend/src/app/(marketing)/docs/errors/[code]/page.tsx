@@ -87,6 +87,7 @@ export async function generateMetadata({
   return {
     title: `${code} — Publishly publishing error`,
     description: POST_FAILURE_CATALOG[code].defaultReason,
+    alternates: { canonical: `/docs/errors/${code}` },
   };
 }
 

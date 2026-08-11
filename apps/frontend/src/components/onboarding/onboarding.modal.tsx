@@ -87,7 +87,7 @@ export const OnboardingModal: FC<OnboardingModalProps> = ({ onClose }) => {
                     step === 2 ? 'font-medium' : 'text-textColor'
                   )}
                 >
-                  {t('watch_tutorial', 'Watch Tutorial')}
+                  {t('create_first_post', 'Create First Post')}
                 </span>
               </div>
             </div>
@@ -250,27 +250,44 @@ const OnboardingStep2: FC<{ onBack: () => void; onFinish: () => void }> = ({
     <div className="flex flex-col gap-[24px] flex-1">
       <div className="flex gap-[4px] flex-col text-center">
         <div className="text-[24px] font-semibold">
-          {t('watch_tutorial_title', 'Learn How to Use Postiz')}
+          Your publishing workflow is ready
         </div>
         <div className="text-[14px] text-customColor18">
-          {t(
-            'watch_tutorial_description',
-            'Watch this short video to learn how to get the most out of Postiz'
-          )}
+          Create a draft, tailor each destination, then choose when it goes live.
         </div>
       </div>
 
-      {/* YouTube Video Embed */}
-      <div className="relative flex-1 rounded-[12px] overflow-hidden">
-        <div className="absolute left-0 top-0 w-full h-full flex justify-center">
-          <iframe
-            className="h-full aspect-video"
-            src="https://www.youtube.com/embed/BdsCVvEYgHU?si=vvhaZJ8I5oXXvVJS?autoplay=1"
-            title="Postiz Tutorial"
-            allow="autoplay"
-            allowFullScreen
-          />
-        </div>
+      <div className="grid flex-1 gap-[16px] tablet:grid-cols-3">
+        {[
+          [
+            '1',
+            'Compose',
+            'Add media and a universal caption, then refine each platform override.',
+          ],
+          [
+            '2',
+            'Validate',
+            'Publishly shows supported controls and flags media or character-limit issues.',
+          ],
+          [
+            '3',
+            'Schedule',
+            'Choose a timezone-aware date or save a draft; workers handle delivery after you leave.',
+          ],
+        ].map(([number, title, description]) => (
+          <div
+            key={number}
+            className="rounded-[16px] border border-tableBorder bg-newTableHeader p-[20px]"
+          >
+            <div className="mb-[18px] flex h-[34px] w-[34px] items-center justify-center rounded-full bg-boxFocused font-semibold text-textItemFocused">
+              {number}
+            </div>
+            <div className="mb-[8px] text-[17px] font-semibold">{title}</div>
+            <p className="text-[14px] leading-6 text-customColor18">
+              {description}
+            </p>
+          </div>
+        ))}
       </div>
 
       {/* Action buttons */}
@@ -300,7 +317,7 @@ const OnboardingStep2: FC<{ onBack: () => void; onFinish: () => void }> = ({
           onClick={onFinish}
           className="group flex items-center gap-[12px] bg-gradient-to-r from-[#10b981] to-[#059669] hover:from-[#34d399] hover:to-[#10b981] text-white font-semibold px-[32px] py-[14px] rounded-[12px] text-[16px] transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
         >
-          {t('get_started', 'Get Started')}
+          {t('create_first_post', 'Create First Post')}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="20"

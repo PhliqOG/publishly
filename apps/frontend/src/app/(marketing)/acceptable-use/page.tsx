@@ -4,7 +4,10 @@ import {
   MarketingNav,
 } from '@gitroom/frontend/components/marketing/chrome';
 
-export const metadata: Metadata = { title: 'Acceptable Use' };
+export const metadata: Metadata = {
+  title: 'Acceptable Use',
+  alternates: { canonical: '/acceptable-use' },
+};
 
 export default function AcceptableUsePage() {
   return (

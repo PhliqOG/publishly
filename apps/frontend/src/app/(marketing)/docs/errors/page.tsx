@@ -24,6 +24,7 @@ const TOTAL = Object.keys(POST_FAILURE_CATALOG).length;
 export const metadata: Metadata = {
   title: 'Publishing error codes',
   description: `Every failed Publishly post carries one of ${TOTAL} documented failure codes — the engine's actual catalog, grouped by what recovers on its own, what needs your action & what is a content problem.`,
+  alternates: { canonical: '/docs/errors' },
 };
 
 const CLASS_META: Record<PostFailureClass, { label: string; blurb: string }> = {

@@ -22,6 +22,7 @@ export const metadata: Metadata = {
     'social media api pricing',
     'posting api for agencies',
   ],
+  alternates: { canonical: '/compare' },
 };
 
 // Every competitor number on this page traces to data/claim-provenance.json

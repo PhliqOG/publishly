@@ -20,6 +20,7 @@ export const metadata: Metadata = {
     'publishly comparison methodology',
     'how we compare social media apis',
   ],
+  alternates: { canonical: '/methodology/api-comparisons' },
 };
 
 // Every source row below is hardcoded from data/claim-provenance.json,

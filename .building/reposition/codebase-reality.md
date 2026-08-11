@@ -9,7 +9,7 @@ All paths absolute. Backend = NestJS; background execution is **Temporal**
 | # | Claim | Verdict | Load-bearing evidence |
 |---|---|---|---|
 | 1 | Every post gets a delivery receipt | TRUE-TODAY | `PublishingJob` model + `Post.releaseId/releaseURL` |
-| 2 | Every failure gets a webhook | ABSENT | only `post.published` event exists |
+| 2 | Every failure gets a webhook | ~~ABSENT~~ → **SHIPPING as of 2026-08-10** (see update note at the end of this file) | `post.failure` wired through `publishing-failure.service.ts` |
 | 3 | A failure reason on every post | TRUE-TODAY | `Post.error`, `Errors` row, `lastError` + `failureCategory` |
 | 4 | Automatic retries | TRUE-TODAY | Temporal retry policies + workflow loop + hourly sweeper |
 | 5 | Token-expiry warnings before failure | PARTIAL | refresh is proactive; the *warning* is post-failure only |

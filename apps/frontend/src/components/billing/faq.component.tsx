@@ -2,60 +2,32 @@
 
 import { FC, useCallback, useState } from 'react';
 import clsx from 'clsx';
-import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { BRAND_NAME } from '@gitroom/react/brand/brand';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
-import { useT } from '@gitroom/react/translation/get.transation.service.client';
 const useFaqList = () => {
-  const { isGeneral } = useVariables();
   const user = useUser();
-  const t = useT();
   return [
     ...(user?.allowTrial
       ? [
           {
-            title: t(
-              'faq_am_i_going_to_be_charged_by_postiz',
-              `Am I going to be charged by ${BRAND_NAME}?`
-            ),
-            description: t(
-              'faq_to_confirm_credit_card_information_postiz_will_hold',
-              `To confirm credit card information ${BRAND_NAME} will hold $2 and release it immediately, you can cancel your subscription anytime from settings without talking to a person`
-            ),
+            title: 'When does billing begin?',
+            description:
+              'Your exact trial length, renewal date, and amount are shown in secure Stripe Checkout before you confirm. Payment-card data is handled by Stripe, not stored by Publishly.',
           },
         ]
       : []),
     {
-      title: t(
-        'faq_can_i_trust_postiz_gitroom',
-        `Can I trust ${BRAND_NAME}?`
-      ),
-      description: t(
-        'faq_postiz_gitroom_is_proudly_open_source',
-        `${
-          BRAND_NAME
-        } is proudly open-source! We believe in an ethical and transparent culture, meaning that ${
-          BRAND_NAME
-        } will live forever. You can check out the entire code or use it for personal projects. To view the open-source repository, <a href="https://github.com/gitroomhq/postiz-app" target="_blank" style="text-decoration: underline;">click here</a>.`
-      ),
+      title: `How does ${BRAND_NAME} handle source transparency?`,
+      description: `${BRAND_NAME} is built on the AGPL-3.0-licensed Postiz engine. The corresponding source for the version running this service is available from the Source page, with upstream attribution preserved.`,
     },
     {
-      title: t('faq_what_are_channels', 'What are channels?'),
-      description: t(
-        'faq_postiz_gitroom_allows_you_to_schedule_posts',
-        `${
-          BRAND_NAME
-        } allows you to schedule your posts between different channels.
-A channel is a publishing platform where you can schedule your posts.
-For example, you can schedule your posts on X, Facebook, Instagram, TikTok, YouTube, Reddit, Linkedin, Dribbble, Threads and Pinterest.`
-      ),
+      title: 'What are social connections?',
+      description: `A social connection is an account or page you authorize ${BRAND_NAME} to use. Only providers configured by the operator are shown, and platform-specific controls appear only when the provider exposes that capability.`,
     },
     {
-      title: t('faq_what_are_team_members', 'What are team members?'),
-      description: t(
-        'faq_if_you_have_a_team_with_multiple_members',
-        'If you have a team with multiple members, you can invite them to your workspace to collaborate on your posts and add their personal channels'
-      ),
+      title: 'How do team members work?',
+      description:
+        'Workspace owners and admins can invite teammates within the active plan seat limit. Roles control whether a member can manage settings, billing, connections, or publishing work.',
     },
   ];
 };
@@ -129,7 +101,6 @@ export const FAQSection: FC<{
   );
 };
 export const FAQComponent: FC = () => {
-  const t = useT();
   const list = useFaqList();
   return (
     <div>

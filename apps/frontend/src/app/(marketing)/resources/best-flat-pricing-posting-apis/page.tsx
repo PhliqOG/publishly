@@ -22,6 +22,7 @@ export const metadata: Metadata = {
     'unlimited accounts posting api',
     'flat rate social media scheduler',
   ],
+  alternates: { canonical: '/resources/best-flat-pricing-posting-apis' },
 };
 
 // Competitor numbers: data/claim-provenance.json (bundle-social-entry,

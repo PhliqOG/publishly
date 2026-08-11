@@ -33,6 +33,7 @@ export const metadata: Metadata = {
   },
   description:
     'How do you know when a scheduled post fails? Publishly answers with a delivery receipt per destination, 20 documented failure codes, a signed post.failure webhook the moment it happens & retries that can never double-post.',
+  alternates: { canonical: '/reliability' },
 };
 
 /* ---------------------------------------------------------------- data */
@@ -505,7 +506,7 @@ export default function ReliabilityPage() {
                   },
                   {
                     title: 'An hourly sweeper catches missed slots',
-                    body: 'If a slot is missed — a deploy, a restart, a bad hour — the sweeper re-queues it within the hour. Nothing quietly expires off the calendar.',
+                    body: 'If a slot is missed — a deploy, a restart, a bad hour — the sweeper re-queues it within the hour, for any channel that’s still healthy and any slot from the last two days.',
                   },
                 ].map((row) => (
                   <div className="mk-row" key={row.title}>
@@ -599,8 +600,8 @@ export default function ReliabilityPage() {
             <div className="mk-cta-panel">
               <h2 className="mk-h2">Stop finding out from your clients.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                Connect a channel, schedule a post &amp; read its receipt. No
-                credit card needed. 7-day trial on every plan.
+                Connect a channel, schedule a post &amp; read its receipt.
+                Free forever plan — no credit card. 7-day trial on every paid plan.
               </p>
               <div className="mk-hero-ctas">
                 <Link

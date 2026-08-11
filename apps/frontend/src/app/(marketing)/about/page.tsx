@@ -6,7 +6,10 @@ import {
 } from '@gitroom/frontend/components/marketing/chrome';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
-export const metadata: Metadata = { title: 'About' };
+export const metadata: Metadata = {
+  title: 'About',
+  alternates: { canonical: '/about' },
+};
 
 export default function AboutPage() {
   return (

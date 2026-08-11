@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   title: 'Integrations',
   description:
     'Connect Publishly to anything: a REST API with scoped keys, an MCP server for AI assistants, signed webhooks, and honest recipes for n8n and Make.',
+  alternates: { canonical: '/integrations' },
 };
 
 // Every card links to a real integration surface. No first-party n8n node or

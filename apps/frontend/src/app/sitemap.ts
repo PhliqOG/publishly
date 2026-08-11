@@ -1,10 +1,26 @@
 import type { MetadataRoute } from 'next';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
+import { POST_FAILURE_CATALOG } from '@gitroom/nestjs-libraries/reliability/post.failure';
+import { PLATFORM_SPECS } from '@gitroom/frontend/app/(marketing)/platforms/[network]/page';
 
 // Every marketing route, one place. Add a path here the same PR it ships —
 // robots.ts points crawlers at this file, and docs/seo/DEPLOY-CHECKLIST.md
 // gates go-live on it being reachable at the real origin.
 const LAST_MODIFIED = new Date('2026-08-10');
+
+// Leaf routes are generated from the same source the pages themselves render
+// from, so the sitemap structurally cannot drift from what actually exists:
+//   - /docs/errors/[code] — one entry per code in POST_FAILURE_CATALOG, the
+//     real engine catalog (same import the [code] page & /docs/errors use).
+//   - /platforms/[network] — one entry per slug in PLATFORM_SPECS, exported
+//     from the platforms/[network] page itself so the two can never diverge.
+const ERROR_CODE_ROUTES: Array<[string, number]> = Object.keys(
+  POST_FAILURE_CATALOG
+).map((code) => [`/docs/errors/${code}`, 0.5]);
+
+const PLATFORM_ROUTES: Array<[string, number]> = Object.keys(
+  PLATFORM_SPECS
+).map((network) => [`/platforms/${network}`, 0.5]);
 
 // [path, priority] — priority is a same-site relative hint only (never a
 // ranking claim). Home highest, comparison/resource content next, utility
@@ -67,7 +83,8 @@ const ROUTES: Array<[string, number]> = [
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = MARKETING.siteUrl.replace(/\/$/, '');
-  return ROUTES.map(([path, priority]) => ({
+  const allRoutes = [...ROUTES, ...ERROR_CODE_ROUTES, ...PLATFORM_ROUTES];
+  return allRoutes.map(([path, priority]) => ({
     url: `${siteUrl}${path}`,
     lastModified: LAST_MODIFIED,
     priority,

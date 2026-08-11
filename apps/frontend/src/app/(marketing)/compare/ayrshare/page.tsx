@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   description:
     'Looking for an Ayrshare alternative? At published rates, Ayrshare works out to $1,228.30/mo at 100 profiles; Publishly’s Growth plan is $99/mo with unlimited connected accounts. The full side-by-side, from official pricing pages — last checked 2026-08-10.',
   keywords: ['ayrshare alternative', 'ayrshare pricing', 'ayrshare vs publishly'],
+  alternates: { canonical: '/compare/ayrshare' },
 };
 
 // Competitor numbers: data/claim-provenance.json (ayrshare-100-profiles,

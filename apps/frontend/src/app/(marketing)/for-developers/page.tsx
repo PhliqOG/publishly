@@ -22,6 +22,7 @@ export const metadata: Metadata = {
     'social media api free tier',
     'posting api webhooks',
   ],
+  alternates: { canonical: '/for-developers' },
 };
 
 // Facts map to data/public-product-facts.json (api.*, reliability.*) — the
@@ -48,7 +49,7 @@ function CodeBlock({ title, children }: { title: string; children: ReactNode }) 
 const API_BASICS = [
   {
     h: 'One base path',
-    p: 'Every call goes through REST /public/v1 — the same surface the dashboard itself calls internally, not a stripped-down subset.',
+    p: 'Every call goes through REST /public/v1: posts, media upload, integrations, analytics and per-post delivery status, on one versioned surface.',
   },
   {
     h: 'Scoped, revocable keys',
@@ -232,8 +233,8 @@ if (expected !== v1) throw new Error('Bad signature');
                 <h3>Built-in MCP server</h3>
                 <p>
                   Ships with the backend — no plugin to install. An
-                  MCP-capable assistant can schedule and manage posts under
-                  your API key’s scopes.
+                  MCP-capable assistant can schedule and manage posts in the
+                  workspace you authorize it against.
                 </p>
                 <p style={{ marginTop: 14 }}>
                   <Link href="/integrations/mcp" className="mk-arrow">

@@ -22,6 +22,7 @@ const SCOPES = [
   'media:write',
   'integrations:read',
   'integrations:write',
+  'analytics:read',
   'notifications:read',
   'video:write',
 ];

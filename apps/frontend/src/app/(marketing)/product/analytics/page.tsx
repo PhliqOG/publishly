@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { ProductMarketingPage } from '@gitroom/frontend/components/marketing/product-page';
 import { AnalyticsReplica } from '@gitroom/frontend/components/marketing/replicas/analytics-replica';
 
-export const metadata: Metadata = { title: 'Analytics' };
+export const metadata: Metadata = {
+  title: 'Analytics',
+  alternates: { canonical: '/product/analytics' },
+};
 
 export default function AnalyticsMarketingPage() {
   return (

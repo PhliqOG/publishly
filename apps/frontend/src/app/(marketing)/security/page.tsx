@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   title: 'Security',
   description:
     'How your social credentials are stored, used & destroyed — stated plainly, with the source available to check.',
+  alternates: { canonical: '/security' },
 };
 
 // The calm chapter: definition lists & measured type, no cards, no urgency.
@@ -80,7 +81,7 @@ export default function SecurityPage() {
           <div className="mk-container">
             <div style={{ maxWidth: '58ch' }}>
               <h2 id="sec-commitments" className="mk-h2">
-                4 commitments.
+                {MARKETING.security.length} commitments.
               </h2>
               <p className="mk-section-lede">
                 Not aspirations — descriptions of how the system works today.

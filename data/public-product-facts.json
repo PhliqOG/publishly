@@ -85,7 +85,12 @@
     "base_path": "/public/v1",
     "auth": "scoped API keys, shown once, hashed at rest, revocable",
     "post_status_endpoint": "GET /public/v1/posts/:id/status",
-    "mcp": { "available": true, "source": "apps/backend/src/main.ts startMcp" },
+    "free_tier_api_note": "FREE grants API access (public_api true). The public API middleware gates on pricing[tier].public_api — a missing Stripe Subscription row resolves to FREE rather than 401 (fixed 2026-08-10 in public.auth.middleware.ts). Free orgs are still bound by the 50-post monthly quota.",
+    "mcp": {
+      "available": true,
+      "auth": "OAuth (pos_) tokens or the legacy organization key — the MCP endpoint does NOT accept scoped pub_ API keys and does not apply key scopes. Never claim scoped-key MCP access.",
+      "source": "libraries/nestjs-libraries/src/chat/start.mcp.ts"
+    },
     "n8n": { "available": "via REST API + webhooks (no first-party node yet)" },
     "make": { "available": "via REST API + webhooks (no first-party module yet)" },
     "verified_at": "2026-08-10"

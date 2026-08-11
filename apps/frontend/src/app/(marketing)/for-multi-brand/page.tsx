@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   title: 'Post to Multiple Accounts API',
   description:
     'One calendar & one API for multi-brand and multi-location businesses: per-brand routing, brand isolation & pricing sized by posting volume — brand number 50 costs the same as brand number 5.',
+  alternates: { canonical: '/for-multi-brand' },
 };
 
 // The multi-brand angle: the operator running a portfolio, not a profile.
@@ -61,7 +62,7 @@ const LEARNING = [
 const FAQ = [
   {
     q: 'How do I post to multiple accounts across different brands?',
-    a: 'Connect each brand’s channels through the platforms’ official OAuth flows, then publish from one calendar or one API call. Publishly routes every post to the right brand’s accounts, tailors the caption per network, and returns a delivery receipt per destination — so the portfolio stays one operation instead of fifty logins.',
+    a: 'Connect each brand’s channels through each platform’s own authorization flow, then publish from one calendar or one API call. Publishly routes every post to the right brand’s accounts, tailors the caption per network, and returns a delivery receipt per destination — so the portfolio stays one operation instead of fifty logins.',
   },
   {
     q: 'Will 50 brands end up sounding the same?',
@@ -227,7 +228,7 @@ export default function ForMultiBrandPage() {
             <div className="mk-cta-panel">
               <h2 className="mk-h2">Bring the whole portfolio.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                No credit card needed. 7-day trial on every plan.
+                Free forever plan — no credit card. 7-day trial on every paid plan.
               </p>
               <div className="mk-hero-ctas">
                 <Link

@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   description:
     'A Buffer alternative API comparison from official pricing pages: Buffer’s Team plan bills $10/channel/mo (≈$300/mo at 30 channels, $1,000/mo at 100); Publishly’s Growth plan is $99/mo with unlimited connected accounts. Last checked 2026-08-10.',
   keywords: ['buffer alternative api', 'buffer pricing per channel', 'buffer vs publishly'],
+  alternates: { canonical: '/compare/buffer' },
 };
 
 // Competitor numbers: data/claim-provenance.json (buffer-30-channels,
@@ -212,8 +213,8 @@ export default function CompareBufferPage() {
             </h2>
             <p>
               At 100 channels the published math is $1,000 a month — and Buffer
-              doesn’t fire a webhook when a post fails. Publishly does: signed,
-              with the reason and the retry already attached.
+              doesn’t publish a failure-webhook capability. Publishly does:
+              signed, with the reason and the retry already attached.
             </p>
           </div>
         </section>

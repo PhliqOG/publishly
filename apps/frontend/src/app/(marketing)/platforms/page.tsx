@@ -24,6 +24,7 @@ export const metadata: Metadata = {
   title: 'Platforms',
   description:
     'What Publishly actually supports on each of the 10 networks it connects to — authentication, posting, analytics & the shared failure catalog.',
+  alternates: { canonical: '/platforms' },
 };
 
 const NETWORKS: Array<{

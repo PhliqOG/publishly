@@ -23,6 +23,7 @@ export const metadata: Metadata = {
     'hootsuite pricing',
     'hootsuite vs publishly',
   ],
+  alternates: { canonical: '/compare/hootsuite' },
 };
 
 // Competitor numbers: data/claim-provenance.json (hootsuite-entry, retrieved

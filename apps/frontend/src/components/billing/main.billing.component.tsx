@@ -11,7 +11,12 @@ import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import dayjs from 'dayjs';
 import clsx from 'clsx';
-import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
+import {
+  BillingTier,
+  PaidBillingTier,
+  PricingInterface,
+  pricing,
+} from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { FAQComponent } from '@gitroom/frontend/components/billing/faq.component';
 import { useSWRConfig } from 'swr';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
@@ -31,7 +36,7 @@ import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.comp
 
 export const Prorate: FC<{
   period: 'MONTHLY' | 'YEARLY';
-  pack: 'STANDARD' | 'PRO';
+  pack: PaidBillingTier;
 }> = (props) => {
   const { period, pack } = props;
   const t = useT();
@@ -76,11 +81,12 @@ export const Prorate: FC<{
   );
 };
 export const Features: FC<{
-  pack: 'FREE' | 'STANDARD' | 'PRO';
+  pack: BillingTier;
+  tiers: PricingInterface;
 }> = (props) => {
-  const { pack } = props;
+  const { pack, tiers } = props;
   const features = useMemo(() => {
-    const currentPricing = pricing[pack];
+    const currentPricing = tiers[pack];
     const channelsOr = currentPricing.channel;
     const list = [];
     list.push(`${channelsOr} ${channelsOr === 1 ? 'channel' : 'channels'}`);
@@ -109,7 +115,7 @@ export const Features: FC<{
       list.push(`${currentPricing?.generate_videos} AI Videos per month`);
     }
     return list;
-  }, [pack]);
+  }, [pack, tiers]);
   return (
     <div className="flex flex-col gap-[10px] justify-center text-[16px] text-customColor18">
       {features.map((feature) => (
@@ -210,8 +216,9 @@ const Info: FC<{
 };
 export const MainBillingComponent: FC<{
   sub?: Subscription;
+  tiers?: PricingInterface;
 }> = (props) => {
-  const { sub } = props;
+  const { sub, tiers } = props;
   const { isGeneral } = useVariables();
   const { mutate } = useSWRConfig();
   const fetch = useFetch();
@@ -224,6 +231,10 @@ export const MainBillingComponent: FC<{
   const track = useTrack();
   const t = useT();
   const queryParams = useSearchParams();
+  const planCatalog = useMemo(
+    () => (tiers && Object.keys(tiers).length ? tiers : pricing),
+    [tiers]
+  );
   const [finishTrial, setFinishTrial] = useState(
     !!queryParams.get('finishTrial')
   );
@@ -270,7 +281,7 @@ export const MainBillingComponent: FC<{
     return subscription?.subscriptionTier;
   }, [subscription, initialChannels, monthlyOrYearly, period]);
   const moveToCheckout = useCallback(
-    (billing: 'STANDARD' | 'PRO' | 'FREE', reactivate = false) =>
+    (billing: BillingTier, reactivate = false) =>
       async () => {
         if (reactivate) {
           setLoading(true);
@@ -297,8 +308,8 @@ export const MainBillingComponent: FC<{
 
         const messages = [];
         if (
-          !pricing[billing].team_members &&
-          pricing[subscription?.subscriptionTier!]?.team_members
+          !planCatalog[billing].team_members &&
+          planCatalog[subscription?.subscriptionTier!]?.team_members
         ) {
           messages.push(
             `Your team members will be removed from your organization`
@@ -405,7 +416,7 @@ export const MainBillingComponent: FC<{
         if (url) {
           await track(TrackEnum.InitiateCheckout, {
             value:
-              pricing[billing][
+              planCatalog[billing][
                 monthlyOrYearly === 'on' ? 'year_price' : 'month_price'
               ],
           });
@@ -443,7 +454,7 @@ export const MainBillingComponent: FC<{
         }
         setLoading(false);
       },
-    [monthlyOrYearly, subscription, user, utm]
+    [monthlyOrYearly, subscription, user, utm, planCatalog]
   );
   if (user?.isLifetime) {
     router.replace('/');
@@ -464,14 +475,14 @@ export const MainBillingComponent: FC<{
 
       {finishTrial && <FinishTrial close={() => setFinishTrial(false)} />}
       <div className="flex gap-[16px] [@media(max-width:1024px)]:flex-col [@media(max-width:1024px)]:text-center">
-        {Object.entries(pricing)
+        {Object.entries(planCatalog)
           .filter((f) => !isGeneral || f[0] !== 'FREE')
           .map(([name, values]) => (
             <div
               key={name}
               className="flex-1 bg-sixth border border-customColor6 rounded-[4px] p-[24px] gap-[16px] flex flex-col [@media(max-width:1024px)]:items-center"
             >
-              <div className="text-[18px]">{name}</div>
+              <div className="text-[18px]">{values.display_name}</div>
               <div className="text-[38px] flex gap-[2px] items-center">
                 <div>
                   $
@@ -512,9 +523,7 @@ export const MainBillingComponent: FC<{
                         name.toUpperCase() === 'FREE' &&
                         '!bg-red-500'
                     )}
-                    onClick={moveToCheckout(
-                      name.toUpperCase() as 'STANDARD' | 'PRO'
-                    )}
+                    onClick={moveToCheckout(name as BillingTier)}
                   >
                     {currentPackage === name.toUpperCase()
                       ? 'Current Plan'
@@ -539,13 +548,11 @@ export const MainBillingComponent: FC<{
                   !!name && (
                     <Prorate
                       period={monthlyOrYearly === 'on' ? 'YEARLY' : 'MONTHLY'}
-                      pack={name.toUpperCase() as 'STANDARD' | 'PRO'}
+                      pack={name as PaidBillingTier}
                     />
                   )}
               </div>
-              <Features
-                pack={name.toUpperCase() as 'FREE' | 'STANDARD' | 'PRO'}
-              />
+              <Features pack={name as BillingTier} tiers={planCatalog} />
             </div>
           ))}
       </div>

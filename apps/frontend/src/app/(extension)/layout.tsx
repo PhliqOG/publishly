@@ -19,7 +19,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <html>
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/publishly.svg" type="image/svg+xml" />
+        <link rel="manifest" href="/site.webmanifest" />
       </head>
       <body
         className={clsx(jakartaSans.className, 'dark text-primary !bg-primary')}
@@ -27,7 +28,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <VariableContextComponent
           language="en"
           storageProvider={
-            process.env.STORAGE_PROVIDER! as 'local' | 'cloudflare'
+            process.env.STORAGE_PROVIDER! as 'local' | 'cloudflare' | 's3'
           }
           stripeClient=""
           environment={process.env.NODE_ENV!}
@@ -42,7 +43,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           oauthLogoUrl={process.env.NEXT_PUBLIC_POSTIZ_OAUTH_LOGO_URL!}
           oauthDisplayName={process.env.NEXT_PUBLIC_POSTIZ_OAUTH_DISPLAY_NAME!}
           uploadDirectory={process.env.NEXT_PUBLIC_UPLOAD_STATIC_DIRECTORY!}
-          cloudflareUrl={process.env.CLOUDFLARE_BUCKET_URL || ''}
+          cloudflareUrl={
+            process.env.S3_PUBLIC_URL || process.env.CLOUDFLARE_BUCKET_URL || ''
+          }
           mainUrl={process.env.MAIN_URL || ''}
           mcpUrl={process.env.MCP_URL}
           dub={false}

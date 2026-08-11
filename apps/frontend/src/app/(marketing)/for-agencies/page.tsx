@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   title: 'Social Media API for Agencies',
   description:
     'The social media API & scheduler for agencies running 20–500 client accounts: delivery receipts per client account, failure webhooks before the client notices, workspace isolation & flat $29–$299 pricing — never per profile.',
+  alternates: { canonical: '/for-agencies' },
 };
 
 // The agency angle: you manage a fleet you cannot watch by hand, so the tool
@@ -59,7 +60,7 @@ const RECEIPTS = [
 const FAQ = [
   {
     q: 'How do agencies manage 100+ client social accounts?',
-    a: 'Give each client its own workspace, connect their channels through official OAuth, and let the platform watch delivery. In Publishly every post carries a delivery receipt and every failure fires an alert with a reason, so 100+ accounts don’t need 100 pairs of eyes. Plans are flat, so winning another client never raises the software bill.',
+    a: 'Give each client its own workspace, connect their channels through each platform’s own authorization flow, and let the platform watch delivery. In Publishly every post carries a delivery receipt and every failure fires an alert with a reason, so 100+ accounts don’t need 100 pairs of eyes. Plans are flat, so winning another client never raises the software bill.',
   },
   {
     q: 'How do I know a client’s post failed before they do?',
@@ -71,7 +72,7 @@ const FAQ = [
   },
   {
     q: 'What does Publishly cost for an agency?',
-    a: 'Plans run $29 to $299 a month, sized by how much you post — connected accounts are unlimited on every paid plan. At 100 profiles the per-profile tools bill over $1,200 a month; Publishly doesn’t price per profile at all.',
+    a: 'Plans run $29 to $299 a month, sized by how much you post — connected accounts are unlimited on every paid plan. At 100 profiles, Ayrshare’s published Business pricing works out to $1,228.30 a month and Buffer’s Team rate to $1,000; Publishly doesn’t price per profile at all.',
   },
 ];
 
@@ -252,9 +253,10 @@ export default function ForAgenciesPage() {
               paid plan.
             </p>
             <FactLine>
-              At 100 profiles the per-profile tools bill over $1,200 a month.
-              Publishly runs $29–$299 a month flat, with unlimited connected
-              accounts on every paid plan.
+              At 100 profiles, Ayrshare’s published Business pricing works out
+              to $1,228.30 a month and Buffer’s Team rate to $1,000. Publishly
+              runs $29–$299 a month flat, with unlimited connected accounts on
+              every paid plan.
             </FactLine>
           </div>
         </section>
@@ -287,7 +289,7 @@ export default function ForAgenciesPage() {
             <div className="mk-cta-panel">
               <h2 className="mk-h2">Run the fleet. Keep the receipts.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                No credit card needed. 7-day trial on every plan.
+                Free forever plan — no credit card. 7-day trial on every paid plan.
               </p>
               <div className="mk-hero-ctas">
                 <Link

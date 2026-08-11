@@ -7,6 +7,7 @@ import {
 } from '@gitroom/nestjs-libraries/database/prisma/api-keys/api-keys.service';
 import { HttpForbiddenException } from '@gitroom/nestjs-libraries/services/exception.filter';
 import { setSentryUserContext } from '@gitroom/nestjs-libraries/sentry/initialize.sentry';
+import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 
 // Coarse scope requirements per public API route. Matched in order; first hit
 // wins. Routes not listed require the wildcard scope, so a narrowly scoped key
@@ -25,6 +26,7 @@ const SCOPE_RULES: Array<{
     pattern: /\/integrations|\/is-connected|\/social\/|\/integration-settings/,
     scope: 'integrations:read',
   },
+  { methods: ['GET'], pattern: /\/analytics\//, scope: 'analytics:read' },
   { methods: ['GET'], pattern: /\/notifications/, scope: 'notifications:read' },
   { methods: ['POST'], pattern: /\/generate-video|\/video\//, scope: 'video:write' },
 ];
@@ -60,13 +62,10 @@ export class PublicAuthMiddleware implements NestMiddleware {
           return;
         }
 
+        // Plan entitlement (including the free tier's API access) is decided
+        // once, below, by pricing[tier].public_api — a missing Subscription row
+        // means FREE, not "unauthorized".
         const org = authorization.organization;
-        if (!!process.env.STRIPE_SECRET_KEY && !org.subscription) {
-          res
-            .status(HttpStatus.UNAUTHORIZED)
-            .json({ msg: 'No subscription found' });
-          return;
-        }
 
         // @ts-ignore
         req.org = { ...org, users: [{ users: { role: 'ADMIN' } }] };
@@ -81,13 +80,6 @@ export class PublicAuthMiddleware implements NestMiddleware {
         }
 
         const org = validated.organization;
-        if (!!process.env.STRIPE_SECRET_KEY && !org.subscription) {
-          res
-            .status(HttpStatus.UNAUTHORIZED)
-            .json({ msg: 'No subscription found' });
-          return;
-        }
-
         const needed = requiredScopeFor(req.method, req.originalUrl || req.url);
         if (!ApiKeysService.scopeAllows(validated.scopes, needed)) {
           res.status(HttpStatus.FORBIDDEN).json({
@@ -100,9 +92,9 @@ export class PublicAuthMiddleware implements NestMiddleware {
         req.org = { ...org, users: [{ users: { role: 'ADMIN' } }] };
         // @ts-ignore
         req.apiKeyId = validated.keyId;
-      } else {
-        // Legacy organization key (reversible at-rest storage) - kept for
-        // backward compatibility; new keys are issued as pub_ scoped keys.
+      } else if (process.env.ALLOW_LEGACY_API_KEYS === 'true') {
+        // Explicit, temporary migration escape hatch. Keep disabled in normal
+        // deployments because Organization.apiKey is reversible at rest.
         const org = await this._organizationService.getOrgByApiKey(auth);
         if (!org) {
           res
@@ -111,18 +103,27 @@ export class PublicAuthMiddleware implements NestMiddleware {
           return;
         }
 
-        if (!!process.env.STRIPE_SECRET_KEY && !org.subscription) {
-          res
-            .status(HttpStatus.UNAUTHORIZED)
-            .json({ msg: 'No subscription found' });
-          return;
-        }
-
         // @ts-ignore
         req.org = { ...org, users: [{ users: { role: 'ADMIN' } }] };
+      } else {
+        res.status(HttpStatus.UNAUTHORIZED).json({
+          msg: 'Legacy API keys are disabled; use a scoped pub_ key',
+        });
+        return;
       }
     } catch (err) {
       throw new HttpForbiddenException();
+    }
+
+    if (process.env.STRIPE_PUBLISHABLE_KEY) {
+      // @ts-ignore - middleware attaches the resolved organization
+      const tier = req.org?.subscription?.subscriptionTier || 'FREE';
+      if (!pricing[tier]?.public_api) {
+        res.status(HttpStatus.PAYMENT_REQUIRED).json({
+          msg: 'The workspace plan does not include public API access',
+        });
+        return;
+      }
     }
 
     setSentryUserContext({

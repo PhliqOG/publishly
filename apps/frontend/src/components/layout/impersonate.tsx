@@ -829,6 +829,21 @@ const ViewStats = () => {
   );
 };
 
+const ViewOperations = () => {
+  const t = useT();
+  const handleClick = useCallback(() => {
+    window.location.href = '/admin/operations';
+  }, []);
+  return (
+    <div
+      className="px-[10px] rounded-[4px] bg-emerald-700 text-white cursor-pointer whitespace-nowrap"
+      onClick={handleClick}
+    >
+      {t('view_operations', 'Operations')}
+    </div>
+  );
+};
+
 const ImportDebugPost = () => {
   const { openModal } = useModals();
   const t = useT();
@@ -1116,6 +1131,7 @@ export const Impersonate = () => {
                 <AddAnnouncement />
                 <ViewErrors />
                 <ViewStats />
+                <ViewOperations />
               </div>
             )}
           </div>

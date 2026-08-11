@@ -105,6 +105,11 @@ export async function proxy(request: NextRequest) {
   // Public marketing site: reachable logged-out. Signed-in visitors hitting
   // '/' fall through to the app redirect below; other marketing pages stay
   // viewable either way.
+  //
+  // Prefix entries cover whole route families (/compare/ayrshare,
+  // /docs/errors/<code>, /platforms/<network>, ...) so adding a marketing page
+  // never silently 307s anonymous visitors — including crawlers — to /auth.
+  // proxy.spec.ts asserts every route in app/sitemap.ts is public.
   const marketingPaths = [
     '/',
     '/features',
@@ -120,10 +125,41 @@ export async function proxy(request: NextRequest) {
     '/security',
     '/terms',
     '/privacy',
+    '/data-deletion',
     '/acceptable-use',
     '/source',
+    '/reliability',
+    '/changelog',
+    '/robots.txt',
+    '/sitemap.xml',
   ];
-  if (marketingPaths.includes(nextUrl.pathname)) {
+  const marketingPrefixes = [
+    '/compare',
+    '/methodology',
+    '/for-',
+    '/integrations',
+    '/resources',
+    '/docs',
+    '/platforms',
+  ];
+  // /integrations/social/<provider> is the authenticated connect flow, not a
+  // marketing page — it must keep its auth redirect.
+  const appRouteExceptions = ['/integrations/social'];
+  // A prefix ending in '-' matches by string ('/for-' covers '/for-agencies');
+  // any other prefix matches on a path boundary, so '/docs' can never swallow
+  // a future '/docsomething'.
+  const underPrefix = (path: string, prefix: string) =>
+    path === prefix ||
+    path.startsWith(prefix.endsWith('-') ? prefix : `${prefix}/`);
+  const isMarketing =
+    !appRouteExceptions.some((prefix) =>
+      underPrefix(nextUrl.pathname, prefix)
+    ) &&
+    (marketingPaths.includes(nextUrl.pathname) ||
+      marketingPrefixes.some((prefix) =>
+        underPrefix(nextUrl.pathname, prefix)
+      ));
+  if (isMarketing) {
     if (!authCookie || nextUrl.pathname !== '/') {
       return topResponse;
     }

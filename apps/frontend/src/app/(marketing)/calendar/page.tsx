@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { ProductMarketingPage } from '@gitroom/frontend/components/marketing/product-page';
 import { CalendarBoard } from '@gitroom/frontend/components/marketing/hero-cinema';
 
-export const metadata: Metadata = { title: 'Calendar' };
+export const metadata: Metadata = {
+  title: 'Calendar',
+  alternates: { canonical: '/calendar' },
+};
 
 export default function CalendarPage() {
   return (

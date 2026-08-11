@@ -99,6 +99,9 @@ export const ImportDebugPostModal: FC<{ close: () => void }> = ({ close }) => {
 
       await fetch('/posts', {
         method: 'POST',
+        headers: {
+          'Idempotency-Key': crypto.randomUUID(),
+        },
         body: JSON.stringify(importPayload),
       });
 

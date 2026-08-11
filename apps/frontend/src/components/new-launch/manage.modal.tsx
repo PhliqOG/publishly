@@ -441,6 +441,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           ? addEditSets(data)
           : await fetch('/posts', {
               method: 'POST',
+              headers: {
+                'Idempotency-Key': crypto.randomUUID(),
+              },
               body: JSON.stringify(data),
             });
 

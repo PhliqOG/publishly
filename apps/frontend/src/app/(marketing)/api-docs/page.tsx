@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import { ProductMarketingPage } from '@gitroom/frontend/components/marketing/product-page';
 
-export const metadata: Metadata = { title: 'API' };
+export const metadata: Metadata = {
+  title: 'API',
+  alternates: { canonical: '/api-docs' },
+};
 
 // Paths are relative to /public/v1 & mirror the shipped public controller —
 // keep this list in sync with backend/src/public-api/routes/v1.

@@ -22,7 +22,6 @@ import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.component';
 import { useSearchParams } from 'next/navigation';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
-import { PublicComponent } from '@gitroom/frontend/components/public-api/public.component';
 import Link from 'next/link';
 import { Webhooks } from '@gitroom/frontend/components/webhooks/webhooks';
 import { Sets } from '@gitroom/frontend/components/sets/sets';
@@ -105,11 +104,15 @@ export const SettingsPopup: FC<{
     if (user?.tier.current !== 'FREE') {
       arr.push({ tab: 'signatures', label: t('signatures', 'Signatures') });
     }
-    if (user?.tier?.public_api && isGeneral && showLogout) {
-      arr.push({ tab: 'api', label: t('developers', 'Developers') });
+    if (
+      user?.tier?.public_api &&
+      user?.role &&
+      user.role !== 'USER' &&
+      showLogout
+    ) {
+      arr.push({ tab: 'api_keys', label: t('developers', 'Developers') });
     }
     if (user?.role && user.role !== 'USER') {
-      arr.push({ tab: 'api_keys', label: t('api_keys', 'API Keys') });
       arr.push({ tab: 'audit_log', label: t('audit_log', 'Audit log') });
     }
     arr.push({ tab: 'approved_apps', label: t('approved_apps', 'Approved Apps') });
@@ -201,16 +204,10 @@ export const SettingsPopup: FC<{
                 </div>
               )}
 
-              {tab === 'api' &&
+              {tab === 'api_keys' &&
                 !!user?.tier?.public_api &&
-                isGeneral &&
-                showLogout && (
-                  <div>
-                    <PublicComponent />
-                  </div>
-                )}
-
-              {tab === 'api_keys' && user?.role && user.role !== 'USER' && (
+                user?.role &&
+                user.role !== 'USER' && (
                 <div>
                   <ApiKeysComponent />
                 </div>

@@ -187,7 +187,10 @@ export function useUppyUploader(props: {
     uppy2.on('file-added', (file) => {
       setLocked(true);
       uppy2.setFileMeta(file.id, {
-        useCloudflare: storageProvider === 'cloudflare' ? 'true' : 'false', // Example of adding a custom field
+        useCloudflare:
+          storageProvider === 'cloudflare' || storageProvider === 's3'
+            ? 'true'
+            : 'false',
         addedOrder: fileOrderIndex++, // Track original order for sorting after upload
         // Add more fields as needed
       });

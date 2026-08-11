@@ -5,7 +5,10 @@ import {
 } from '@gitroom/frontend/components/marketing/chrome';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
-export const metadata: Metadata = { title: 'Terms of Service' };
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  alternates: { canonical: '/terms' },
+};
 
 export default function TermsPage() {
   return (

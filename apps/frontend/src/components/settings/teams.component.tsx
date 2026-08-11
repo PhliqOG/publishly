@@ -20,7 +20,7 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 const roles = [
   {
-    name: 'User',
+    name: 'Member',
     value: 'USER',
   },
   {
@@ -98,7 +98,9 @@ export const AddMember = () => {
             </div>
           </div>
           <Button type="submit" className="mt-[18px]">
-            {sendEmail ? t('send_invitation_link', 'Send Invitation Link') : t('copy_link', 'Copy Link')}
+            {sendEmail
+              ? t('send_invitation_link', 'Send Invitation Link')
+              : t('copy_link', 'Copy Link')}
           </Button>
         </div>
       </form>
@@ -109,6 +111,7 @@ export const TeamsComponent = () => {
   const fetch = useFetch();
   const user = useUser();
   const modals = useModals();
+  const toast = useToaster();
   const t = useT();
   const myLevel = user?.role === 'USER' ? 0 : user?.role === 'ADMIN' ? 1 : 2;
   const getLevel = useCallback(
@@ -150,7 +153,10 @@ export const TeamsComponent = () => {
       async () => {
         if (
           !(await deleteDialog(
-            t('are_you_sure_remove_team_member', 'Are you sure you want to remove this team member?')
+            t(
+              'are_you_sure_remove_team_member',
+              'Are you sure you want to remove this team member?'
+            )
           ))
         ) {
           return;
@@ -161,6 +167,28 @@ export const TeamsComponent = () => {
         await mutate();
       },
     [t]
+  );
+  const transferOwnership = useCallback(
+    (member: { user: { id: string; email: string } }) => async () => {
+      if (
+        !(await deleteDialog(
+          `Transfer workspace ownership to ${member.user.email}? You will become an administrator.`
+        ))
+      ) {
+        return;
+      }
+      const response = await fetch('/settings/team/transfer-ownership', {
+        method: 'POST',
+        body: JSON.stringify({ userId: member.user.id }),
+      });
+      if (!response.ok) {
+        toast.show('Could not transfer ownership', 'warning');
+        return;
+      }
+      toast.show('Workspace ownership transferred', 'success');
+      window.location.reload();
+    },
+    []
   );
 
   return (
@@ -181,13 +209,22 @@ export const TeamsComponent = () => {
               </div>
               <div className="flex-1">
                 {p.role === 'USER'
-                  ? t('user', 'User')
+                  ? 'Member'
                   : p.role === 'ADMIN'
                   ? t('admin', 'Admin')
-                  : t('super_admin', 'Super Admin')}
+                  : 'Owner'}
               </div>
               {+myLevel > +getLevel(p.role) ? (
-                <div className="flex-1 flex justify-end">
+                <div className="flex-1 flex justify-end gap-[8px]">
+                  {user?.role === 'SUPERADMIN' && p.user.id !== user?.id ? (
+                    <Button
+                      className="!h-[24px] rounded-[4px] text-[12px]"
+                      onClick={transferOwnership(p)}
+                      secondary={true}
+                    >
+                      Transfer ownership
+                    </Button>
+                  ) : null}
                   <Button
                     className={`!bg-customColor3 !h-[24px] border border-customColor21 rounded-[4px] text-[12px]`}
                     onClick={remove(p)}

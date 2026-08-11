@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   title: 'Changelog — Publishly',
   description:
     'A pre-launch changelog of what actually shipped in Publishly’s build, dated by day — no invented version numbers, no back-filled feature dates.',
+  alternates: { canonical: '/changelog' },
 };
 
 type Entry = {

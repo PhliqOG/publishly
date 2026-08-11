@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: 'Features',
   description:
     'Compose once, schedule the week & let a durable workflow deliver. Every capability listed here ships in the product today.',
+  alternates: { canonical: '/features' },
 };
 
 // The page follows the actual job: compose → schedule → deliver, then the
@@ -75,12 +76,12 @@ const DELIVER = [
     p: 'A post to 6 networks is 6 deliveries. If one fails, the other 5 stay published & only the failed one retries.',
   },
   {
-    h: 'Honest status',
-    p: 'The calendar shows what actually happened, per network — delivered, retrying or failed, with the platform’s own error.',
+    h: 'Failures you can see',
+    p: 'A failed post gets a red ring on the calendar and the platform’s own error on hover, plus an in-app alert and email. Full state history and attempt count live on the delivery receipt via the API.',
   },
   {
     h: 'The sweeper',
-    p: 'Every hour, a sweeper re-queues anything that missed its slot — after downtime, an API outage or a token refresh. Missed doesn’t mean lost.',
+    p: 'An hourly sweeper re-queues posts missed in the last two days on healthy channels. If a channel needs reconnecting, its posts stop and tell you why instead of piling up silently.',
   },
 ];
 
@@ -107,7 +108,7 @@ const AROUND = [
   },
   {
     h: 'Scoped API keys',
-    p: 'Hashed, scope-limited keys you can revoke at any time. Everything the app does, your scripts can do.',
+    p: 'Hashed, scope-limited keys you can revoke at any time. Scheduling, media, integrations and analytics — all scriptable with the same scoped keys.',
   },
   {
     h: 'Webhooks',

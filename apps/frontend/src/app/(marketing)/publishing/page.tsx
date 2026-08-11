@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { ProductMarketingPage } from '@gitroom/frontend/components/marketing/product-page';
 import { ComposerReplica } from '@gitroom/frontend/components/marketing/replicas/composer-replica';
 
-export const metadata: Metadata = { title: 'Publishing' };
+export const metadata: Metadata = {
+  title: 'Publishing',
+  alternates: { canonical: '/publishing' },
+};
 
 export default function PublishingPage() {
   return (
@@ -43,7 +46,7 @@ export default function PublishingPage() {
           title: 'Each destination delivers on its own',
           body: 'Each destination publishes as its own durable delivery. A failed network retries alone while the rest stay published.',
           points: [
-            'Honest per-network status',
+            'Honest failure reporting',
             'Conservative retries, never blind re-posts',
           ],
         },
