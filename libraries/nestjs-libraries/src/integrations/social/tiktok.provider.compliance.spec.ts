@@ -84,6 +84,31 @@ describe('TiktokProvider review compliance', () => {
     });
   });
 
+  it('rejects branded content with private-only visibility before upload', async () => {
+    await expect(
+      provider.postPending(
+        'integration-id',
+        'access-token',
+        [
+          {
+            media: [{ path: 'https://media.publishly.test/video.mp4' }],
+            settings: {
+              publish_consent: true,
+              content_posting_method: 'DIRECT_POST',
+              disclose: true,
+              brand_organic_toggle: false,
+              brand_content_toggle: true,
+              privacy_level: 'SELF_ONLY',
+            },
+          },
+        ],
+        {}
+      )
+    ).rejects.toThrow(
+      'TikTok branded content cannot use private-only visibility.'
+    );
+  });
+
   it('uses strong state and omits desktop-only PKCE from the web exchange', async () => {
     const previousClientId = process.env.TIKTOK_CLIENT_ID;
     const previousClientSecret = process.env.TIKTOK_CLIENT_SECRET;
@@ -131,9 +156,7 @@ describe('TiktokProvider review compliance', () => {
         codeVerifier: generated.codeVerifier,
       });
       const tokenCall = fetchMock.mock.calls[0];
-      expect(tokenCall[0]).toBe(
-        'https://open.tiktokapis.com/v2/oauth/token/'
-      );
+      expect(tokenCall[0]).toBe('https://open.tiktokapis.com/v2/oauth/token/');
       const body = new URLSearchParams(String(tokenCall[1]?.body));
       expect(body.get('client_secret')).toBe('publishly-client-secret');
       expect(body.has('code_verifier')).toBe(false);

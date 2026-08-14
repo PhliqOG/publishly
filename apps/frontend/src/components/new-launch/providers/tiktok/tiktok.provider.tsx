@@ -15,6 +15,8 @@ import { useIntegration } from '@gitroom/frontend/components/launches/helpers/us
 import { Input } from '@gitroom/react/form/input';
 import { TiktokPreview } from '@gitroom/frontend/components/new-launch/providers/tiktok/tiktok.preview';
 import {
+  tiktokBrandedContentPrivacyConflict,
+  tiktokConsentDeclaration,
   tiktokDisclosureLabel,
   tiktokInteractionState,
   tiktokPlatformTruthNotice,
@@ -65,6 +67,11 @@ const TikTokSettings: FC<{
     [platformTruth, isVideo]
   );
   const disclosureLabel = tiktokDisclosureLabel(!!brand_content_toggle);
+  const brandedContentPrivacyConflict = tiktokBrandedContentPrivacyConflict(
+    selectedPrivacy,
+    !!brand_content_toggle
+  );
+  const consentDeclaration = tiktokConsentDeclaration(!!brand_content_toggle);
 
   // TikTok requires current creator_info when the posting screen renders.
   useEffect(() => {
@@ -133,6 +140,15 @@ const TikTokSettings: FC<{
       setValue('brand_content_toggle', false);
     }
   }, [disclose, setValue]);
+
+  useEffect(() => {
+    if (brandedContentPrivacyConflict) {
+      setValue('brand_content_toggle', false, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [brandedContentPrivacyConflict, setValue]);
 
   // TikTok ignores every setting except the title / content when the posting
   // method is UPLOAD, so we hide them rather than pretend they apply. The fields
@@ -247,7 +263,11 @@ const TikTokSettings: FC<{
         >
           <option value="">{t('select', 'Select')}</option>
           {privacyLevel.map((item) => (
-            <option key={item.value} value={item.value}>
+            <option
+              key={item.value}
+              value={item.value}
+              disabled={!!brand_content_toggle && item.value === 'SELF_ONLY'}
+            >
               {item.label}
             </option>
           ))}
@@ -282,58 +302,58 @@ const TikTokSettings: FC<{
       )}
       <div className={clsx('flex flex-col', directPostOnly)}>
         <div className={clsx(isVideo && 'hidden')}>
-            <Select
-              label={t('label_auto_add_music', 'Auto add music')}
-              disabled={isUploadMode}
-              {...register('autoAddMusic', {
-                value: 'no',
-              })}
-            >
-              <option value="">{t('select', 'Select')}</option>
-              {yesNo.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </Select>
-            <div className="text-[14px] mt-[10px] mb-[24px] text-balance">
-              {t(
-                'this_feature_available_only_for_photos',
-                'TikTok can add default music to a photo post; it can be changed later in TikTok.'
-              )}
-            </div>
+          <Select
+            label={t('label_auto_add_music', 'Auto add music')}
+            disabled={isUploadMode}
+            {...register('autoAddMusic', {
+              value: 'no',
+            })}
+          >
+            <option value="">{t('select', 'Select')}</option>
+            {yesNo.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </Select>
+          <div className="text-[14px] mt-[10px] mb-[24px] text-balance">
+            {t(
+              'this_feature_available_only_for_photos',
+              'TikTok can add default music to a photo post; it can be changed later in TikTok.'
+            )}
+          </div>
         </div>
         <div className={clsx(!isVideo && 'hidden')}>
-            <hr className="mb-[15px] border-tableBorder" />
-            <div className="text-[14px] mb-[10px]">
-              {t('tiktok_video_features', 'Video features')}
-            </div>
-            <div className="flex gap-[40px]">
-              <Checkbox
-                variant="hollow"
-                label={t('label_duet', 'Allow Duet')}
-                disabled={isUploadMode || interactionState.duetDisabled}
-                {...register('duet', {
-                  value: false,
-                })}
-              />
-              <Checkbox
-                label={t('label_stitch', 'Allow Stitch')}
-                variant="hollow"
-                disabled={isUploadMode || interactionState.stitchDisabled}
-                {...register('stitch', {
-                  value: false,
-                })}
-              />
-              <Checkbox
-                label={t('video_made_with_ai', 'Video made with AI')}
-                variant="hollow"
-                disabled={isUploadMode}
-                {...register('video_made_with_ai', {
-                  value: false,
-                })}
-              />
-            </div>
+          <hr className="mb-[15px] border-tableBorder" />
+          <div className="text-[14px] mb-[10px]">
+            {t('tiktok_video_features', 'Video features')}
+          </div>
+          <div className="flex gap-[40px]">
+            <Checkbox
+              variant="hollow"
+              label={t('label_duet', 'Allow Duet')}
+              disabled={isUploadMode || interactionState.duetDisabled}
+              {...register('duet', {
+                value: false,
+              })}
+            />
+            <Checkbox
+              label={t('label_stitch', 'Allow Stitch')}
+              variant="hollow"
+              disabled={isUploadMode || interactionState.stitchDisabled}
+              {...register('stitch', {
+                value: false,
+              })}
+            />
+            <Checkbox
+              label={t('video_made_with_ai', 'Video made with AI')}
+              variant="hollow"
+              disabled={isUploadMode}
+              {...register('video_made_with_ai', {
+                value: false,
+              })}
+            />
+          </div>
         </div>
         <hr className="my-[15px] mb-[25px] border-tableBorder" />
         <div className="flex flex-col gap-[20px]">
@@ -425,7 +445,7 @@ const TikTokSettings: FC<{
           <Checkbox
             variant="hollow"
             label={t('label_branded_content', 'Branded content')}
-            disabled={isUploadMode}
+            disabled={isUploadMode || selectedPrivacy === 'SELF_ONLY'}
             {...register('brand_content_toggle', {
               value: false,
             })}
@@ -441,13 +461,18 @@ const TikTokSettings: FC<{
               'TikTok will label this as Paid partnership.'
             )}
           </div>
+          {selectedPrivacy === 'SELF_ONLY' ? (
+            <div className="my-[10px] text-[13px] text-amber-200">
+              Branded content visibility cannot be set to private. Choose a
+              public or friends privacy option to enable Branded content.
+            </div>
+          ) : null}
           {brand_content_toggle && (
             <div className="my-[10px] text-[14px] text-balance">
               {t(
                 'tiktok_branded_content_acknowledgement',
                 "Branded content must also follow TikTok's"
-              )}
-              {' '}
+              )}{' '}
               <a
                 target="_blank"
                 rel="noreferrer"
@@ -464,11 +489,24 @@ const TikTokSettings: FC<{
       <div className="mt-[20px] rounded-[10px] border border-tableBorder p-[12px]">
         <Checkbox
           variant="hollow"
-          label="By posting, you agree to TikTok's Music Usage Confirmation"
+          label={consentDeclaration}
           {...register('publish_consent', { value: false })}
         />
         <div className="mt-[8px] text-[13px] text-textColor/70">
-          Read TikTok's{' '}
+          Review TikTok&apos;s{' '}
+          {brand_content_toggle ? (
+            <>
+              <a
+                target="_blank"
+                rel="noreferrer"
+                className="text-[#B69DEC] hover:underline"
+                href="https://www.tiktok.com/legal/page/global/bc-policy/en"
+              >
+                Branded Content Policy
+              </a>{' '}
+              and{' '}
+            </>
+          ) : null}
           <a
             target="_blank"
             rel="noreferrer"

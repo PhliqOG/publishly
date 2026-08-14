@@ -72,3 +72,16 @@ export function tiktokInteractionState(
 export function tiktokDisclosureLabel(brandedContent: boolean) {
   return brandedContent ? 'Paid partnership' : 'Promotional content';
 }
+
+export function tiktokBrandedContentPrivacyConflict(
+  privacyLevel: string | undefined,
+  brandedContent: boolean
+) {
+  return brandedContent && privacyLevel === 'SELF_ONLY';
+}
+
+export function tiktokConsentDeclaration(brandedContent: boolean) {
+  return brandedContent
+    ? "By posting, you agree to TikTok's Branded Content Policy and Music Usage Confirmation"
+    : "By posting, you agree to TikTok's Music Usage Confirmation";
+}

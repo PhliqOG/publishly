@@ -86,9 +86,11 @@ production preflight otherwise refuses a TikTok launch.
    an owner-controlled TikTok test account.
 8. Open the TikTok composer and show its fresh creator-info request, creator
    nickname, no-default privacy selector, disabled creator-restricted controls,
-   preview, disclosure choices, and unchecked Music Usage Confirmation. Test
-   one direct video, one direct photo (if reviewed), and one upload-to-inbox
-   flow. Confirm post-status reconciliation.
+   preview, disclosure choices, and unchecked Music Usage Confirmation. When
+   Branded content is selected, show the combined Branded Content Policy and
+   Music Usage Confirmation declaration and that private-only visibility is
+   unavailable. Test one direct video, one direct photo (if reviewed), and one
+   upload-to-inbox flow. Confirm post-status reconciliation.
 9. Record the screencast and submit the Production revision. TikTok currently
    accepts up to five demo videos, each no larger than 50 MB; the first-time
    recording must demonstrate the Sandbox integration on the same domain and
@@ -175,6 +177,8 @@ review instructions.
   name, or do not explain deletion and token handling.
 - Direct Post controls ignore the creator-info response or force a privacy
   value unavailable to the creator.
+- Commercial-content disclosure is enabled without selecting Your brand,
+  Branded content, or both; or branded content can be submitted privately.
 - Review is treated as sufficient for public visibility without completing the
   separate Content Posting audit. TikTok documents that unaudited Direct Post
   clients are restricted to private viewing.

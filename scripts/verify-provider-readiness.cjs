@@ -429,11 +429,14 @@ function validateProviderReadiness(rootDir = path.resolve(__dirname, '..')) {
     !tiktokComposer.includes("register('publish_consent', { value: false })") ||
     !tiktokComposer.includes('comments: false') ||
     !tiktokComposer.includes('This does not publish the post.') ||
+    !tiktokComposer.includes('tiktokConsentDeclaration') ||
+    !tiktokComposer.includes("item.value === 'SELF_ONLY'") ||
+    !tiktok.includes('tiktok-branded-content-private') ||
     !tiktokDto.includes('@Equals(true')
   ) {
     add(
       'tiktok_export_ui_compliance_drift',
-      'TikTok composer must refresh creator info, require a non-default privacy choice and explicit consent, disable first-comment support, and distinguish inbox upload from publication.'
+      'TikTok composer must refresh creator info, require a non-default privacy choice and explicit consent, enforce branded-content privacy rules, disable first-comment support, and distinguish inbox upload from publication.'
     );
   }
   if (/Draft template/i.test(`${privacy}\n${terms}\n${acceptableUse}`)) {

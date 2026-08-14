@@ -461,9 +461,9 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       return;
     }
     throw new Error(
-      `TikTok authorization revocation was not confirmed (HTTP ${response.status}${
-        errorCode ? `, code ${errorCode.slice(0, 80)}` : ''
-      }).`
+      `TikTok authorization revocation was not confirmed (HTTP ${
+        response.status
+      }${errorCode ? `, code ${errorCode.slice(0, 80)}` : ''}).`
     );
   }
 
@@ -928,8 +928,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
           video_url: firstPost.media?.[0]?.path,
           ...(firstPost?.media?.[0]?.thumbnailTimestamp
             ? {
-                video_cover_timestamp_ms:
-                  firstPost.media[0].thumbnailTimestamp,
+                video_cover_timestamp_ms: firstPost.media[0].thumbnailTimestamp,
               }
             : {}),
         },
@@ -979,14 +978,27 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
         'TikTok content disclosure is on. Select Your brand, Branded content, or both.'
       );
     }
+    if (
+      this.contentPostingMethod(firstPost) === 'DIRECT_POST' &&
+      firstPost.settings.brand_content_toggle === true &&
+      firstPost.settings.privacy_level === 'SELF_ONLY'
+    ) {
+      throw new BadBody(
+        'tiktok-branded-content-private',
+        '{}',
+        '{}',
+        'TikTok branded content cannot use private-only visibility. Choose a public or friends privacy option.'
+      );
+    }
 
     // For videos we only need the total size up front (HEAD / statSync) so we
     // can init the upload; the bytes themselves are streamed later, never fully
     // loaded into memory.
     const videoUsesPull = !isPhoto && /^https:\/\//i.test(videoPath);
-    const videoSize = isPhoto || videoUsesPull
-      ? undefined
-      : await this.mediaSize(videoPath, 'tiktok-error-upload');
+    const videoSize =
+      isPhoto || videoUsesPull
+        ? undefined
+        : await this.mediaSize(videoPath, 'tiktok-error-upload');
 
     const {
       data: { publish_id, upload_url },

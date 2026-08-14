@@ -1,4 +1,6 @@
 import {
+  tiktokBrandedContentPrivacyConflict,
+  tiktokConsentDeclaration,
   tiktokDisclosureLabel,
   tiktokInteractionState,
   tiktokPlatformTruthNotice,
@@ -65,5 +67,22 @@ describe('TikTok composer platform truth', () => {
   it('uses TikTok audit labels for disclosure state', () => {
     expect(tiktokDisclosureLabel(false)).toBe('Promotional content');
     expect(tiktokDisclosureLabel(true)).toBe('Paid partnership');
+  });
+
+  it('blocks branded content from private-only visibility', () => {
+    expect(tiktokBrandedContentPrivacyConflict('SELF_ONLY', true)).toBe(true);
+    expect(
+      tiktokBrandedContentPrivacyConflict('PUBLIC_TO_EVERYONE', true)
+    ).toBe(false);
+    expect(tiktokBrandedContentPrivacyConflict('SELF_ONLY', false)).toBe(false);
+  });
+
+  it('uses the combined TikTok declaration for branded content', () => {
+    expect(tiktokConsentDeclaration(false)).toBe(
+      "By posting, you agree to TikTok's Music Usage Confirmation"
+    );
+    expect(tiktokConsentDeclaration(true)).toBe(
+      "By posting, you agree to TikTok's Branded Content Policy and Music Usage Confirmation"
+    );
   });
 });
