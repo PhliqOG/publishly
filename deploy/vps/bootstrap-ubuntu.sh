@@ -38,6 +38,28 @@ fi
 
 systemctl enable --now docker
 
+# Hetzner injects the prepared public key before this script runs. Keep root
+# available for the non-interactive deployer, but make the network boundary
+# key-only and reject password/keyboard-interactive authentication.
+cat > /etc/ssh/sshd_config.d/99-publishly-hardening.conf <<'EOF'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PubkeyAuthentication yes
+PermitRootLogin prohibit-password
+X11Forwarding no
+EOF
+sshd -t
+systemctl reload ssh
+
+# Apply security updates automatically. Application/container upgrades remain
+# explicit releases so they retain build and migration evidence.
+cat > /etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+EOF
+systemctl enable --now unattended-upgrades
+
 # Temporal's bundled Elasticsearch will refuse to start below this limit.
 printf 'vm.max_map_count=262144\n' > /etc/sysctl.d/99-publishly.conf
 sysctl --system >/dev/null
@@ -54,4 +76,6 @@ ufw --force enable
 
 docker version --format 'Docker server {{.Server.Version}}'
 docker compose version
+sshd -T | grep -Eq '^passwordauthentication no$'
+sshd -T | grep -Eq '^permitrootlogin without-password$|^permitrootlogin prohibit-password$'
 echo "Publishly VPS bootstrap complete."

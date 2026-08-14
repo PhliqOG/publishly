@@ -115,6 +115,10 @@ The script validates the environment locally, installs Docker when requested,
 uploads a clean source archive, stamps the environment with an immutable tag
 and the archive SHA-256, builds the image on the VPS, runs migrations, and waits
 for the full stack to become healthy before switching the `current` release.
+The bootstrap keeps the injected deployment key usable for root automation but
+disables SSH password and keyboard-interactive login, validates the SSH daemon
+configuration before reload, enables the host firewall, and enables unattended
+security updates.
 On the first cutover, `-ExportInterimDatabase` creates a temporary PostgreSQL 18
 custom-format dump, transfers it only over SSH, refuses to restore over any
 non-empty production schema, and deletes both temporary copies. This preserves
