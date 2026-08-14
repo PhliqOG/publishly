@@ -50,7 +50,7 @@
     "generate:bulk-capabilities": "node scripts/generate-bulk-scheduler-capabilities.mjs",
     "verify:bulk-capabilities": "node scripts/generate-bulk-scheduler-capabilities.mjs --check",
     "verify:calendar-writers": "node scripts/verify-calendar-writers.cjs",
-    "verify:architecture": "pnpm run verify:bulk-capabilities && pnpm run verify:calendar-writers && pnpm run verify:server-runtime-package",
+    "verify:architecture": "pnpm run verify:providers && pnpm run verify:bulk-capabilities && pnpm run verify:calendar-writers && pnpm run verify:server-runtime-package",
     "verify:production": "node scripts/verify-provider-readiness.cjs && node scripts/verify-production-env.cjs",
     "prisma-db-pull": "pnpm dlx prisma@6.5.0 db pull --schema ./libraries/nestjs-libraries/src/database/prisma/schema.prisma",
     "prisma-reset": "cd ./libraries/nestjs-libraries/src/database/prisma && pnpm dlx prisma@6.5.0 db push --force-reset && pnpx prisma@6.5.0 db push",
