@@ -73,7 +73,9 @@ production preflight otherwise refuses a TikTok launch.
 2. Create or verify the TikTok for Developers owner account and complete any
    developer or business identity checks the portal requests.
 3. Create a Web app named Publishly. Do not use TikTok branding in the app name
-   or imply partnership.
+   or imply partnership. Upload
+   `apps/frontend/public/publishly-app-icon-512.png` as the matching 512 x 512
+   app icon.
 4. Add the products above, enable Content Posting API Direct Post, and register
    the redirect and public URLs exactly as listed.
 5. Verify ownership of the app and media URL properties. If S3/R2 uses a custom
@@ -87,9 +89,11 @@ production preflight otherwise refuses a TikTok launch.
    preview, disclosure choices, and unchecked Music Usage Confirmation. Test
    one direct video, one direct photo (if reviewed), and one upload-to-inbox
    flow. Confirm post-status reconciliation.
-9. Record the screencast and submit the Production revision. After Direct Post
-   works, complete the Content Posting audit required to remove unaudited-client
-   visibility restrictions.
+9. Record the screencast and submit the Production revision. TikTok currently
+   accepts up to five demo videos, each no larger than 50 MB; the first-time
+   recording must demonstrate the Sandbox integration on the same domain and
+   UI being submitted. After Direct Post works, complete the Content Posting
+   audit required to remove unaudited-client visibility restrictions.
 
 ## Suggested truthful review description
 
