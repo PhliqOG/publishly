@@ -5,6 +5,7 @@ import compression from 'compression';
 import { loadSwagger } from '@gitroom/helpers/swagger/load.swagger';
 import { json } from 'express';
 import { randomUUID } from 'crypto';
+import { trustedFrontendOrigins } from './security/cors.origins';
 import { Runtime } from '@temporalio/worker';
 Runtime.install({ shutdownSignals: [] });
 
@@ -53,11 +54,10 @@ async function start() {
         'x-copilotkit-runtime-client-gql-version',
         ...(process.env.NOT_SECURED ? ['auth', 'showorg', 'impersonate'] : []),
       ],
-      origin: [
+      origin: trustedFrontendOrigins(
         process.env.FRONTEND_URL,
-        'http://localhost:6274',
-        ...(process.env.MAIN_URL ? [process.env.MAIN_URL] : []),
-      ],
+        process.env.MAIN_URL
+      ),
     },
   });
 
