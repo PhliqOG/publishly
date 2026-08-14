@@ -9,7 +9,10 @@ import { join } from 'path';
 // than no page at all, so the allowlist is asserted against the sitemap.
 
 const proxySource = readFileSync(join(__dirname, 'proxy.ts'), 'utf8');
-const sitemapSource = readFileSync(join(__dirname, 'app', 'sitemap.ts'), 'utf8');
+const sitemapSource = readFileSync(
+  join(__dirname, 'app', 'sitemap.ts'),
+  'utf8'
+);
 const nextConfigSource = readFileSync(
   join(__dirname, '..', 'next.config.js'),
   'utf8'
@@ -73,5 +76,12 @@ describe('marketing routes are publicly reachable', () => {
     expect(nextConfigSource).toContain(
       "process.env.BACKEND_INTERNAL_URL || 'http://localhost:3000'"
     );
+  });
+
+  it('redirects the www host to the configured canonical origin', () => {
+    expect(proxySource).toContain(
+      '`www.${canonicalFrontend.hostname.toLowerCase()}`'
+    );
+    expect(proxySource).toContain('NextResponse.redirect(canonicalUrl, 308)');
   });
 });

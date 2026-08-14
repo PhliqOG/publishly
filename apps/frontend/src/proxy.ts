@@ -13,6 +13,26 @@ acceptLanguage.languages(languages);
 // This function can be marked `async` if using `await` inside
 export async function proxy(request: NextRequest) {
   const nextUrl = request.nextUrl;
+  const canonicalFrontend = new URL(
+    process.env.FRONTEND_URL || 'https://publishlyapi.com'
+  );
+
+  // Keep browser requests same-origin. Serving the application on both the
+  // apex and www hosts makes client-side API requests from www cross-origin,
+  // which browsers correctly block unless the API grants that second origin.
+  // Publishly has one canonical origin, so redirect www before any auth or
+  // route handling and preserve the complete path/query string.
+  if (
+    nextUrl.hostname.toLowerCase() ===
+    `www.${canonicalFrontend.hostname.toLowerCase()}`
+  ) {
+    const canonicalUrl = nextUrl.clone();
+    canonicalUrl.protocol = canonicalFrontend.protocol;
+    canonicalUrl.hostname = canonicalFrontend.hostname;
+    canonicalUrl.port = canonicalFrontend.port;
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
+
   const authCookie =
     request.cookies.get('auth') ||
     request.headers.get('auth') ||
