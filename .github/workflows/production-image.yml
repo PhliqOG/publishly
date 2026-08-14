@@ -1,0 +1,59 @@
+---
+name: Production Image
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build the VPS image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          target: runtime
+          load: true
+          push: false
+          tags: publishly-production-ci:${{ github.sha }}
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=publishly-production
+          cache-to: type=gha,mode=max,scope=publishly-production
+          build-args: |
+            NEXT_PUBLIC_BACKEND_URL=https://publishlyapi.com/api
+            BACKEND_INTERNAL_URL=http://backend:3000
+            NEXT_PUBLIC_BRAND_NAME=Publishly
+            NEXT_PUBLIC_SOURCE_URL=https://github.com/PhliqOG/publishly
+            NEXT_PUBLIC_SUPPORT_EMAIL=review@example.com
+            NEXT_PUBLIC_PRIVACY_EMAIL=review@example.com
+            NEXT_PUBLIC_LEGAL_ENTITY_NAME=Publishly Review Build
+            NEXT_PUBLIC_LEGAL_ENTITY_ADDRESS=Review build only
+            NEXT_PUBLIC_LEGAL_EFFECTIVE_DATE=2026-08-14
+            NEXT_PUBLIC_GOVERNING_LAW=Review build only
+            NEXT_PUBLIC_UPLOAD_STATIC_DIRECTORY=/uploads
+            NEXT_PUBLIC_PLAUSIBLE_DOMAIN=publishlyapi.com
+
+      - name: Inspect required production artifacts
+        run: |
+          docker run --rm --entrypoint node publishly-production-ci:${{ github.sha }} -e '
+            const fs = require("node:fs");
+            for (const path of [
+              "apps/backend/dist/apps/backend/src/main.js",
+              "apps/orchestrator/dist/apps/orchestrator/src/main.js",
+              "apps/frontend/.next/BUILD_ID",
+            ]) {
+              if (!fs.existsSync(path)) throw new Error(`Missing ${path}`);
+            }
+            require.resolve("bcryptjs");
+            require.resolve("@prisma/client");
+            console.log("Production image artifacts and runtime dependencies are present.");
+          '

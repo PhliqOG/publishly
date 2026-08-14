@@ -81,8 +81,9 @@ RUN if [ "$PUBLISHLY_BUILD_SCOPE" = "server" ]; then \
     fi
 
 # Install the standalone, frozen production boundary once. General lifecycle
-# scripts stay disabled; only the pinned Prisma engine and bcrypt setup are run
-# explicitly below. Keep every native/generation step separately classified.
+# scripts stay disabled; only the pinned Prisma engine setup is run explicitly
+# below. Password hashing uses pure-JavaScript bcryptjs and needs no native
+# install hook. Keep every native/generation step separately classified.
 FROM pnpm-base AS server-deps-install
 ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x
 RUN --mount=type=cache,id=publishly-pnpm-server-runtime,target=/pnpm/store,sharing=locked \
