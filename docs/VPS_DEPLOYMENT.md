@@ -119,7 +119,9 @@ On the first cutover, `-ExportInterimDatabase` creates a temporary PostgreSQL 18
 custom-format dump, transfers it only over SSH, refuses to restore over any
 non-empty production schema, and deletes both temporary copies. This preserves
 the interim user/workspace and integration state without exposing credentials
-on a process command line.
+on a process command line. PostgreSQL 18's named volume is mounted at
+`/var/lib/postgresql` rather than the pre-18 `/var/lib/postgresql/data` path so
+its version-specific PGDATA remains durable across container recreation.
 Services use `restart: unless-stopped`. The archive never includes local
 `.env*`, `node_modules`, candidate/previous frontend builds, build output,
 logs, or Git history.
