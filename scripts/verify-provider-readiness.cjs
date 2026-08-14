@@ -197,6 +197,9 @@ function validateProviderReadiness(rootDir = path.resolve(__dirname, '..')) {
   const oauthCallback = read(
     'apps/backend/src/api/routes/no.auth.integrations.controller.ts'
   );
+  const oauthState = read(
+    'libraries/nestjs-libraries/src/integrations/oauth.state.ts'
+  );
   const publicController = read(
     'apps/backend/src/api/routes/public.controller.ts'
   );
@@ -270,8 +273,7 @@ function validateProviderReadiness(rootDir = path.resolve(__dirname, '..')) {
   if (
     deprecatedInstagramLoginScopes.some(
       (scope) =>
-        metaSources.includes(`'${scope}'`) ||
-        metaSources.includes(`"${scope}"`)
+        metaSources.includes(`'${scope}'`) || metaSources.includes(`"${scope}"`)
     )
   ) {
     add(
@@ -287,6 +289,20 @@ function validateProviderReadiness(rootDir = path.resolve(__dirname, '..')) {
     add(
       'meta_messaging_webhook_drift',
       'Instagram messaging requires a public challenge endpoint and signed webhook receiver.'
+    );
+  }
+  if (
+    !oauthState.includes('const OAUTH_STATE_BYTES = 32') ||
+    !oauthState.includes('getdel(`login:${state}`)') ||
+    !oauthCallback.includes(
+      'consumeOAuthLoginState(ioRedis, body.state, integration)'
+    ) ||
+    !metaSources.includes('generateOAuthState()') ||
+    !tiktok.includes('generateOAuthState()')
+  ) {
+    add(
+      'launch_provider_oauth_state_drift',
+      'Instagram and TikTok OAuth must use a provider-bound, atomically consumed 256-bit state value.'
     );
   }
   if (
@@ -363,8 +379,8 @@ function validateProviderReadiness(rootDir = path.resolve(__dirname, '..')) {
   if (
     !tiktok.includes('async revokeConnection(accessToken: string)') ||
     !tiktok.includes('https://open.tiktokapis.com/v2/oauth/revoke/') ||
-    !tiktok.includes("client_secret: clientSecret") ||
-    !tiktok.includes("token: accessToken")
+    !tiktok.includes('client_secret: clientSecret') ||
+    !tiktok.includes('token: accessToken')
   ) {
     add(
       'tiktok_disconnect_revocation_drift',

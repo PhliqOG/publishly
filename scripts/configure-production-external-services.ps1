@@ -185,6 +185,8 @@ elseif ($stripeSigningKey -notmatch '^whsec_') {
 
 $updates = [ordered]@{
   ACME_EMAIL = $operationsEmail
+  NEXT_PUBLIC_SUPPORT_EMAIL = $operationsEmail
+  NEXT_PUBLIC_PRIVACY_EMAIL = $operationsEmail
   NEXT_PUBLIC_SOURCE_URL = 'https://github.com/PhliqOG/publishly'
   S3_ENDPOINT = $r2Endpoint
   S3_ACCESS_KEY_ID = $r2AccessKeyId
