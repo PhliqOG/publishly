@@ -16,7 +16,7 @@ import {
 export const metadata: Metadata = {
   title: 'Best flat-pricing & unlimited-account posting APIs (2026)',
   description:
-    'Publishly, bundle.social & Hootsuite Professional compared on flat, unlimited-account pricing — entry price, free tier & account caps, from official pricing pages, with an honest caveat on tiny-scale cost. Last checked 2026-08-10.',
+    'Publishly, bundle.social & Hootsuite Professional compared on unlimited-account pricing — entry price, free tier, and account caps from official pricing pages. Last checked 2026-08-11.',
   keywords: [
     'flat pricing social media api',
     'unlimited accounts posting api',
@@ -26,9 +26,9 @@ export const metadata: Metadata = {
 };
 
 // Competitor numbers: data/claim-provenance.json (bundle-social-entry,
-// hootsuite-entry, buffer-30-channels, retrieved 2026-08-10). Publishly
+// hootsuite-entry, buffer-30-channels, retrieved 2026-08-11). Publishly
 // numbers: data/public-product-facts.json.
-const CHECKED = '2026-08-10';
+const CHECKED = '2026-08-11';
 
 const ENTRIES = [
   {
@@ -97,9 +97,9 @@ export default function BestFlatPricingApisPage() {
               ($100/mo PRO), and Hootsuite (Professional, $199/mo). Flat
               pricing pays off once the roster grows — at very small scale,
               per-account pricing can still be cheaper: 3 channels on Buffer’s
-              published $10/channel rate cost about $30/mo.
+              published monthly $12/channel rate cost $36/mo.
             </QuickAnswer>
-            <Byline published="2026-08-10" updated="2026-08-10" />
+            <Byline published="2026-08-10" updated="2026-08-11" />
           </div>
         </header>
 
@@ -158,8 +158,9 @@ export default function BestFlatPricingApisPage() {
               plan can still win.
             </p>
             <FactLine>
-              At Buffer’s published Team rate of $10 per channel per month, 3
-              channels cost about $30/mo — cheaper than any flat plan on this
+              At Buffer’s published monthly Team rate of $12 per channel, 3
+              channels cost $36/mo. Annual billing lowers that to $30 — cheaper
+              than some flat plans on this
               page. The flat-rate advantage shows up once the account count
               passes what a per-account plan’s free or entry tier covers.
             </FactLine>

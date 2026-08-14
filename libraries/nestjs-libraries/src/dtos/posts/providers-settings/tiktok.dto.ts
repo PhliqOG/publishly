@@ -1,5 +1,11 @@
 import {
-  IsBoolean, ValidateIf, IsIn, IsString, MaxLength, IsOptional
+  Equals,
+  IsBoolean,
+  ValidateIf,
+  IsIn,
+  IsString,
+  MaxLength,
+  IsOptional,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 
@@ -9,9 +15,21 @@ import { JSONSchema } from 'class-validator-jsonschema';
 // description - every other field below is silently discarded.
 // video_made_with_ai / duet / stitch are additionally video-only: TikTok's photo
 // post_info has no is_aigc, disable_duet or disable_stitch field.
-// Fields stay required here (existing clients depend on it); the constraints are
-// documented, not enforced.
+// Settings that TikTok discards in UPLOAD mode remain in the versioned payload
+// for compatibility. publish_consent is intentionally required for every new
+// send because TikTok requires an explicit, non-default declaration.
 export class TikTokDto {
+  @Equals(true, {
+    message:
+      "You must explicitly agree to TikTok's Music Usage Confirmation before sending this post.",
+  })
+  @IsBoolean()
+  @JSONSchema({
+    description:
+      "Required explicit user consent: By posting, you agree to TikTok's Music Usage Confirmation.",
+  })
+  publish_consent: boolean;
+
   @ValidateIf((p) => p.title)
   @MaxLength(90)
   @JSONSchema({
@@ -76,6 +94,14 @@ export class TikTokDto {
   @IsOptional()
   @JSONSchema({
     description:
+      'Whether the user opened TikTok commercial-content disclosure. When true, Your brand and/or Branded content must be selected.',
+  })
+  disclose?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  @JSONSchema({
+    description:
       'Labels the post as AI generated. Video posts only, and only when content_posting_method=DIRECT_POST. TikTok has no AI-generated label for photo posts, and discards it on UPLOAD.',
   })
   video_made_with_ai: boolean;
@@ -93,7 +119,7 @@ export class TikTokDto {
     description:
       'Required. Use "DIRECT_POST" to actually publish the post to TikTok. ' +
       '"UPLOAD" does NOT publish: it only sends the media to the user\'s TikTok app inbox, ' +
-      'where they must manually finish and publish it within 24 hours or it is discarded, ' +
+      'where they must manually finish and publish it, ' +
       'and it makes TikTok ignore every other setting here. ' +
       'Only use "UPLOAD" when the user explicitly asks to review or edit the post inside the TikTok app before publishing.',
   })

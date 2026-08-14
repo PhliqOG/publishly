@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "stage": 7,
+  "status": "passed",
+  "generatedAt": "2026-08-13T10:35:33.303Z",
+  "runId": "5e82386c-a76b-448d-a8a8-178eada4492a",
+  "gitRevision": null,
+  "runtime": {
+    "node": "v22.12.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "workload": {
+    "assets": 1000,
+    "destinations": 100,
+    "distribution": "cross_post",
+    "cadenceScope": "per_account",
+    "expandedJobs": 100000,
+    "formula": "1000 assets x 100 destinations = 100000 jobs",
+    "database": "publishly-test-db",
+    "providerMutationInvoked": false
+  },
+  "thresholds": {
+    "maximumPeakRssMiB": 1536,
+    "maximumPlanAndReserveMs": 900000,
+    "maximumReservationBatch": 500,
+    "maximumCursorPage": 100,
+    "maximumClaimBatch": 250,
+    "maximumCancellationBatch": 500
+  },
+  "timingsMs": {
+    "purePlanner": 446.04,
+    "seedDatabase": 554.05,
+    "planAndReserve": 222986.93,
+    "authoritativeCountChecks": 85.67,
+    "cursorPagination": 52626.94,
+    "concurrentClaims": 794.21,
+    "retryClaims": 210.74,
+    "pause": 25.27,
+    "resume": 23.03,
+    "cancelFirstBatch": 941.68,
+    "cancelRemainingBatches": 75314.28,
+    "finalAggregation": 94.74,
+    "cleanup": 9530.52,
+    "total": 365267.3
+  },
+  "counts": {
+    "purePlannerJobs": 100000,
+    "jobsPlanned": 100000,
+    "authoritativeReservations": 100000,
+    "reservationConflicts": 0,
+    "planningIssues": 0,
+    "cursorPages": 1000,
+    "uniqueJobsPaged": 100000,
+    "concurrentClaims": 1000,
+    "retryClaims": 250,
+    "cancellationBatches": 200,
+    "cancelledJobs": 99999,
+    "preservedPinnedJobs": 1,
+    "cancelledReservations": 99999,
+    "postsCreated": 0,
+    "publishingJobsCreated": 0,
+    "tenantAuditEvents": 100611
+  },
+  "checks": {
+    "expansionMathExact": true,
+    "databaseIsSourceOfTruth": true,
+    "authoritativeReservationCardinality": true,
+    "cursorPaginationCompleteAndUnique": true,
+    "claimSkipLockedNoDuplicates": true,
+    "claimTenantShardIsolated": true,
+    "classifiedRetriesClaimedOnce": true,
+    "pausePreventsClaims": true,
+    "resumeRestoresCampaignState": true,
+    "manualPinPersisted": true,
+    "cancellationChunked": true,
+    "pinnedSlotPreserved": true,
+    "cancelledOutcomesClassified": true,
+    "noPublisherOrProviderMutation": true,
+    "auditEventIsolation": true,
+    "exactTargetCleanup": true,
+    "memoryBoundPassed": true
+  },
+  "memory": {
+    "startRssMiB": 463.09,
+    "peakRssMiB": 827.54,
+    "endRssMiB": 683.83,
+    "peakHeapUsedMiB": 695.63
+  }
+}

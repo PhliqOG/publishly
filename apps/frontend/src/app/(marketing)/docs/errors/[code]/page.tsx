@@ -37,9 +37,9 @@ const CLASS_META: Record<
   recoverable: {
     label: 'Recovers on its own',
     retryable:
-      'Yes. This is a transient failure — Publishly retries the post automatically with backoff, so you usually don’t need to do anything.',
+      'Yes. This is a temporary platform problem — Publishly waits and retries the post automatically, so you usually don’t need to do anything.',
     steps: [
-      'No action needed — Publishly is already retrying this post with backoff.',
+      'No action needed — Publishly is already retrying this post after a safe delay.',
       'Check the post’s delivery receipt if you want to confirm the retry landed.',
       'If it’s still failing after several retries, contact support with the post ID.',
     ],
@@ -114,13 +114,16 @@ export default async function ErrorCodePage({ params }: PageProps) {
               >
                 Docs · Publishing errors
               </Link>
-              <h1 className="mk-h2-lg" style={{ marginTop: 18, maxWidth: '20ch' }}>
+              <h1
+                className="mk-h2-lg"
+                style={{ marginTop: 18, maxWidth: '20ch' }}
+              >
                 {code}
               </h1>
               <p className="mk-section-lede">
                 {meta.label} — one of {TOTAL} documented failure codes the
                 publishing engine can emit, rendered from the same catalog the
-                pipeline imports.
+                publishing service uses.
               </p>
               <Byline published="2026-08-10" />
             </div>
@@ -174,7 +177,9 @@ export default async function ErrorCodePage({ params }: PageProps) {
         <section className="mk-ctaclose" style={{ background: 'none' }}>
           <div className="mk-container">
             <div className="mk-cta-panel">
-              <h2 className="mk-h2">See how failures are handled end to end.</h2>
+              <h2 className="mk-h2">
+                See how failures are handled end to end.
+              </h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
                 This code is one layer — receipts, retries &amp; webhooks are
                 the rest.

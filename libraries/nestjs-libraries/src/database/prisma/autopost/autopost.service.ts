@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { AutopostRepository } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.repository';
 import { AutopostDto } from '@gitroom/nestjs-libraries/dtos/autopost/autopost.dto';
 import dayjs from 'dayjs';
@@ -16,9 +20,8 @@ import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/in
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { TemporalService } from 'nestjs-temporal-core';
 import { TypedSearchAttributes } from '@temporalio/common';
-import {
-  organizationId,
-} from '@gitroom/nestjs-libraries/temporal/temporal.search.attribute';
+import { organizationId } from '@gitroom/nestjs-libraries/temporal/temporal.search.attribute';
+import { normalizePostFailure } from '@gitroom/nestjs-libraries/reliability/post.failure';
 const parser = new Parser();
 
 interface WorkflowChannelsState {
@@ -60,6 +63,8 @@ const dallePrompt = z.object({
 
 @Injectable()
 export class AutopostService {
+  private readonly logger = new Logger(AutopostService.name);
+
   constructor(
     private _autopostsRepository: AutopostRepository,
     private _temporalService: TemporalService,
@@ -103,7 +108,7 @@ export class AutopostService {
   async processCron(active: boolean, orgId: string, id: string) {
     if (active) {
       try {
-        return this._temporalService.client
+        const workflow = await this._temporalService.client
           .getRawClient()
           ?.workflow.start('autoPostWorkflow', {
             workflowId: `autopost-${id}`,
@@ -116,12 +121,40 @@ export class AutopostService {
               },
             ]),
           });
-      } catch (err) {}
+        if (!workflow) {
+          throw new Error('Temporal returned no autopost workflow handle.');
+        }
+        return workflow;
+      } catch (error) {
+        const reason = normalizePostFailure({ error }).reason;
+        this.logger.error({
+          event: 'autopost_workflow_start_failed',
+          organizationId: orgId,
+          autopostId: id,
+          failureClass: 'recoverable',
+          code: 'autopost_scheduler_unavailable',
+          reason,
+          retryable: true,
+        });
+        throw new ServiceUnavailableException({
+          failureClass: 'recoverable',
+          code: 'autopost_scheduler_unavailable',
+          reason,
+          retryable: true,
+        });
+      }
     }
 
     try {
       return await this._temporalService.terminateWorkflow(`autopost-${id}`);
-    } catch (err) {
+    } catch (error) {
+      this.logger.warn({
+        event: 'autopost_workflow_termination_failed',
+        organizationId: orgId,
+        autopostId: id,
+        code: 'autopost_termination_unavailable',
+        reason: normalizePostFailure({ error }).reason,
+      });
       return false;
     }
   }
@@ -158,11 +191,20 @@ export class AutopostService {
           .replace(/\n/g, ' ')
           .trim(),
       };
-    } catch (err) {
-      /** sent **/
+    } catch (error) {
+      const reason = normalizePostFailure({ error }).reason;
+      this.logger.warn({
+        event: 'autopost_feed_fetch_failed',
+        code: 'rss_fetch_failed',
+        reason,
+      });
+      return {
+        success: false,
+        failureClass: 'recoverable' as const,
+        code: 'rss_fetch_failed',
+        reason,
+      };
     }
-
-    return { success: false };
   }
 
   static state = () =>
@@ -171,7 +213,7 @@ export class AutopostService {
         messages: {
           reducer: (currentState, updateValue) =>
             currentState.concat(updateValue),
-          default: () => [],
+          default: (): BaseMessage[] => [],
         },
         body: null,
         description: null,
@@ -267,43 +309,47 @@ export class AutopostService {
       state.integrations[0].organizationId
     );
 
-    await this._postsService.createPost(state.integrations[0].organizationId, {
-      date: nextTime + 'Z',
-      order: makeId(10),
-      shortLink: false,
-      type: 'draft',
-      tags: [],
-      posts: state.integrations.map((i) => ({
-        settings: {
-          __type: i.providerIdentifier as any,
-          title: '',
-          tags: [],
-          subreddit: [],
-        },
-        group: makeId(10),
-        integration: { id: i.id },
-        value: [
-          {
-            id: makeId(10),
-            delay: 0,
-            content:
-              state.description.replace(/\n/g, '\n\n') +
-              '\n\n' +
-              state.load.url,
-            image: !state.image
-              ? []
-              : [
-                  {
-                    id: makeId(10),
-                    name: makeId(10),
-                    path: state.image,
-                    organizationId: state.integrations[0].organizationId,
-                  },
-                ],
+    await this._postsService.createPost(
+      state.integrations[0].organizationId,
+      {
+        date: nextTime + 'Z',
+        order: makeId(10),
+        shortLink: false,
+        type: 'draft',
+        tags: [],
+        posts: state.integrations.map((i) => ({
+          settings: {
+            __type: i.providerIdentifier as any,
+            title: '',
+            tags: [],
+            subreddit: [],
           },
-        ],
-      })),
-    }, 'AUTOPOST');
+          group: makeId(10),
+          integration: { id: i.id },
+          value: [
+            {
+              id: makeId(10),
+              delay: 0,
+              content:
+                state.description.replace(/\n/g, '\n\n') +
+                '\n\n' +
+                state.load.url,
+              image: !state.image
+                ? []
+                : [
+                    {
+                      id: makeId(10),
+                      name: makeId(10),
+                      path: state.image,
+                      organizationId: state.integrations[0].organizationId,
+                    },
+                  ],
+            },
+          ],
+        })),
+      },
+      'AUTOPOST'
+    );
   }
 
   async updateUrl(state: WorkflowChannelsState) {

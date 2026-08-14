@@ -1,0 +1,309 @@
+x-app: &app
+  image: publishly-canary:${PUBLISHLY_IMAGE_TAG:?PUBLISHLY_IMAGE_TAG is required}
+  build:
+    context: ../..
+    dockerfile: Dockerfile
+    target: server-runtime
+    args:
+      NEXT_PUBLIC_BACKEND_URL: https://pending.invalid/api
+      BACKEND_INTERNAL_URL: http://backend:3000
+      NEXT_PUBLIC_BRAND_NAME: Publishly
+      NEXT_PUBLIC_SOURCE_URL: https://pending.invalid/source
+      NEXT_PUBLIC_SUPPORT_EMAIL: canary-ops@publishly.invalid
+      NEXT_PUBLIC_PRIVACY_EMAIL: canary-privacy@publishly.invalid
+      NEXT_PUBLIC_LEGAL_ENTITY_NAME: Publishly Canary
+      NEXT_PUBLIC_LEGAL_ENTITY_ADDRESS: Isolated provider canary
+      NEXT_PUBLIC_LEGAL_EFFECTIVE_DATE: '2026-08-13'
+      NEXT_PUBLIC_GOVERNING_LAW: Provider canary only
+      NEXT_PUBLIC_UPLOAD_STATIC_DIRECTORY: /uploads
+      NEXT_PUBLIC_PLAUSIBLE_DOMAIN: pending.invalid
+      NEXT_PUBLIC_CHROME_EXTENSION_URL: ''
+  env_file:
+    - ${BULK_CANARY_ENV_FILE:?BULK_CANARY_ENV_FILE is required}
+  networks:
+    - canary
+  security_opt:
+    - no-new-privileges:true
+  init: true
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: publishly_canary
+      POSTGRES_USER: publishly_canary
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+    volumes:
+      - app-postgres-data:/var/lib/postgresql/data
+    networks:
+      - canary
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U publishly_canary -d publishly_canary']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    security_opt:
+      - no-new-privileges:true
+
+  temporal-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: temporal_canary
+      POSTGRES_PASSWORD: ${TEMPORAL_DATABASE_PASSWORD:?TEMPORAL_DATABASE_PASSWORD is required}
+    volumes:
+      - temporal-postgres-data:/var/lib/postgresql/data
+    networks:
+      - canary
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U temporal_canary']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    security_opt:
+      - no-new-privileges:true
+
+  temporal:
+    image: temporalio/auto-setup:1.28.1
+    restart: unless-stopped
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal_canary
+      POSTGRES_PWD: ${TEMPORAL_DATABASE_PASSWORD:?TEMPORAL_DATABASE_PASSWORD is required}
+      POSTGRES_SEEDS: temporal-postgres
+      ENABLE_ES: 'false'
+      SKIP_DEFAULT_NAMESPACE_CREATION: 'true'
+    depends_on:
+      temporal-postgres:
+        condition: service_healthy
+    networks:
+      - canary
+    healthcheck:
+      test:
+        - CMD
+        - temporal
+        - operator
+        - cluster
+        - health
+        - --address
+        - temporal:7233
+      interval: 10s
+      timeout: 10s
+      retries: 40
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  temporal-namespace:
+    image: temporalio/auto-setup:1.28.1
+    restart: 'no'
+    entrypoint: ['/bin/sh', '-ec']
+    command:
+      - >-
+        until tctl --address temporal:7233 cluster health >/dev/null 2>&1; do sleep 2; done;
+        tctl --address temporal:7233 namespace describe "$${TEMPORAL_NAMESPACE}" >/dev/null 2>&1 ||
+        tctl --address temporal:7233 namespace register --retention 1 "$${TEMPORAL_NAMESPACE}"
+    environment:
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:?TEMPORAL_NAMESPACE is required}
+    depends_on:
+      temporal:
+        condition: service_healthy
+    networks:
+      - canary
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes', '--save', '60', '1']
+    volumes:
+      - redis-data:/data
+    networks:
+      - canary
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    security_opt:
+      - no-new-privileges:true
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+    volumes:
+      - minio-data:/data
+    networks:
+      - canary
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:9000/minio/health/live']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    security_opt:
+      - no-new-privileges:true
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    restart: 'no'
+    entrypoint: ['/bin/sh', '-ec']
+    command:
+      - >-
+        until mc alias set canary http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" >/dev/null 2>&1; do sleep 2; done;
+        mc mb --ignore-existing "canary/$${S3_BUCKET}";
+        mc mb --ignore-existing "canary/$${BULK_PRIVATE_S3_BUCKET}";
+        mc anonymous set none "canary/$${S3_BUCKET}";
+        mc anonymous set none "canary/$${BULK_PRIVATE_S3_BUCKET}"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
+      BULK_PRIVATE_S3_BUCKET: ${BULK_PRIVATE_S3_BUCKET:?BULK_PRIVATE_S3_BUCKET is required}
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - canary
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    <<: *app
+    command:
+      - node
+      - node_modules/prisma/build/index.js
+      - migrate
+      - deploy
+      - --schema
+      - libraries/nestjs-libraries/src/database/prisma/schema.prisma
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    <<: *app
+    command:
+      - node
+      - --experimental-require-module
+      - apps/backend/src/main.js
+    restart: unless-stopped
+    environment:
+      RUN_CRON: 'true'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      temporal-namespace:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://localhost:3000/health').then((response) => {
+            if (!response.ok) process.exit(1);
+          }).catch(() => process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+
+  orchestrator:
+    <<: *app
+    command:
+      - node
+      - --experimental-require-module
+      - apps/orchestrator/src/main.js
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      temporal-namespace:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://localhost:3002/health/status').then((response) => {
+            if (!response.ok) process.exit(1);
+          }).catch(() => process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+
+  provision:
+    <<: *app
+    profiles: ['tools']
+    restart: 'no'
+    volumes:
+      - ${BULK_CANARY_RUN_DIRECTORY:?BULK_CANARY_RUN_DIRECTORY is required}:/run/publishly-canary
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  gateway:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${BULK_CANARY_GATEWAY_PORT:-43180}:8080'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - canary
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8080/healthz']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    security_opt:
+      - no-new-privileges:true
+
+  tunnel:
+    image: cloudflare/cloudflared:2026.7.0
+    restart: unless-stopped
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --protocol
+      - http2
+      - --url
+      - http://gateway:8080
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - canary
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  app-postgres-data:
+  temporal-postgres-data:
+  redis-data:
+  minio-data:
+
+networks:
+  canary:
+    driver: bridge

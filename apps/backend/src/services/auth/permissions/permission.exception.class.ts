@@ -10,7 +10,10 @@ export enum Sections {
   AI = 'ai',
   IMPORT_FROM_CHANNELS = 'import_from_channels',
   ADMIN = 'admin',
+  OWNER = 'owner',
   WEBHOOKS = 'webhooks',
+  PUBLIC_API = 'public_api',
+  BULK_TOOLS = 'bulk_tools',
 }
 
 export enum AuthorizationActions {

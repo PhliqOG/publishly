@@ -21,7 +21,10 @@ import handleR2Upload from '@gitroom/nestjs-libraries/upload/r2.uploader';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CustomFileValidationPipe } from '@gitroom/nestjs-libraries/upload/custom.upload.validation';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
-import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
+import {
+  getPublicStorageUrl,
+  UploadFactory,
+} from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
 import { VideoDto } from '@gitroom/nestjs-libraries/dtos/videos/video.dto';
 import { VideoFunctionDto } from '@gitroom/nestjs-libraries/dtos/videos/video.function.dto';
@@ -79,9 +82,11 @@ export class MediaController {
       return false;
     }
 
-    const file = await this.storage.uploadSimple(image.output);
-
-    return this._mediaService.saveFile(org.id, file.split('/').pop(), file);
+    return this._mediaService.uploadDataUrl(
+      org.id,
+      image.output,
+      'generated-image.png'
+    );
   }
 
   @Post('/upload-server')
@@ -92,13 +97,7 @@ export class MediaController {
     @UploadedFile() file: Express.Multer.File
   ) {
     const originalName = file?.originalname || '';
-    const uploadedFile = await this.storage.uploadFile(file);
-    return this._mediaService.saveFile(
-      org.id,
-      uploadedFile.originalname,
-      uploadedFile.path,
-      originalName
-    );
+    return this._mediaService.uploadAndSave(org.id, file, originalName);
   }
 
   @Post('/save-media')
@@ -111,11 +110,16 @@ export class MediaController {
     if (!name) {
       return false;
     }
-    return this._mediaService.saveFile(
+    if (
+      name.includes('..') ||
+      name.startsWith('/') ||
+      !/^[a-zA-Z0-9._/-]+$/.test(name)
+    ) {
+      return false;
+    }
+    return this._mediaService.importFromUrl(
       org.id,
-      name,
-      process.env.CLOUDFLARE_BUCKET_URL + '/' + name,
-      originalName || undefined
+      getPublicStorageUrl() + '/' + name
     );
   }
 
@@ -136,19 +140,14 @@ export class MediaController {
     @Body('preventSave') preventSave: string = 'false'
   ) {
     const originalName = file.originalname;
-    const getFile = await this.storage.uploadFile(file);
-
     if (preventSave === 'true') {
+      await this._mediaService.assertStorageQuota(org.id, file.size);
+      const getFile = await this.storage.uploadFile(file);
       const { path } = getFile;
       return { path };
     }
 
-    return this._mediaService.saveFile(
-      org.id,
-      getFile.originalname,
-      getFile.path,
-      originalName
-    );
+    return this._mediaService.uploadAndSave(org.id, file, originalName);
   }
 
   @Post('/:endpoint')
@@ -158,6 +157,13 @@ export class MediaController {
     @Res() res: Response,
     @Param('endpoint') endpoint: string
   ) {
+    if (endpoint === 'create-multipart-upload') {
+      const size = Number(req.body?.file?.size || 0);
+      if (!Number.isFinite(size) || size <= 0) {
+        return res.status(400).json({ message: 'Invalid upload size.' });
+      }
+      await this._mediaService.assertStorageQuota(org.id, size);
+    }
     const upload = await handleR2Upload(endpoint, req, res);
     if (endpoint !== 'complete-multipart-upload') {
       return upload;
@@ -172,7 +178,13 @@ export class MediaController {
       name,
       // @ts-ignore
       upload.Location,
-      originalName || undefined
+      originalName || undefined,
+      Number(req.body?.file?.size || 0),
+      String(req.body?.file?.type || '').startsWith('video/') ? 'video' : 'image',
+      {
+        mimeType: String(req.body?.file?.type || '') || null,
+        metadataStatus: 'PENDING',
+      }
     );
 
     res.status(200).json({ ...upload, saved: saveFile });

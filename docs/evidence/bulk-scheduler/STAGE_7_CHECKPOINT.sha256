@@ -1,0 +1,19 @@
+# Publishly Bulk Scheduler Stage 7 scoped checkpoint (SHA-256)
+# Recorded after the final 725-unit / 49-integration validation run.
+# The shared worktree was already dirty; this manifest intentionally excludes unrelated files.
+a15270e05cde0c85eb74dd67a803b278422ddb041c445e043091226feefa71bc  DECISIONS.md
+c503b7756da113e1644a612bae3a6a2c6df7c3f6ffdda915e73b26636a4821c3  .github/workflows/build.yml
+7bdf05930569233baf1ba4100cbea6f400b6b54081e68c0239192dc1b450e155  package.json
+402932b417a36e17c1ee3fe8e4c5bf36889dce85d31519bb278b325b9e93aab7  jest.config.ts
+9cd27c108b65e2beb01420b5ed1d1a43f584f7732450355c1e6bbb6465a8250d  libraries/helpers/src/bulk-scheduler/limits.contract.ts
+25646ae4231b958fdea04798da1b41e98e789966586ee2e2107c4c7f4ccaf287  libraries/helpers/src/bulk-scheduler/execution.contract.ts
+f31bb6b546a231a6c025254c3b9f43993376b5cece47ffbd5fffd8ede65c9fe7  libraries/nestjs-libraries/src/database/prisma/bulk-scheduler/calendar-reservation.repository.ts
+9152d21662707dd62112a96698b7fcd278209f315efed5761fd5ee9d99b0f0ad  libraries/nestjs-libraries/src/database/prisma/bulk-scheduler/calendar-reservation.service.ts
+59d11f9b5f3c7835ce1bc65c4db7eb139e648df7e0db719accf90735237b5a86  libraries/nestjs-libraries/src/database/prisma/bulk-scheduler/bulk-campaign-execution.repository.ts
+459cba91423495e4d98b24ec83e05cf76e1184f627aa2213d47ef12a57a5b2b4  libraries/nestjs-libraries/src/database/prisma/bulk-scheduler/bulk-campaign-execution.service.ts
+d68ad4d46b14bdfdc3abecdc9260ff7e0f5c0a38a250413fddad6f607fce09f5  apps/frontend/src/components/bulk-scheduler/bulk-scheduler.logic.ts
+752aba16d1937f5fb80f7df3508c0fc60338e0ee6f07a3c00bb44a925dd03b24  scripts/verify-calendar-writers.cjs
+1a806130cb8157ab2120ca9dcc9c742ca8a9b8f701c16f98422ec0e1885c2568  test/integration/bulk.scheduler.tenant-isolation.int.spec.ts
+d91da788cc078620d7080092dcd506e52ec35a8fbe1fd1f4a22912898044edf7  test/load/bulk-scheduler-100k.load.spec.ts
+742669e613359a76d7d4a17afc25daf02194c403b5487ab66b39cabddb797bb4  docs/evidence/bulk-scheduler/benchmarks/stage7-100k.json
+9d294f4868a861f0a2ce10adaea76d8e5b8b7d9740c2f30a67aa46aeeaea2682  docs/evidence/bulk-scheduler/STAGE_7.md

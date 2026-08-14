@@ -13,12 +13,18 @@ import {
 export const metadata: Metadata = {
   title: 'Make.com social media posting API',
   description:
-    'Post to social media from Make.com with Publishly: an HTTP module schedules posts through the REST API, and a custom webhook module receives signed post.published and post.failure events. No first-party module required.',
+    'Post to social from Make with clear delivery receipts, failure reasons, safe retries, and account-health alerts from Publishly.',
   alternates: { canonical: '/integrations/make' },
 };
 
 // Static code block in the site's terminal styling (mk-term, marketing.css).
-function CodeBlock({ title, children }: { title: string; children: ReactNode }) {
+function CodeBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
   return (
     <div className="mk-term" style={{ marginTop: 20 }}>
       <div className="mk-term-top">
@@ -36,28 +42,28 @@ function CodeBlock({ title, children }: { title: string; children: ReactNode }) 
 
 const STEPS: Array<{ title: string; body: string }> = [
   {
-    title: 'Create a Publishly API key',
-    body: 'In Publishly settings, issue a scoped key with posts write access. It’s shown once — store it in a Make connection or a keychain, not hardcoded in the scenario.',
+    title: 'Create the Publishly app in Make',
+    body: 'The app currently installs from integrations/make-publishly in this repository through Make’s developer area. A public Make catalog listing is not claimed yet.',
   },
   {
-    title: 'Add an HTTP module',
-    body: 'Use HTTP > Make a request. Method POST, URL https://<your-publishly-host>/public/v1/posts. Add a header named Authorization with your API key as the value, and set the body type to JSON.',
+    title: 'Give it only the access it needs',
+    body: 'Add your Publishly address and API key. Limit the key to posting, reading receipts, checking account health, or receiving alerts based on what this scenario does.',
   },
   {
-    title: 'Build the post body',
-    body: 'Map your trigger data (a form, a spreadsheet row, an RSS item) into the JSON body: the content, the schedule time, and the channels to publish to. The API validates server-side and rejects bad input as a readable 400 — surface that error output in the scenario instead of swallowing it.',
+    title: 'Choose what the scenario should do',
+    body: 'Publish now, schedule for later, get a delivery receipt, or check which brand, client, or location accounts need attention.',
   },
   {
-    title: 'Add a custom webhook module for delivery events',
-    body: 'Create a Make Webhooks > Custom webhook module, then register its URL as a webhook endpoint in Publishly. You’ll receive post.published when a post lands and post.failure when one dies — with the failure class, code, plain-English reason, and whether Publishly will retry.',
+    title: 'Add Watch Events for alerts',
+    body: 'Watch Events securely connects the scenario to delivery, failure, and connection alerts. Delete it and Publishly removes that connection.',
   },
   {
-    title: 'Verify the signature before trusting the event',
-    body: 'Every event is signed. Read the X-Publishly-Signature header (t=<timestamp>,v1=<hex>), compute HMAC-SHA256 over `${t}.${rawBody}` with your webhook signing secret in a downstream module, and compare it to v1. Reject mismatches and stale timestamps.',
+    title: 'Reject fake or stale alerts',
+    body: 'Before a scenario starts, Watch Events verifies that the alert came from Publishly and was sent recently. API errors appear as errors, never as an empty success.',
   },
   {
-    title: 'Route on what actually happened',
-    body: 'Branch with a Router on the event type: log receipts to your reporting sheet on post.published, page a human or open a ticket on post.failure where willRetry is false. That’s the whole point — your scenario reacts to delivery truth, not to “scheduled”.',
+    title: 'Act on the real result',
+    body: 'Treat confirmed live as success. Send failed posts to the right person using the reason Publishly provides, and use the event ID so one alert never causes the same action twice.',
   },
 ];
 
@@ -75,21 +81,19 @@ export default function MakeIntegrationPage() {
               >
                 Integrations · Make
               </span>
-              <h1 className="mk-h2">Post to social from Make — with receipts.</h1>
+              <h1 className="mk-h2">
+                Post to social from Make — with receipts.
+              </h1>
               <p className="mk-section-lede">
-                There’s no first-party Publishly module in Make yet, and this
-                recipe doesn’t need one: two standard modules cover scheduling
-                and delivery events end to end.
+                Publish, schedule, check account health, and react to delivery
+                alerts from the Make scenarios your team already uses.
               </p>
             </header>
             <QuickAnswer>
-              To post to social media from Make.com with Publishly, use an
-              HTTP module to POST to /public/v1/posts with your API key in
-              the Authorization header, and a custom Webhooks module to
-              receive signed post.published and post.failure events. Publishly
-              has no first-party Make module yet — the standard modules are
-              the supported path, and they carry the full delivery-receipt
-              model.
+              Create the Publishly app from this repository, add an API key, and
+              choose whether the scenario posts content, checks receipts,
+              watches account health, or reacts to alerts. A public Make catalog
+              listing is not claimed yet.
             </QuickAnswer>
             <Byline published="2026-08-10" />
 
@@ -114,7 +118,7 @@ export default function MakeIntegrationPage() {
                 margin: '56px 0 6px',
               }}
             >
-              The curl equivalent
+              Use the API directly if needed
             </h2>
             <p
               style={{
@@ -124,14 +128,25 @@ export default function MakeIntegrationPage() {
                 margin: 0,
               }}
             >
-              Whatever the HTTP module sends is exactly this call — test it
-              from a terminal first, then wire the module.
+              The Make actions send this same request. You can also use the API
+              directly in Make’s HTTP module.
             </p>
             <CodeBlock title="curl — schedule a post">
               {`curl -X POST https://your-publishly-host/public/v1/posts \\
   -H 'Authorization: YOUR_API_KEY' \\
+  -H 'Idempotency-Key: campaign-location-2026-08-14' \\
   -H 'Content-Type: application/json' \\
-  -d '{ "content": "Launch day.", "when": "2026-08-14T18:00" }'`}
+  -d '{
+    "type": "schedule",
+    "date": "2026-08-14T18:00:00.000Z",
+    "shortLink": false,
+    "tags": [],
+    "posts": [{
+      "integration": { "id": "connection-id" },
+      "value": [{ "content": "Launch day.", "image": [] }],
+      "settings": { "__type": "linkedin" }
+    }]
+  }'`}
             </CodeBlock>
 
             <h2
@@ -151,8 +166,9 @@ export default function MakeIntegrationPage() {
                 margin: 0,
               }}
             >
-              Events arrive with an X-Publishly-Event header naming the event
-              type and an X-Publishly-Signature header in the form{' '}
+              The dedicated webhook performs this check before emitting a
+              bundle. At the wire level, events carry an X-Publishly-Event
+              header and an X-Publishly-Signature header in the form{' '}
               <code>t=&lt;unix-timestamp&gt;,v1=&lt;hex&gt;</code>. Recompute
               and compare, in a downstream module that can run the hash:
             </p>
@@ -185,8 +201,8 @@ if (expected !== v1) throw new Error('Bad signature');
               >
                 API docs
               </Link>
-              . If a first-party Make module ships, this page will say so —
-              until then, this recipe is the honest, supported answer.
+              . Component and release-status details live in the repository’s
+              distribution guide; no public Make catalog listing is implied.
             </p>
           </div>
         </section>

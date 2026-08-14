@@ -60,6 +60,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (
+    nextUrl.pathname.startsWith('/api/public/') ||
     nextUrl.pathname.startsWith('/uploads/') ||
     nextUrl.pathname.startsWith('/p/') ||
     nextUrl.pathname.startsWith('/provider/') ||
@@ -129,6 +130,8 @@ export async function proxy(request: NextRequest) {
     '/acceptable-use',
     '/source',
     '/reliability',
+    '/platform-review',
+    '/status',
     '/changelog',
     '/robots.txt',
     '/sitemap.xml',

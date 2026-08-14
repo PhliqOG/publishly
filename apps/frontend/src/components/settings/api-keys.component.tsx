@@ -22,6 +22,8 @@ const SCOPES = [
   'media:write',
   'integrations:read',
   'integrations:write',
+  'webhooks:read',
+  'webhooks:write',
   'analytics:read',
   'notifications:read',
   'video:write',

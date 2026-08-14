@@ -1,6 +1,10 @@
-import { timer } from '@gitroom/helpers/utils/timer';
 import { Integration } from '@prisma/client';
-import { PendingCheckResponse } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
+import {
+  AmbiguousPostReconciliationInput,
+  AmbiguousPostReconciliationResult,
+  PendingCheckResponse,
+  PostConfirmationResult,
+} from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { ApplicationFailure } from '@temporalio/activity';
 import { readOrFetch } from '@gitroom/helpers/utils/read.or.fetch';
 import {
@@ -10,10 +14,29 @@ import {
 import sharp from 'sharp';
 import { createReadStream, statSync } from 'fs';
 import { Readable } from 'stream';
+import {
+  failureDetails,
+  normalizePostFailure,
+  PostFailureInput,
+  POST_FAILURE_CATALOG,
+} from '@gitroom/nestjs-libraries/reliability/post.failure';
+import { privateAdapterMediaRequest } from '@gitroom/helpers/bulk-scheduler/provider-media.contract';
+import {
+  parseRetryHeaders,
+  RetryMetadata,
+} from '@gitroom/nestjs-libraries/reliability/post.retry.policy';
 
 export type ValidityMedia = {
+  id?: string;
   path: string;
   thumbnail?: string;
+  mimeType?: string | null;
+  width?: number | null;
+  height?: number | null;
+  durationSeconds?: number | null;
+  fileSize?: number | null;
+  metadataStatus?: string | null;
+  metadataVerified?: boolean;
 };
 
 // Temporal serializes the whole ApplicationFailure (message + details) into the
@@ -39,8 +62,14 @@ export function truncateForTemporal(value: any, max: number): string {
 
 export class RefreshToken extends ApplicationFailure {
   constructor(identifier: string, json: string, body: BodyInit, message = '') {
+    const failure = normalizePostFailure({
+      error: json,
+      reason: message,
+      code: 'token_refresh_required',
+      willRetry: true,
+    });
     super(
-      truncateForTemporal(message, MAX_FAILURE_MESSAGE),
+      truncateForTemporal(failure.reason, MAX_FAILURE_MESSAGE),
       'refresh_token',
       true,
       [
@@ -48,6 +77,7 @@ export class RefreshToken extends ApplicationFailure {
           identifier,
           json: truncateForTemporal(json, MAX_FAILURE_FIELD),
           body: truncateForTemporal(body, MAX_FAILURE_FIELD),
+          failure: failureDetails(failure),
         },
       ]
     );
@@ -55,14 +85,67 @@ export class RefreshToken extends ApplicationFailure {
 }
 
 export class BadBody extends ApplicationFailure {
-  constructor(identifier: string, json: string, body: BodyInit, message = '') {
-    super(truncateForTemporal(message, MAX_FAILURE_MESSAGE), 'bad_body', true, [
-      {
-        identifier,
-        json: truncateForTemporal(json, MAX_FAILURE_FIELD),
-        body: truncateForTemporal(body, MAX_FAILURE_FIELD),
-      },
-    ]);
+  constructor(
+    identifier: string,
+    json: string,
+    body: BodyInit,
+    message = '',
+    classification: Pick<
+      PostFailureInput,
+      'code' | 'legacyCategory' | 'mutationMayHaveSucceeded'
+    > = {}
+  ) {
+    const failure = normalizePostFailure({
+      error: json,
+      reason: message,
+      ...classification,
+    });
+    super(
+      truncateForTemporal(failure.reason, MAX_FAILURE_MESSAGE),
+      'bad_body',
+      true,
+      [
+        {
+          identifier,
+          json: truncateForTemporal(json, MAX_FAILURE_FIELD),
+          body: truncateForTemporal(body, MAX_FAILURE_FIELD),
+          failure: failureDetails(failure),
+        },
+      ]
+    );
+  }
+}
+
+// A provider may use this only when it knows the publishing mutation was not
+// accepted (for example, a local rate-limit gate rejected before any request
+// bytes were sent). The workflow can safely retry these failures. Plain
+// network/SDK errors stay ambiguous and are never replayed automatically.
+export class ProviderTransient extends ApplicationFailure {
+  constructor(
+    message = 'Provider temporarily unavailable',
+    options: RetryMetadata & {
+      code?: 'rate_limited' | 'provider_unavailable' | 'network_error';
+    } = {}
+  ) {
+    const failure = normalizePostFailure({
+      reason: message,
+      code: options.code || 'provider_unavailable',
+      willRetry: true,
+    });
+    super(
+      truncateForTemporal(failure.reason, MAX_FAILURE_MESSAGE),
+      'provider_transient',
+      true,
+      [
+        {
+          failure: failureDetails(failure),
+          ...(options.retryAfterSeconds
+            ? { retryAfterSeconds: options.retryAfterSeconds }
+            : {}),
+          ...(options.retryAt ? { retryAt: options.retryAt } : {}),
+        },
+      ]
+    );
   }
 }
 
@@ -155,11 +238,225 @@ export abstract class SocialAbstract {
     );
   }
 
+  /**
+   * Independent read-after-write confirmation for providers whose create call
+   * returns synchronously. Providers should override this with an official API
+   * read. The conservative fallback confirms only a canonical URL that embeds
+   * the provider object ID; profile/channel/login pages are never accepted.
+   */
+  public async confirmPost(
+    accessToken: string,
+    postId: string,
+    releaseURL: string,
+    integration: Integration
+  ): Promise<PostConfirmationResult> {
+    if (!postId || postId === 'missing' || !releaseURL) {
+      return {
+        status: 'unsupported',
+        method: 'canonical_platform_url',
+        reason:
+          'The platform did not return a post-specific ID and URL that Publishly can verify independently.',
+      };
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(releaseURL);
+    } catch {
+      return {
+        status: 'unsupported',
+        method: 'canonical_platform_url',
+        reason:
+          'The platform returned a malformed post URL, so Publishly could not verify that the post is live.',
+      };
+    }
+
+    const decodedUrl = decodeURIComponent(parsed.href).toLowerCase();
+    const idCandidates = [
+      postId,
+      postId.split('/').filter(Boolean).pop(),
+      postId.split(':').filter(Boolean).pop(),
+    ]
+      .filter((value): value is string => !!value && value.length >= 3)
+      .map((value) => decodeURIComponent(value).toLowerCase());
+    if (!idCandidates.some((candidate) => decodedUrl.includes(candidate))) {
+      return {
+        status: 'unsupported',
+        method: 'canonical_platform_url',
+        reason:
+          'The returned URL identifies only a profile or channel, not the individual post. Publishly will not report it as confirmed live.',
+      };
+    }
+
+    try {
+      const response = await fetch(parsed, {
+        method: 'GET',
+        headers: { Range: 'bytes=0-1023' },
+        signal: AbortSignal.timeout(15_000),
+        // @ts-ignore - undici dispatcher is not in lib.dom RequestInit.
+        dispatcher: getSsrfSafeDispatcher(),
+      });
+      const evidence = { httpStatus: response.status };
+      try {
+        await response.body?.cancel();
+      } catch {
+        // The status code is the evidence; body cancellation is best-effort.
+      }
+      if (response.ok) {
+        return {
+          status: 'confirmed',
+          method: 'canonical_platform_url',
+          providerPostId: postId,
+          providerUrl: response.url || releaseURL,
+          evidence,
+        };
+      }
+      if (response.status === 404 || response.status === 410) {
+        return {
+          status: 'not_found',
+          method: 'canonical_platform_url',
+          reason:
+            'The platform-specific post URL does not exist yet. Publishly will check again before declaring the post live.',
+          evidence,
+        };
+      }
+      if (response.status === 429 || response.status >= 500) {
+        return {
+          status: 'pending',
+          method: 'canonical_platform_url',
+          reason:
+            'The platform temporarily prevented the independent live-post check. Publishly will retry the read-only check.',
+          evidence,
+        };
+      }
+      return {
+        status: 'unsupported',
+        method: 'canonical_platform_url',
+        reason: `The platform returned HTTP ${response.status} for the post-specific URL, which is not proof that the post is live.`,
+        evidence,
+      };
+    } catch (error) {
+      return {
+        status: 'pending',
+        method: 'canonical_platform_url',
+        reason:
+          error instanceof Error && error.message
+            ? `The independent platform check could not complete: ${error.message}`
+            : 'The independent platform check could not reach the post URL. Publishly will retry the read-only check.',
+      };
+    }
+  }
+
+  /**
+   * Read back provider state after a create call may have been accepted but its
+   * response was lost. A provider must return `absent` only when an official
+   * read proves the mutation did not create a post; unsupported search is
+   * deliberately inconclusive and therefore never authorizes a blind retry.
+   */
+  public async reconcileAmbiguousPost(
+    accessToken: string,
+    input: AmbiguousPostReconciliationInput,
+    integration: Integration
+  ): Promise<AmbiguousPostReconciliationResult> {
+    return {
+      status: 'inconclusive',
+      method: 'provider_readback_unavailable',
+      reason:
+        'This provider adapter cannot prove whether the timed-out create request was accepted. Manual review is required before retry.',
+      evidence: { adapterReadbackImplemented: false },
+    };
+  }
+
+  protected async confirmJsonResource(options: {
+    platform: string;
+    method: string;
+    url: string;
+    request?: RequestInit;
+    expectedId: string;
+    fallbackUrl: string;
+    getId: (body: any) => string | number | null | undefined;
+    getUrl?: (body: any) => string | null | undefined;
+    evidence?: (body: any) => Record<string, string | number | boolean | null>;
+  }): Promise<PostConfirmationResult> {
+    try {
+      const response = await fetch(options.url, {
+        ...options.request,
+        signal: AbortSignal.timeout(15_000),
+        // @ts-ignore - undici dispatcher is not in lib.dom RequestInit.
+        dispatcher: getSsrfSafeDispatcher(),
+      });
+      let body: any = {};
+      try {
+        body = await response.json();
+      } catch {
+        body = {};
+      }
+      const observedId = options.getId(body);
+      const evidence = {
+        httpStatus: response.status,
+        ...(options.evidence?.(body) || {}),
+      };
+      if (
+        response.ok &&
+        observedId !== null &&
+        observedId !== undefined &&
+        String(observedId) === String(options.expectedId)
+      ) {
+        return {
+          status: 'confirmed',
+          method: options.method,
+          providerPostId: String(observedId),
+          providerUrl: options.getUrl?.(body) || options.fallbackUrl,
+          evidence,
+        };
+      }
+      if (response.status === 404 || response.status === 410 || response.ok) {
+        return {
+          status: 'not_found',
+          method: options.method,
+          reason: `${options.platform} did not return the created post from its read API yet. Publishly will retry the read-only confirmation.`,
+          evidence,
+        };
+      }
+      if (response.status === 429 || response.status >= 500) {
+        return {
+          status: 'pending',
+          method: options.method,
+          reason: `${options.platform} temporarily prevented the independent post read. Publishly will retry without re-posting.`,
+          evidence,
+        };
+      }
+      return {
+        status: 'unsupported',
+        method: options.method,
+        reason: `${options.platform} returned HTTP ${response.status} when Publishly read the created post. Reconnect the account or restore its read permissions.`,
+        evidence,
+      };
+    } catch (error) {
+      return {
+        status: 'pending',
+        method: options.method,
+        reason:
+          error instanceof Error && error.message
+            ? `${options.platform} confirmation could not complete: ${error.message}`
+            : `${options.platform} confirmation could not reach the read API. Publishly will retry without re-posting.`,
+      };
+    }
+  }
+
   // axios flavor of the SSRF-safe dispatcher that `this.fetch` applies - for
   // providers that need axios (form-data / stream uploads). Never call plain
   // axios with a user-influenced URL.
   protected getSsrfSafeAxios() {
     return getSsrfSafeAxios();
+  }
+
+  protected resolveMediaTransportPath(path: string) {
+    return this.resolveMediaTransportRequest(path).url;
+  }
+
+  protected resolveMediaTransportRequest(path: string) {
+    return privateAdapterMediaRequest(path);
   }
 
   protected assetBoolean(value: boolean | string) {
@@ -188,6 +485,8 @@ export abstract class SocialAbstract {
   // Resolves the total byte size of the media without loading it into memory:
   // a HEAD request for remote URLs, statSync for local files.
   protected async mediaSize(path: string, identifier = ''): Promise<number> {
+    const transport = this.resolveMediaTransportRequest(path);
+    path = transport.url;
     if (path.indexOf('http') === 0) {
       // the media path is user-influenced, keep the SSRF-safe dispatcher that
       // this.fetch applies to every other outbound request. identity encoding
@@ -195,7 +494,10 @@ export abstract class SocialAbstract {
       // (fetch transparently decompresses encoded bodies).
       const head = await fetch(path, {
         method: 'HEAD',
-        headers: { 'accept-encoding': 'identity' },
+        headers: {
+          ...transport.headers,
+          'accept-encoding': 'identity',
+        },
         dispatcher: getSsrfSafeDispatcher(),
       } as any);
       const length = Number(head.headers.get('content-length'));
@@ -224,9 +526,12 @@ export abstract class SocialAbstract {
     end: number,
     identifier = ''
   ): Promise<Buffer> {
+    const transport = this.resolveMediaTransportRequest(path);
+    path = transport.url;
     if (path.indexOf('http') === 0) {
       const response = await fetch(path, {
         headers: {
+          ...transport.headers,
           Range: `bytes=${start}-${end}`,
           'accept-encoding': 'identity',
         },
@@ -262,6 +567,8 @@ export abstract class SocialAbstract {
     path: string,
     identifier = ''
   ): Promise<Readable> {
+    const transport = this.resolveMediaTransportRequest(path);
+    path = transport.url;
     if (path.indexOf('http') !== 0) {
       return createReadStream(path);
     }
@@ -269,7 +576,10 @@ export abstract class SocialAbstract {
     // identity encoding so the streamed byte count matches the size mediaSize
     // reported - a decompressed body would overflow any declared length.
     const response = await fetch(path, {
-      headers: { 'accept-encoding': 'identity' },
+      headers: {
+        ...transport.headers,
+        'accept-encoding': 'identity',
+      },
       dispatcher: getSsrfSafeDispatcher(),
     } as any);
 
@@ -313,15 +623,24 @@ export abstract class SocialAbstract {
       const handleError = this.handleErrors(json, status);
 
       if (
-        totalRetries <= 2 &&
-        (status === 429 ||
-          (status === 500 && !handleError) ||
-          handleError?.type === 'retry' ||
-          json.includes('rate_limit_exceeded') ||
-          json.includes('Rate limit'))
+        status === 429 ||
+        json.includes('rate_limit_exceeded') ||
+        json.includes('Rate limit')
       ) {
-        await timer(5000);
-        return this.runStreamedUpload(func, identifier, totalRetries + 1);
+        throw new ProviderTransient(
+          handleError?.value || POST_FAILURE_CATALOG.rate_limited.defaultReason,
+          {
+            code: 'rate_limited',
+            ...parseRetryHeaders(err.response.headers),
+          }
+        );
+      }
+
+      if (handleError?.type === 'retry') {
+        throw new ProviderTransient(
+          handleError.value ||
+            POST_FAILURE_CATALOG.provider_unavailable.defaultReason
+        );
       }
 
       if (
@@ -336,7 +655,13 @@ export abstract class SocialAbstract {
         identifier,
         json,
         '{}',
-        handleError?.value || 'Unknown Error'
+        handleError?.value ||
+          (status >= 500
+            ? 'The platform returned an ambiguous error after the upload request. Check the account before retrying.'
+            : 'The platform rejected the streamed media upload.'),
+        status >= 500
+          ? { code: 'outcome_unknown', mutationMayHaveSucceeded: true }
+          : {}
       );
     }
   }
@@ -363,7 +688,11 @@ export abstract class SocialAbstract {
       value = await func();
     } catch (err) {
       const handle = this.handleErrors(safeStringify(err), 200);
-      value = { err: true, value: 'Unknown Error', ...(handle || {}) };
+      value = {
+        err: true,
+        value: normalizePostFailure({ error: err }).reason,
+        ...(handle || {}),
+      };
       globalErr = err;
     }
 
@@ -422,30 +751,22 @@ export abstract class SocialAbstract {
 
     if (
       request.status === 429 ||
-      (request.status === 500 && !handleError) ||
       json.includes('rate_limit_exceeded') ||
       json.includes('Rate limit')
     ) {
-      await timer(5000);
-      return this.fetch(
-        url,
-        options,
-        identifier,
-        totalRetries + 1,
-        ignoreConcurrency,
-        handleError?.value || 'Unknown Error'
+      throw new ProviderTransient(
+        handleError?.value || POST_FAILURE_CATALOG.rate_limited.defaultReason,
+        {
+          code: 'rate_limited',
+          ...parseRetryHeaders(request.headers),
+        }
       );
     }
 
     if (handleError?.type === 'retry') {
-      await timer(5000);
-      return this.fetch(
-        url,
-        options,
-        identifier,
-        totalRetries + 1,
-        ignoreConcurrency,
-        handleError?.value || 'Unknown Error'
+      throw new ProviderTransient(
+        handleError.value ||
+          POST_FAILURE_CATALOG.provider_unavailable.defaultReason
       );
     }
 
@@ -462,11 +783,25 @@ export abstract class SocialAbstract {
       );
     }
 
+    const readOnly = !options.method || /^(?:GET|HEAD)$/i.test(options.method);
+    if (request.status >= 500 && readOnly) {
+      throw new ProviderTransient(
+        handleError?.value ||
+          POST_FAILURE_CATALOG.provider_unavailable.defaultReason
+      );
+    }
+
     throw new BadBody(
       identifier,
       json,
       options.body!,
-      handleError?.value || 'Unknown Error'
+      handleError?.value ||
+        (request.status >= 500
+          ? 'The platform returned an ambiguous error after the publishing request. Check the account before retrying.'
+          : POST_FAILURE_CATALOG.provider_rejected_content.defaultReason),
+      request.status >= 500
+        ? { code: 'outcome_unknown', mutationMayHaveSucceeded: true }
+        : {}
     );
   }
 

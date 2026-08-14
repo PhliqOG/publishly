@@ -44,7 +44,7 @@ const ENTRIES: Entry[] = [
       'Initial Publishly platform build, forked from the open-source Postiz engine (AGPL-3.0).',
       'Marketing site stood up alongside the in-app product.',
       'Security hardening pass across authentication, encrypted token storage & scoped API keys.',
-      'Publishing pipeline for scheduling and delivering posts across connected social accounts.',
+      'Background publishing that keeps scheduled posts moving after the browser closes.',
     ],
   },
 ];
@@ -60,7 +60,10 @@ export default function ChangelogPage() {
               <span className="mk-eyebrow" style={{ display: 'block' }}>
                 Changelog
               </span>
-              <h1 className="mk-h2-lg" style={{ marginTop: 18, maxWidth: '16ch' }}>
+              <h1
+                className="mk-h2-lg"
+                style={{ marginTop: 18, maxWidth: '16ch' }}
+              >
                 What actually shipped.
               </h1>
               <p className="mk-section-lede">
@@ -77,15 +80,17 @@ export default function ChangelogPage() {
         <section className="mk-section" style={{ paddingTop: 32 }}>
           <div className="mk-container">
             <QuickAnswer>
-              Publishly has not launched yet — this changelog covers two days
-              of build so far. 2026-08-09 was the initial platform build on
-              the open-source Postiz engine; 2026-08-10 repositioned the
-              product around delivery reliability with a documented failure
-              catalog, signed failure webhooks, publishing-job receipts, a new
-              flat pricing model & a rebuilt marketing site.
+              Publishly has not launched yet — this changelog covers two days of
+              build so far. 2026-08-09 was the initial platform build on the
+              open-source Postiz engine; 2026-08-10 repositioned the product
+              around delivery reliability with a documented failure catalog,
+              signed failure webhooks, publishing-job receipts, a new flat
+              pricing model & a rebuilt marketing site.
             </QuickAnswer>
 
-            <div style={{ marginTop: 48, borderTop: '1px solid var(--mk-line)' }}>
+            <div
+              style={{ marginTop: 48, borderTop: '1px solid var(--mk-line)' }}
+            >
               {ENTRIES.map((entry) => (
                 <article
                   key={entry.date}
@@ -133,8 +138,8 @@ export default function ChangelogPage() {
             >
               No invented version numbers and no back-filled feature dates —
               when a claim here needs backing, it maps to{' '}
-              <code className="mk-mono">data/public-product-facts.json</code>{' '}
-              or the commit history of this repository.
+              <code className="mk-mono">data/public-product-facts.json</code> or
+              the commit history of this repository.
             </p>
           </div>
         </section>

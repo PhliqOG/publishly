@@ -28,8 +28,6 @@ export class LinkedinPageProvider
   override scopes = [
     'openid',
     'profile',
-    'w_member_social',
-    'r_basicprofile',
     'rw_organization_admin',
     'w_organization_social',
     'r_organization_social',
@@ -59,14 +57,6 @@ export class LinkedinPageProvider
       })
     ).json();
 
-    const { vanityName } = await (
-      await fetch('https://api.linkedin.com/v2/me', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-    ).json();
-
     const {
       name,
       sub: id,
@@ -86,7 +76,7 @@ export class LinkedinPageProvider
       expiresIn: expires_in,
       name,
       picture,
-      username: vanityName,
+      username: name,
     };
   }
 
@@ -245,14 +235,6 @@ export class LinkedinPageProvider
       })
     ).json();
 
-    const { vanityName } = await (
-      await fetch('https://api.linkedin.com/v2/me', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-    ).json();
-
     return {
       id: id,
       accessToken,
@@ -260,7 +242,7 @@ export class LinkedinPageProvider
       expiresIn,
       name,
       picture,
-      username: vanityName,
+      username: name,
     };
   }
 

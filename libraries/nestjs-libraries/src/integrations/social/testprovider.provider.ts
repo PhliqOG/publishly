@@ -1,7 +1,11 @@
 import { Integration } from '@prisma/client';
 import crypto from 'crypto';
-import { appendFileSync } from 'fs';
-import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import { appendFileSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
+import {
+  ProviderTransient,
+  SocialAbstract,
+} from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import {
   AnalyticsData,
   AuthTokenDetails,
@@ -23,7 +27,10 @@ import {
 //   TEST_PROVIDER_MODE=pending      post() returns 'pending' so the workflow
 //                                   must run checkPostStatus -> finalizePost
 //   TEST_PROVIDER_FAIL_TIMES=n      first n post() attempts per post id throw a
-//                                   retryable error (exercises Temporal retry)
+//                                   safe pre-publish transient error
+//   TEST_PROVIDER_AMBIGUOUS_FAIL_TIMES=n
+//                                   record a side effect, then fail ambiguously;
+//                                   the workflow must never replay the publish
 //   TEST_PROVIDER_SINK=<file path>  append one JSON line per side-effecting
 //                                   call, so tests in other processes can
 //                                   assert exactly-once behavior
@@ -37,6 +44,10 @@ type SinkEvent = {
 
 const attemptCounters = new Map<string, number>();
 export const testProviderCalls: SinkEvent[] = [];
+export function resetTestProviderState() {
+  testProviderCalls.splice(0, testProviderCalls.length);
+  attemptCounters.clear();
+}
 
 // In-memory reply store backing the inbox capability (dev/test only).
 const inboxReplies: Array<{
@@ -50,11 +61,10 @@ const inboxReplies: Array<{
 
 function record(event: SinkEvent) {
   testProviderCalls.push(event);
-  if (process.env.TEST_PROVIDER_SINK) {
-    appendFileSync(
-      process.env.TEST_PROVIDER_SINK,
-      JSON.stringify(event) + '\n'
-    );
+  const sink = process.env.TEST_PROVIDER_SINK;
+  if (sink) {
+    mkdirSync(dirname(sink), { recursive: true });
+    appendFileSync(sink, JSON.stringify(event) + '\n');
   }
 }
 
@@ -131,16 +141,24 @@ export class TestProviderProvider
 
     const failTimes = parseInt(process.env.TEST_PROVIDER_FAIL_TIMES || '0', 10);
     if (attempt <= failTimes) {
+      throw new ProviderTransient(
+        `Test provider simulated pre-publish transient failure (attempt ${attempt}/${failTimes})`
+      );
+    }
+
+    const ambiguousFailTimes = parseInt(
+      process.env.TEST_PROVIDER_AMBIGUOUS_FAIL_TIMES || '0',
+      10
+    );
+    if (attempt <= failTimes + ambiguousFailTimes) {
       record({
         event: 'post',
         ids: postDetails.map((p) => p.id),
         attempt,
         at: new Date().toISOString(),
       });
-      // Plain Error => retryable by the Temporal activity retry policy, unlike
-      // BadBody/RefreshToken which are non-retryable ApplicationFailures.
       throw new Error(
-        `Test provider simulated transient failure (attempt ${attempt}/${failTimes})`
+        `Test provider simulated ambiguous failure after side effect (attempt ${attempt})`
       );
     }
 
@@ -196,7 +214,10 @@ export class TestProviderProvider
     integration: Integration
   ): Promise<PendingCheckResponse> {
     if (pendingData?.step === 'processing') {
-      return { status: 'ready', pendingData: { ...pendingData, step: 'ready' } };
+      return {
+        status: 'ready',
+        pendingData: { ...pendingData, step: 'ready' },
+      };
     }
     // Per the pending contract: once finalizePost's mutations went through,
     // this must report completed so a finalize retry can't duplicate.
@@ -224,6 +245,46 @@ export class TestProviderProvider
     };
   }
 
+  public override async confirmPost(
+    accessToken: string,
+    postId: string,
+    releaseURL: string,
+    integration: Integration
+  ) {
+    return {
+      status: 'confirmed' as const,
+      method: 'test_provider_read',
+      providerPostId: postId,
+      providerUrl: releaseURL,
+      evidence: { testProvider: true },
+    };
+  }
+
+  public override async reconcileAmbiguousPost(
+    accessToken: string,
+    input: { publishlyPostId: string; mutationFingerprint: string; mutationStartedAt: string },
+    integration: Integration
+  ) {
+    const accepted = testProviderCalls.find(
+      (event) => event.event === 'post' && event.ids.includes(input.publishlyPostId)
+    );
+    if (!accepted) {
+      return {
+        status: 'absent' as const,
+        method: 'test_provider_side_effect_read',
+        reason: 'The test provider side-effect ledger proves no matching post exists.',
+        evidence: { testProvider: true, sideEffectCount: 0 },
+      };
+    }
+    return {
+      status: 'confirmed' as const,
+      method: 'test_provider_side_effect_read',
+      providerPostId: `tp_${input.publishlyPostId}`,
+      providerUrl: `https://testprovider.invalid/p/${input.publishlyPostId}`,
+      evidence: { testProvider: true, sideEffectCount: 1 },
+    };
+  }
+
   // Inbox capability: deterministic seeded comments per integration plus any
   // replies sent in this process - proves the unified-inbox pipe end to end
   // without any external platform.
@@ -238,7 +299,11 @@ export class TestProviderProvider
       postId: params.postId || `tp_seeded_${n}`,
       releaseURL: `https://testprovider.invalid/p/seeded_${n}`,
       author: {
-        name: ['Test Commenter One', 'Test Commenter Two', 'Test Commenter Three'][n - 1],
+        name: [
+          'Test Commenter One',
+          'Test Commenter Two',
+          'Test Commenter Three',
+        ][n - 1],
         username: `test.commenter.${n}`,
         picture: '',
       },
@@ -248,7 +313,9 @@ export class TestProviderProvider
         'Third seeded comment asking a question: does replying work?',
       ][n - 1],
       createdAt: new Date(Date.now() - n * 3600_000).toISOString(),
-      repliesCount: inboxReplies.filter((r) => r.parentId === `tc_${seedBase}_${n}`).length,
+      repliesCount: inboxReplies.filter(
+        (r) => r.parentId === `tc_${seedBase}_${n}`
+      ).length,
     }));
 
     const replies: InboxComment[] = inboxReplies
@@ -271,7 +338,11 @@ export class TestProviderProvider
     message: string,
     postId?: string
   ): Promise<{ id: string; releaseURL?: string }> {
-    const id = 'tcr_' + deterministicId(integration.id + commentId + message + inboxReplies.length);
+    const id =
+      'tcr_' +
+      deterministicId(
+        integration.id + commentId + message + inboxReplies.length
+      );
     inboxReplies.push({
       id,
       integrationId: integration.id,

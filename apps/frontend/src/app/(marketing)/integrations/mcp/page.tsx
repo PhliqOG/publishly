@@ -13,26 +13,26 @@ import {
 export const metadata: Metadata = {
   title: 'Social media MCP server',
   description:
-    'Publishly ships a built-in MCP server, so any MCP-capable AI assistant can schedule and manage social posts through your Publishly workspace — authenticated with your own API key.',
+    'Let an approved AI assistant publish and schedule through Publishly, then check delivery receipts and account health with controlled access.',
   alternates: { canonical: '/integrations/mcp' },
 };
 
 const STEPS: Array<{ title: string; body: string }> = [
   {
-    title: 'Authorize with OAuth',
-    body: 'Connect your assistant with OAuth at the /mcp-oauth endpoint — the authorization runs against your Publishly account, the same as any other OAuth client.',
+    title: 'Choose how the assistant signs in',
+    body: 'Use the guided OAuth connection or an API key. Give the assistant read-only access, posting access, or both — and revoke it whenever you want.',
   },
   {
     title: 'Point your assistant at the Publishly MCP endpoint',
-    body: 'Add Publishly as an MCP server in your assistant’s configuration, using your Publishly backend URL — most MCP clients handle the OAuth handshake automatically. The exact connection details for your deployment are in the API docs.',
+    body: 'Add the Publishly connection shown in the API docs. Keys stay out of the web address and logs.',
   },
   {
     title: 'Ask for what you want, in plain language',
-    body: '“Schedule this across the three retail brands for Thursday morning.” The assistant calls Publishly’s tools; Publishly validates, schedules, and reports back — same rules as the dashboard.',
+    body: 'Ask it to publish now, schedule for later, check a post’s receipt, or find the brand, client, or location accounts that need attention. Publishly still checks ownership, platform rules, and plan limits.',
   },
   {
-    title: 'Let the receipts close the loop',
-    body: 'Every scheduled post still gets a delivery receipt and a failure reason. Automation through MCP changes who types — not what gets verified.',
+    title: 'Keep proof for every post',
+    body: 'Every scheduled post still gets a delivery receipt and a failure reason. Letting an assistant help never removes the checks.',
   },
 ];
 
@@ -51,47 +51,42 @@ export default function McpIntegrationPage() {
                 Integrations · MCP
               </span>
               <h1 className="mk-h2">
-                A social media MCP server, built in.
+                Let an approved AI assistant schedule posts safely.
               </h1>
               <p className="mk-section-lede">
-                Publishly’s backend ships a Model Context Protocol server. Any
-                MCP-capable AI assistant can drive your posting schedule —
-                authorized against your Publishly account through OAuth.
+                Publishly includes the connection an AI assistant needs to
+                publish, schedule, check receipts, and find accounts that need
+                attention — with access you control.
               </p>
             </header>
             <QuickAnswer>
-              Publishly includes a built-in MCP (Model Context Protocol)
-              server — it starts with the backend, no plugin to install. Connect
-              an MCP-capable assistant to your Publishly backend’s MCP endpoint
-              and authorize it with OAuth, and it can schedule, list and manage
-              posts in your workspace through the same validated pipeline as
-              the dashboard.
+              Publishly includes a built-in MCP (Model Context Protocol) server
+              — it starts with the app, with no extra plugin to install. A
+              compatible assistant can publish, schedule, read delivery
+              receipts, and check account health. Every action stays inside the
+              workspace and permissions you approved.
             </QuickAnswer>
             <Byline published="2026-08-10" />
 
             <div className="mk-prose" style={{ marginTop: 48 }}>
               <h2>What MCP is</h2>
               <p>
-                The Model Context Protocol is an open standard that lets AI
-                assistants call tools exposed by other software — the
-                assistant discovers what a server can do and invokes it with
-                structured, permissioned calls instead of screen-scraping or
-                pasted API snippets. Publishly exposes its scheduling
-                capabilities as one of those servers.
+                MCP is a common way for an AI assistant to use approved tools in
+                another product. In Publishly, it means the assistant can
+                schedule or check a post without pretending to be a person
+                clicking through the site.
               </p>
 
               <h2>What you can do with it</h2>
               <p>
-                Drive scheduling from wherever you already work with an
-                assistant: draft a post in conversation and have it scheduled
-                to the right channels, ask what’s queued this week, or
-                reschedule a slot — without opening the dashboard. Every action
-                goes through the same server-side validation, delivery
-                tracking, and audit trail as a post created by hand. An
-                assistant acts inside the workspace you authorized it against.
+                Drive publishing from wherever you already work with an
+                assistant: publish now, schedule a checked post, ask what
+                happened to it, or find disconnected accounts. Every action
+                stays inside the approved workspace and leaves the same proof as
+                work done in the dashboard.
               </p>
 
-              <h2>Setup, honestly outlined</h2>
+              <h2>How to set it up</h2>
             </div>
 
             <div className="mk-benefits" style={{ margin: '8px 0 0' }}>
@@ -127,8 +122,8 @@ export default function McpIntegrationPage() {
               >
                 API docs
               </Link>{' '}
-              — they’re versioned with the backend, so this page stays honest
-              by not duplicating them.
+              — they’re versioned with the backend, so this page stays honest by
+              not duplicating them.
             </p>
           </div>
         </section>
@@ -145,7 +140,7 @@ export default function McpIntegrationPage() {
             },
             {
               q: 'Can an assistant post something my workspace hasn’t authorized?',
-              a: 'MCP access is authorized per workspace and can be revoked from your settings. Per-scope limits on MCP tools are in development — today scopes constrain the REST API only.',
+              a: 'No. MCP access is authorized per workspace, scoped per tool, and revocable. A read-only key cannot call publish_post or schedule_post, and cross-workspace resource IDs are rejected.',
             },
           ]}
         />

@@ -1,6 +1,7 @@
 import {
   api,
   closeDb,
+  db,
   registerUser,
   seedIntegration,
   stackUp,
@@ -47,8 +48,8 @@ d('tenant isolation (IDOR)', () => {
     const idsB = JSON.stringify(listB.body || '');
     expect(idsB).not.toContain(webhookId);
 
-    await api(userB, 'DELETE', `/webhooks/${webhookId}`);
-    // Whatever status the delete returned, the resource must survive
+    const attack = await api(userB, 'DELETE', `/webhooks/${webhookId}`);
+    expect(attack.status).toBe(404);
     const stillThere = await api(userA, 'GET', '/webhooks');
     expect(JSON.stringify(stillThere.body)).toContain(webhookId);
   });
@@ -59,7 +60,10 @@ d('tenant isolation (IDOR)', () => {
     const listB = await api(userB, 'GET', '/integrations/list');
     expect(JSON.stringify(listB.body || '')).not.toContain(integration.id);
 
-    await api(userB, 'POST', '/integrations/disable', { id: integration.id });
+    const attack = await api(userB, 'POST', '/integrations/disable', {
+      id: integration.id,
+    });
+    expect(attack.status).toBe(404);
     const listA = await api(userA, 'GET', '/integrations/list');
     const rowA = (listA.body?.integrations || []).find(
       (i: any) => i.id === integration.id
@@ -113,6 +117,100 @@ d('tenant isolation (IDOR)', () => {
     expect(readA.status).toBe(200);
   });
 
+  it('inbox workflow state: B cannot mutate comments in a channel owned by A', async () => {
+    const integrationA = await seedIntegration(userA.orgId);
+    const commentId = `comment-${Date.now()}`;
+
+    const saved = await api(
+      userA,
+      'POST',
+      `/inbox/${integrationA.id}/${commentId}/state`,
+      { read: true, internalNote: 'A private note' }
+    );
+    expect(saved.status).toBeLessThan(300);
+
+    const attack = await api(
+      userB,
+      'POST',
+      `/inbox/${integrationA.id}/${commentId}/state`,
+      { resolved: true, internalNote: 'tampered' }
+    );
+    expect(attack.status).toBe(404);
+
+    const state = await db().inboxState.findUnique({
+      where: {
+        organizationId_integrationId_externalCommentId: {
+          organizationId: userA.orgId,
+          integrationId: integrationA.id,
+          externalCommentId: commentId,
+        },
+      },
+    });
+    expect(state?.internalNote).toBe('A private note');
+    expect(state?.resolvedAt).toBeNull();
+  });
+
+  it('publishing jobs: B cannot read the job of a post owned by A', async () => {
+    const integrationA = await seedIntegration(userA.orgId);
+    const post = await db().post.create({
+      data: {
+        organizationId: userA.orgId,
+        integrationId: integrationA.id,
+        state: 'QUEUE',
+        publishDate: new Date(Date.now() + 3_600_000),
+        content: 'private scheduled content',
+        group: `isolation-${Date.now()}`,
+        settings: '{}',
+        image: '[]',
+      },
+    });
+    const job = await db().publishingJob.create({
+      data: {
+        organizationId: userA.orgId,
+        integrationId: integrationA.id,
+        postId: post.id,
+        provider: 'testprovider',
+        state: 'SCHEDULED',
+        deliveryStage: 'queued',
+        stageUpdatedAt: new Date(),
+        idempotencyKey: `publish:${post.id}`,
+      },
+    });
+    await db().publishingReceipt.create({
+      data: {
+        id: `isolation-receipt-${post.id}`,
+        organizationId: userA.orgId,
+        postId: post.id,
+        publishingJobId: job.id,
+        provider: 'testprovider',
+        stage: 'queued',
+        webhookState: 'NOT_CONFIGURED',
+      },
+    });
+
+    const attack = await api(userB, 'GET', `/posts/${post.id}/publishing-job`);
+    expect(attack.status).toBe(404);
+
+    const own = await api(userA, 'GET', `/posts/${post.id}/publishing-job`);
+    expect(own.status).toBe(200);
+    expect(own.body?.postId).toBe(post.id);
+
+    const receiptAttack = await api(
+      userB,
+      'GET',
+      `/posts/${post.id}/receipts`
+    );
+    expect(receiptAttack.status).toBe(404);
+    const ownReceipts = await api(
+      userA,
+      'GET',
+      `/posts/${post.id}/receipts`
+    );
+    expect(ownReceipts.status).toBe(200);
+    expect(ownReceipts.body?.receipts).toHaveLength(1);
+    expect(ownReceipts.body?.receipts?.[0]?.stage).toBe('queued');
+  });
+
   it('public API: an api key only reaches its own org data', async () => {
     const createdKey = await api(userA, 'POST', '/api-keys', {
       name: 'A public key',
@@ -124,11 +222,41 @@ d('tenant isolation (IDOR)', () => {
     const integrationB = await seedIntegration(userB.orgId);
 
     const res = await fetch(
-      `${process.env.TEST_BACKEND_URL || 'http://localhost:3000'}/public/v1/integrations`,
+      `${
+        process.env.TEST_BACKEND_URL || 'http://localhost:3000'
+      }/public/v1/integrations`,
       { headers: { Authorization: key } }
     );
     const body = await res.text();
     expect(res.status).toBeLessThan(300);
     expect(body).not.toContain(integrationB.id);
+  });
+
+  it('workspace members cannot access owner/admin configuration', async () => {
+    await db().userOrganization.create({
+      data: {
+        userId: userB.userId,
+        organizationId: userA.orgId,
+        role: 'USER',
+      },
+    });
+
+    const memberRequest = (path: string) =>
+      fetch(
+        `${process.env.TEST_BACKEND_URL || 'http://localhost:3000'}${path}`,
+        {
+          headers: { ...userB.authHeader, showorg: userA.orgId },
+        }
+      );
+
+    await expect(memberRequest('/api-keys')).resolves.toMatchObject({
+      status: 403,
+    });
+    await expect(memberRequest('/webhooks')).resolves.toMatchObject({
+      status: 403,
+    });
+    await expect(memberRequest('/billing')).resolves.toMatchObject({
+      status: 403,
+    });
   });
 });

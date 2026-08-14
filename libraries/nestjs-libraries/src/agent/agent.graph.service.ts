@@ -13,7 +13,6 @@ import dayjs from 'dayjs';
 import { PostsService } from '@gitroom/nestjs-libraries/database/prisma/posts/posts.service';
 import { z } from 'zod';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
-import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { GeneratorDto } from '@gitroom/nestjs-libraries/dtos/generator/generator.dto';
 import { generationError } from '@gitroom/nestjs-libraries/openai/generation.error';
 
@@ -104,7 +103,6 @@ const contentZod = (
 
 @Injectable()
 export class AgentGraphService {
-  private storage = UploadFactory.createStorage();
   constructor(
     private _postsService: PostsService,
     private _mediaService: MediaService
@@ -115,7 +113,7 @@ export class AgentGraphService {
         messages: {
           reducer: (currentState, updateValue) =>
             currentState.concat(updateValue),
-          default: () => [],
+          default: (): BaseMessage[] => [],
         },
         fresearch: null,
         format: null,
@@ -342,13 +340,13 @@ export class AgentGraphService {
     const all = await Promise.all(
       (state.content || []).map(async (p) => {
         if (p.image) {
-          const upload = await this.storage.uploadSimple(p.image);
-          const name = upload.split('/').pop()!;
-          const uploadWithId = await this._mediaService.saveFile(
-            state.orgId,
-            name,
-            upload
-          );
+          const uploadWithId = String(p.image).startsWith('data:')
+            ? await this._mediaService.uploadDataUrl(
+                state.orgId,
+                p.image,
+                'generated-image.png'
+              )
+            : await this._mediaService.importFromUrl(state.orgId, p.image);
 
           return {
             ...p,

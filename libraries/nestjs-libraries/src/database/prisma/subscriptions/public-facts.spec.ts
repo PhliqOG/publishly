@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { pricing, UNLIMITED_CHANNELS } from './pricing';
+import { pricing, publicPricing, UNLIMITED_CHANNELS } from './pricing';
 
 // Guards the canonical public fact registry (data/public-product-facts.json)
 // against drift: marketing pages consume the registry, billing enforces
@@ -25,6 +25,20 @@ const marketingConfig = readFileSync(
   'utf8'
 );
 
+const pricingPage = readFileSync(
+  join(
+    ROOT,
+    'apps',
+    'frontend',
+    'src',
+    'app',
+    '(marketing)',
+    'pricing',
+    'page.tsx'
+  ),
+  'utf8'
+);
+
 describe('public product facts registry', () => {
   it('tier prices and quotas match pricing.ts exactly', () => {
     for (const tier of facts.pricing.tiers) {
@@ -39,7 +53,16 @@ describe('public product facts registry', () => {
         expect(plan.channel).toBe(tier.accounts);
       }
       expect(plan.public_api).toBe(tier.api_access);
+      expect(plan.full_observability).toBe(true);
+      expect(plan.successful_post_metering).toBe(true);
+      expect(plan.dead_account_detection).toBe(true);
+      expect(plan.priority_retries).toBe(['TEAM', 'PRO'].includes(tier.key));
+      expect(plan.sla).toBe(['TEAM', 'PRO'].includes(tier.key));
     }
+    expect(Object.keys(publicPricing)).toEqual(
+      facts.pricing.tiers.map((tier: { key: string }) => tier.key)
+    );
+    expect(facts.pricing.meter).toMatch(/confirmed_live/);
   });
 
   it('yearly pricing follows the published multiplier', () => {
@@ -60,6 +83,15 @@ describe('public product facts registry', () => {
     // Strip comments — the compliance rule itself names the banned words.
     const copyOnly = marketingConfig.replace(/^\s*\/\/.*$/gm, '');
     expect(banned.test(copyOnly)).toBe(false);
+  });
+
+  it('pricing copy states successful-only metering and contains no stale scheduled-post claim', () => {
+    expect(pricingPage).toMatch(/confirmed-live/i);
+    expect(pricingPage).toMatch(/failed[^.]+(no quota|consume no quota)/i);
+    expect(pricingPage).not.toMatch(
+      /quota counts posts when they.re scheduled/i
+    );
+    expect(pricingPage).not.toMatch(/metering upgrade is in development/i);
   });
 
   it('analytics network list never claims the known-absent providers', () => {

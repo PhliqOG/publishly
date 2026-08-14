@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ApiKeysRepository } from '@gitroom/nestjs-libraries/database/prisma/api-keys/api-keys.repository';
 import { generateApiKey, hashApiKey } from '@gitroom/helpers/auth/crypto.v2';
 
@@ -9,6 +9,9 @@ export const API_KEY_SCOPES = [
   'media:write',
   'integrations:read',
   'integrations:write',
+  'webhooks:read',
+  'webhooks:write',
+  'analytics:read',
   'notifications:read',
   'video:write',
 ] as const;
@@ -19,6 +22,8 @@ export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 // usable credentials, unlike the legacy reversible Organization.apiKey.
 @Injectable()
 export class ApiKeysService {
+  private readonly logger = new Logger(ApiKeysService.name);
+
   constructor(private _apiKeysRepository: ApiKeysRepository) {}
 
   // The full key is returned exactly once, at creation.
@@ -48,7 +53,17 @@ export class ApiKeysService {
     // Best-effort usage stamp, throttled to once a minute per key so hot keys
     // do not turn every request into a write.
     const olderThan = new Date(Date.now() - 60_000);
-    this._apiKeysRepository.touchLastUsed(row.id, olderThan).catch(() => {});
+    this._apiKeysRepository.touchLastUsed(row.id, olderThan).catch((error) => {
+      this.logger.warn({
+        event: 'api_key_usage_stamp_failed',
+        keyId: row.id,
+        code: 'api_key_usage_stamp_unavailable',
+        reason:
+          error instanceof Error && error.message
+            ? error.message
+            : 'The API key usage timestamp could not be updated.',
+      });
+    });
 
     return {
       organization: row.organization,

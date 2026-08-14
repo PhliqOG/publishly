@@ -1,4 +1,12 @@
-import { Body, Controller, Get, HttpException, Param, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpException,
+  Param,
+  Post,
+  Req,
+} from '@nestjs/common';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { StripeService } from '@gitroom/nestjs-libraries/services/stripe.service';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
@@ -11,8 +19,14 @@ import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/n
 import { Request } from 'express';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
+import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
+import {
+  AuthorizationActions,
+  Sections,
+} from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
 @ApiTags('Billing')
+@CheckPolicies([AuthorizationActions.Read, Sections.OWNER])
 @Controller('/billing')
 export class BillingController {
   constructor(
@@ -58,7 +72,20 @@ export class BillingController {
   async finishTrial(@GetOrgFromRequest() org: Organization) {
     try {
       await this._stripeService.finishTrial(org.paymentId);
-    } catch (err) {}
+    } catch (error) {
+      throw new HttpException(
+        {
+          failureClass: 'recoverable',
+          code: 'stripe_trial_update_failed',
+          reason:
+            error instanceof Error && error.message
+              ? error.message
+              : 'Stripe could not finish the trial at this time.',
+          retryable: true,
+        },
+        502
+      );
+    }
     return {
       finish: true,
     };
@@ -267,5 +294,4 @@ export class BillingController {
       body.subscription
     );
   }
-
 }

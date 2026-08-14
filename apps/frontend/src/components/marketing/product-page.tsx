@@ -50,7 +50,9 @@ export function ProductMarketingPage({
   endpoints?: Array<{ method: string; path: string; note: string }>;
 }) {
   const foundations = [
-    ...MARKETING.answers.slice(0, 4).map((entry) => ({ tag: 'Delivery', ...entry })),
+    ...MARKETING.answers
+      .slice(0, 4)
+      .map((entry) => ({ tag: 'Delivery', ...entry })),
     ...MARKETING.security.map((entry) => ({ tag: 'Security', ...entry })),
     {
       tag: 'Source',
@@ -61,7 +63,7 @@ export function ProductMarketingPage({
 
   const statementText =
     statement ||
-    'Whatever the page, the rail is the same — every destination runs as a durable workflow with a deterministic identity & honest per-network status.';
+    'Every destination gets its own result. A problem on one network never hides what happened on another.';
 
   return (
     <>
@@ -71,16 +73,28 @@ export function ProductMarketingPage({
         <section className="mk-hero">
           <div className="mk-container">
             <span className="mk-eyebrow">{eyebrow}</span>
-            <h1 className="mk-h2-lg" style={{ marginTop: 18, maxWidth: '18ch' }}>
+            <h1
+              className="mk-h2-lg"
+              style={{ marginTop: 18, maxWidth: '18ch' }}
+            >
               {title}
             </h1>
             <p className="mk-section-lede" style={{ maxWidth: '54ch' }}>
               {lede}
             </p>
             <div
-              style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center', marginTop: 34 }}
+              style={{
+                display: 'flex',
+                gap: 18,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                marginTop: 34,
+              }}
             >
-              <Link href={MARKETING.authRegister} className="mk-btn mk-btn-primary">
+              <Link
+                href={MARKETING.authRegister}
+                className="mk-btn mk-btn-primary"
+              >
                 {MARKETING.cta.primary}
               </Link>
               <Link href="/pricing" className="mk-arrow">
@@ -121,7 +135,7 @@ export function ProductMarketingPage({
                   className={
                     visualTone === 'light'
                       ? 'mk-reveal mk-shot-frame'
-                      : 'mk-reveal mk-dark'
+                      : 'mk-reveal mk-dark mk-product-preview-dark'
                   }
                 >
                   {visual}
@@ -160,16 +174,27 @@ export function ProductMarketingPage({
 
         {/* ---- 3 · endpoint table: mono rows, api-docs only ---- */}
         {endpoints && endpoints.length > 0 ? (
-          <section className="mk-section" style={visual ? undefined : { paddingTop: 48 }}>
+          <section
+            className="mk-section"
+            style={visual ? undefined : { paddingTop: 48 }}
+          >
             <div className="mk-container">
               <span className="mk-eyebrow">Surface</span>
               <h2 className="mk-h2" style={{ marginTop: 14 }}>
                 The schedule, callable.
               </h2>
               <p className="mk-section-lede">
-                Everything below lives under <code style={{ fontFamily: 'var(--mk-font-mono), monospace', fontSize: '0.92em' }}>/public/v1</code>, authenticates
-                with a scoped key &amp; counts against per-workspace rate
-                limits.
+                Everything below lives under{' '}
+                <code
+                  style={{
+                    fontFamily: 'var(--mk-font-mono), monospace',
+                    fontSize: '0.92em',
+                  }}
+                >
+                  /public/v1
+                </code>
+                , authenticates with a scoped key &amp; counts against
+                per-workspace rate limits.
               </p>
               <div
                 style={{
@@ -192,7 +217,11 @@ export function ProductMarketingPage({
                   >
                     <span
                       className="mk-mono"
-                      style={{ color: 'var(--mk-blue)', width: '4.6em', flex: 'none' }}
+                      style={{
+                        color: 'var(--mk-blue)',
+                        width: '4.6em',
+                        flex: 'none',
+                      }}
                     >
                       {endpoint.method}
                     </span>
@@ -237,11 +266,11 @@ export function ProductMarketingPage({
               <div>
                 <span className="mk-eyebrow">Capabilities</span>
                 <h2 className="mk-h2" style={{ marginTop: 14 }}>
-                  {capabilitiesHeading || 'Built in, not bolted on.'}
+                  {capabilitiesHeading || 'What it does today.'}
                 </h2>
                 <p className="mk-section-lede" style={{ fontSize: 16 }}>
-                  Each row describes shipping behavior — how{' '}
-                  {MARKETING.brand} acts today, not a roadmap.
+                  These are working parts of {MARKETING.brand}, not roadmap
+                  promises.
                 </p>
               </div>
               <div className="mk-rows">
@@ -251,7 +280,10 @@ export function ProductMarketingPage({
                     <div>
                       <p>{item.body}</p>
                       {item.points && item.points.length > 0 ? (
-                        <ul className="mk-points" style={{ margin: '10px 0 0' }}>
+                        <ul
+                          className="mk-points"
+                          style={{ margin: '10px 0 0' }}
+                        >
                           {item.points.map((point) => (
                             <li key={point}>{point}</li>
                           ))}
@@ -270,12 +302,12 @@ export function ProductMarketingPage({
           <div className="mk-container">
             <span className="mk-eyebrow">Foundations</span>
             <h2 className="mk-h2" style={{ marginTop: 14 }}>
-              The same rail underneath.
+              The same reliability everywhere.
             </h2>
             <p className="mk-section-lede">
-              Every area of {MARKETING.brand} sits on one durable publishing
-              engine, so these guarantees hold everywhere — not just on this
-              page.
+              No matter where a post starts, {MARKETING.brand} applies the same
+              delivery checks, failure reasons, safe retries, and account
+              protections.
             </p>
             <div
               className="mk-reveal"
@@ -298,7 +330,13 @@ export function ProductMarketingPage({
                   <span className="mk-mono" style={{ color: 'var(--mk-blue)' }}>
                     {cell.tag} · {String(index + 1).padStart(2, '0')}
                   </span>
-                  <h3 style={{ fontSize: 16.5, letterSpacing: '-0.015em', margin: '10px 0 0' }}>
+                  <h3
+                    style={{
+                      fontSize: 16.5,
+                      letterSpacing: '-0.015em',
+                      margin: '10px 0 0',
+                    }}
+                  >
                     {cell.title}
                   </h3>
                   <p
@@ -334,9 +372,11 @@ export function ProductMarketingPage({
         <section className="mk-ctaclose" style={{ background: 'none' }}>
           <div className="mk-container">
             <div className="mk-cta-panel">
-              <h2 className="mk-h2">Connect a channel &amp; fill your first week.</h2>
+              <h2 className="mk-h2">
+                Connect an account and schedule one real post.
+              </h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                Free forever plan — no credit card. 7-day trial on every paid plan.
+                Keep the receipt. Start free with no credit card.
               </p>
               <div className="mk-hero-ctas">
                 <Link

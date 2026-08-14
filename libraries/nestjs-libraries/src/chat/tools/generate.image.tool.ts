@@ -3,13 +3,10 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
-import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
 
 @Injectable()
 export class GenerateImageTool implements AgentToolInterface {
-  private storage = UploadFactory.createStorage();
-
   constructor(private _mediaService: MediaService) {}
   name = 'generateImageTool';
 
@@ -44,11 +41,11 @@ export class GenerateImageTool implements AgentToolInterface {
           org
         );
 
-        const file = await this.storage.uploadSimple(
-          'data:image/png;base64,' + image
+        return this._mediaService.uploadDataUrl(
+          org.id,
+          'data:image/png;base64,' + image,
+          'generated-image.png'
         );
-
-        return this._mediaService.saveFile(org.id, file.split('/').pop(), file);
       },
     });
   }

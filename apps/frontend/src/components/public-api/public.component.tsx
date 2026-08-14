@@ -41,46 +41,46 @@ const getMcpConfig = (
     switch (client) {
       case 'Claude Code':
         return {
-          config: `claude mcp add postiz --transport http "${urlWithKey}"`,
+          config: `claude mcp add publishly --transport http "${urlWithKey}"`,
           hint: 'Run this command in your terminal.',
         };
       case 'Cursor':
         return {
-          config: json({ mcpServers: { postiz: { url: urlWithKey } } }),
+          config: json({ mcpServers: { publishly: { url: urlWithKey } } }),
           hint: 'Add to .cursor/mcp.json in your project root.',
         };
       case 'VS Code / Copilot':
         return {
           config: json({
-            servers: { postiz: { type: 'http', url: urlWithKey } },
+            servers: { publishly: { type: 'http', url: urlWithKey } },
           }),
           hint: 'Add to .vscode/mcp.json in your project root.',
         };
       case 'Windsurf':
         return {
           config: json({
-            mcpServers: { postiz: { serverUrl: urlWithKey } },
+            mcpServers: { publishly: { serverUrl: urlWithKey } },
           }),
           hint: 'Add to ~/.codeium/windsurf/mcp_config.json',
         };
       case 'Amp':
         return {
-          config: `amp mcp add postiz ${urlWithKey}`,
+          config: `amp mcp add publishly ${urlWithKey}`,
           hint: 'Run this command in your terminal.',
         };
       case 'Codex':
         return {
-          config: `# ~/.codex/config.toml\n\n[mcp_servers.postiz]\nurl = "${urlWithKey}"`,
+          config: `# ~/.codex/config.toml\n\n[mcp_servers.publishly]\nurl = "${urlWithKey}"`,
           hint: 'Add to ~/.codex/config.toml',
         };
       case 'Gemini CLI':
         return {
-          config: json({ mcpServers: { postiz: { url: urlWithKey } } }),
+          config: json({ mcpServers: { publishly: { url: urlWithKey } } }),
           hint: 'Add to ~/.gemini/settings.json',
         };
       case 'Warp':
         return {
-          config: json({ postiz: { url: urlWithKey } }),
+          config: json({ publishly: { url: urlWithKey } }),
           hint: 'Settings > MCP Servers > + Add, then paste this config.',
         };
     }
@@ -89,14 +89,14 @@ const getMcpConfig = (
   switch (client) {
     case 'Claude Code':
       return {
-        config: `claude mcp add --transport http postiz ${urlBase} --header "Authorization: ${bearer}"`,
+        config: `claude mcp add --transport http publishly ${urlBase} --header "Authorization: ${bearer}"`,
         hint: 'Run this command in your terminal.',
       };
     case 'Cursor':
       return {
         config: json({
           mcpServers: {
-            postiz: { url: urlBase, headers: { Authorization: bearer } },
+            publishly: { url: urlBase, headers: { Authorization: bearer } },
           },
         }),
         hint: 'Add to .cursor/mcp.json in your project root.',
@@ -105,7 +105,7 @@ const getMcpConfig = (
       return {
         config: json({
           servers: {
-            postiz: {
+            publishly: {
               type: 'http',
               url: urlBase,
               headers: { Authorization: bearer },
@@ -118,7 +118,7 @@ const getMcpConfig = (
       return {
         config: json({
           mcpServers: {
-            postiz: {
+            publishly: {
               serverUrl: urlBase,
               headers: { Authorization: bearer },
             },
@@ -130,21 +130,21 @@ const getMcpConfig = (
       return {
         config: json({
           'amp.mcpServers': {
-            postiz: { url: urlBase, headers: { Authorization: bearer } },
+            publishly: { url: urlBase, headers: { Authorization: bearer } },
           },
         }),
         hint: 'Add to your Amp settings.json',
       };
     case 'Codex':
       return {
-        config: `# ~/.codex/config.toml\n\n[mcp_servers.postiz]\nurl = "${urlBase}"\nhttp_headers = { "Authorization" = "${bearer}" }`,
+        config: `# ~/.codex/config.toml\n\n[mcp_servers.publishly]\nurl = "${urlBase}"\nhttp_headers = { "Authorization" = "${bearer}" }`,
         hint: 'Add to ~/.codex/config.toml',
       };
     case 'Gemini CLI':
       return {
         config: json({
           mcpServers: {
-            postiz: { url: urlBase, headers: { Authorization: bearer } },
+            publishly: { url: urlBase, headers: { Authorization: bearer } },
           },
         }),
         hint: 'Add to ~/.gemini/settings.json',
@@ -152,20 +152,14 @@ const getMcpConfig = (
     case 'Warp':
       return {
         config: json({
-          postiz: { url: urlBase, headers: { Authorization: bearer } },
+          publishly: { url: urlBase, headers: { Authorization: bearer } },
         }),
         hint: 'Settings > MCP Servers > + Add, then paste this config.',
       };
   }
 };
 
-const CopyButton = ({
-  text,
-  label,
-}: {
-  text: string;
-  label: string;
-}) => {
+const CopyButton = ({ text, label }: { text: string; label: string }) => {
   const toaster = useToaster();
   return (
     <button
@@ -218,7 +212,10 @@ const McpSection = ({
 
   const maskedConfig = revealed
     ? config
-    : config.replace(new RegExp(user.publicApi.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '*'.repeat(user.publicApi.length));
+    : config.replace(
+        new RegExp(user.publicApi.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+        '*'.repeat(user.publicApi.length)
+      );
 
   const maskedRemoteUrl = revealed
     ? remoteUrl
@@ -234,17 +231,29 @@ const McpSection = ({
           <div className="text-[13px] text-customColor18 mt-[2px]">
             {t(
               'connect_your_mcp_client_to_postiz_to_schedule_your_posts_faster',
-              'Connect Postiz MCP server to your client (Http streaming) to schedule your posts faster.'
+              'Connect the Publishly MCP server to your client (HTTP streaming) to publish, schedule, and inspect delivery health.'
             )}
           </div>
         </div>
         <div className="flex gap-[6px] shrink-0 pt-[2px]">
           <a
             className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-            href="https://docs.postiz.com/mcp/introduction"
-            target="_blank"
+            href="/integrations/mcp"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
             {t('read_the_docs', 'Docs')}
           </a>
         </div>
@@ -346,164 +355,9 @@ const McpSection = ({
               label={t('copy', 'Copy')}
             />
             {method === 'header' && (
-              <CopyButton
-                text={cliUrl}
-                label={t('copy_url', 'Copy URL')}
-              />
+              <CopyButton text={cliUrl} label={t('copy_url', 'Copy URL')} />
             )}
           </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const localCliSteps = [
-  {
-    label: 'Install the CLI',
-    code: 'npm install -g postiz',
-  },
-  {
-    label: 'Run: postiz auth:login',
-    code: 'postiz auth:login',
-  },
-  {
-    label: 'Install the Postiz skill for your AI agent',
-    code: 'npx skills add gitroomhq/postiz-agent',
-  },
-] as const;
-
-const ciCliSteps = [
-  {
-    label: 'Install the CLI',
-    code: 'npm install -g postiz',
-  },
-  {
-    label: 'Set your API key as an environment variable',
-    code: 'export POSTIZ_API_KEY="{API_KEY}"',
-  },
-  {
-    label: 'Install the Postiz skill for your AI agent',
-    code: 'npx skills add gitroomhq/postiz-agent',
-  },
-] as const;
-
-const CliSection = ({ apiKey }: { apiKey: string }) => {
-  const t = useT();
-  const [mode, setMode] = useState<'local' | 'ci'>('local');
-  const [revealed, setRevealed] = useState(false);
-
-  const steps =
-    mode === 'local'
-      ? localCliSteps.map((step) => ({ ...step }))
-      : ciCliSteps.map((step) => ({
-          ...step,
-          code: step.code.replace('{API_KEY}', apiKey),
-        }));
-
-  const displaySteps =
-    mode === 'ci' && !revealed
-      ? steps.map((step) => ({
-          ...step,
-          code: step.code.replace(
-            new RegExp(apiKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-            '*'.repeat(apiKey.length)
-          ),
-        }))
-      : steps;
-
-  return (
-    <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
-      <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
-        <div>
-          <div className="text-[15px] font-[600]">
-            {t('cli_and_skills', 'CLI & AI Skills')}
-          </div>
-          <div className="text-[13px] text-customColor18 mt-[2px]">
-            {t(
-              'cli_description',
-              'Use the Postiz CLI to automate posting from your terminal, or install the skill to let your AI agent schedule posts for you.'
-            )}
-          </div>
-        </div>
-        <div className="flex gap-[6px] shrink-0 pt-[2px]">
-          <a
-            className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-            href="https://docs.postiz.com/cli/introduction"
-            target="_blank"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-            {t('read_the_docs', 'Docs')}
-          </a>
-        </div>
-      </div>
-      <div className="p-[20px] flex flex-col gap-[16px]">
-        <div className="flex gap-[6px]">
-          {(['local', 'ci'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              className={clsx(
-                'cursor-pointer px-[14px] h-[36px] text-[13px] font-[500] rounded-[8px] transition-colors',
-                mode === m
-                  ? 'bg-[#612BD3] text-white'
-                  : 'bg-btnSimple text-customColor18 hover:bg-boxHover hover:text-textColor'
-              )}
-              onClick={() => setMode(m)}
-            >
-              {m === 'local'
-                ? t('locally', 'Locally')
-                : t('ci_remote_servers', 'CI / Remote servers')}
-            </button>
-          ))}
-        </div>
-        {displaySteps.map((step, i) => (
-          <div key={i} className="flex flex-col gap-[6px]">
-            <div className="text-[13px] font-[600] text-customColor18">
-              {i + 1}. {step.label}
-            </div>
-            <pre className="bg-newBgColorInner border border-newBorder rounded-[8px] p-[16px] text-[13px] whitespace-pre-wrap break-all overflow-x-auto leading-[1.6]">
-              {step.code}
-            </pre>
-          </div>
-        ))}
-        <div className="flex gap-[8px]">
-          {mode === 'ci' && (
-            <button
-              type="button"
-              onClick={() => setRevealed(!revealed)}
-              className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                {revealed ? (
-                  <>
-                    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-                    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </>
-                ) : (
-                  <>
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </>
-                )}
-              </svg>
-              {revealed ? t('hide', 'Hide') : t('reveal', 'Reveal')}
-            </button>
-          )}
-          <CopyButton
-            text={steps.map((s) => s.code).join(' && ')}
-            label={t('copy_all', 'Copy All')}
-          />
         </div>
       </div>
     </div>
@@ -556,7 +410,7 @@ const PublicApiContent = () => {
         <br />
         {t(
           'api_auth_note_line2',
-          'If you are building a product that schedules posts on behalf of other Postiz users,'
+          'If you are building a product that schedules posts on behalf of other Publishly users,'
         )}
         <br />
         {t(
@@ -566,7 +420,7 @@ const PublicApiContent = () => {
         <br />
         {t(
           'api_auth_note_line4',
-          'and you will receive a pos_ prefixed token that works with the API, MCP, and CLI — just like an API Key.'
+          'and you will receive a pos_ prefixed token that works with the API and MCP — just like an API Key.'
         )}
       </div>
       <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
@@ -578,25 +432,49 @@ const PublicApiContent = () => {
             <div className="text-[13px] text-customColor18 mt-[2px]">
               {t(
                 'use_postiz_api_to_integrate_with_your_tools',
-                'Use Postiz API to integrate with your tools.'
+                'Use the Publishly API to integrate with your tools.'
               )}
             </div>
           </div>
           <div className="flex gap-[6px] shrink-0 pt-[2px]">
             <a
               className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-              href="https://docs.postiz.com/public-api"
-              target="_blank"
+              href="/api-docs"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-            {t('read_the_docs', 'Docs')}
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+              {t('read_the_docs', 'Docs')}
             </a>
             <a
               className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-              href="https://www.npmjs.com/package/n8n-nodes-postiz"
-              target="_blank"
+              href="/integrations/n8n"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
               {t('n8n_node', 'N8N Node')}
             </a>
           </div>
@@ -700,8 +578,6 @@ const PublicApiContent = () => {
         </div>
       </div>
 
-      <CliSection apiKey={user.publicApi} />
-
       <McpSection user={user} mcpBase={mcpBase} />
     </div>
   );
@@ -745,9 +621,7 @@ export const PublicComponent = () => {
             )}
             onClick={() => setSubTab(tab)}
           >
-            {tab === 'api'
-              ? t('access', 'Access')
-              : t('apps', 'Apps')}
+            {tab === 'api' ? t('access', 'Access') : t('apps', 'Apps')}
           </button>
         ))}
       </div>

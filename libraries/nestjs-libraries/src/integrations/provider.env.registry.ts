@@ -25,7 +25,7 @@ export const providerEnvRegistry: Record<string, string[]> = {
   slack: ['SLACK_ID', 'SLACK_SECRET'],
   kick: ['KICK_CLIENT_ID', 'KICK_SECRET'],
   twitch: ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET'],
-  mastodon: ['MASTODON_CLIENT_ID', 'MASTODON_CLIENT_SECRET'],
+  mastodon: [],
   bluesky: [],
   lemmy: [],
   farcaster: ['NEYNAR_CLIENT_ID', 'NEYNAR_SECRET_KEY'],
@@ -39,9 +39,11 @@ export const providerEnvRegistry: Record<string, string[]> = {
   listmonk: [],
   moltbook: [],
   whop: ['WHOP_CLIENT_ID'],
-  skool: [],
   mewe: ['MEWE_HOST', 'MEWE_APP_ID', 'MEWE_API_KEY'],
   tumblr: ['TUMBLR_CLIENT_ID', 'TUMBLR_CLIENT_SECRET'],
+  // Optional browser-cookie compatibility adapter. It is unavailable unless
+  // this deployment ships its own reviewed Publishly extension and store page.
+  skool: ['EXTENSION_ID', 'NEXT_PUBLIC_CHROME_EXTENSION_URL'],
   testprovider: [],
 };
 

@@ -1,0 +1,47 @@
+{
+  "name": "publishly",
+  "label": "Publishly scoped API key",
+  "type": "basic",
+  "parameters": [
+    {
+      "name": "baseUrl",
+      "label": "Backend URL",
+      "type": "url",
+      "required": true,
+      "editable": true,
+      "help": "Publishly backend origin with no trailing slash, for example https://api.example.com."
+    },
+    {
+      "name": "apiKey",
+      "label": "Scoped API key",
+      "type": "password",
+      "required": true,
+      "editable": true,
+      "help": "Use a pub_ key with only the scopes required by this scenario."
+    }
+  ],
+  "communication": {
+    "url": "{{parameters.baseUrl}}/public/v1/is-connected",
+    "method": "GET",
+    "headers": {
+      "Accept": "application/json",
+      "Authorization": "{{parameters.apiKey}}"
+    },
+    "response": {
+      "valid": "{{statusCode == 200 && body.connected == true}}",
+      "error": {
+        "type": "InvalidAccessTokenError",
+        "message": "[{{statusCode}}] {{ifempty(body.reason, ifempty(body.message, ifempty(body.msg, 'Publishly credential validation failed.')))}}"
+      },
+      "metadata": {
+        "type": "text",
+        "value": "{{parameters.baseUrl}}"
+      }
+    },
+    "log": {
+      "sanitize": [
+        "request.headers.Authorization"
+      ]
+    }
+  }
+}

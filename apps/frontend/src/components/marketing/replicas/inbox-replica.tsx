@@ -9,7 +9,7 @@ export const InboxReplica = () => (
   <div className="mk-frame mkr-inb">
     <div className="mkr-inb-top">
       <span className="mkr-inb-top-title">
-        <strong>Inbox</strong> · all channels
+        <strong>Inbox</strong> · supported channels
       </span>
       <span className="mkr-inb-top-open">3 open</span>
     </div>
@@ -30,13 +30,13 @@ export const InboxReplica = () => (
 
       <div className="mkr-inb-row mkr-inb-row-expanded">
         <span
-          className="mkr-inb-avatar mkr-inb-avatar-youtube"
+          className="mkr-inb-avatar mkr-inb-avatar-facebook"
           aria-hidden="true"
         >
           S
         </span>
         <span className="mkr-inb-meta">
-          <span className="mkr-inb-handle">@sam.builds</span> · youtube · 3h
+          <span className="mkr-inb-handle">@sam.builds</span> · facebook · 3h
         </span>
         <p className="mkr-inb-text">Love this colorway 🔥</p>
         <div className="mkr-inb-reply">
@@ -47,13 +47,13 @@ export const InboxReplica = () => (
 
       <div className="mkr-inb-row">
         <span
-          className="mkr-inb-avatar mkr-inb-avatar-facebook"
+          className="mkr-inb-avatar mkr-inb-avatar-instagram"
           aria-hidden="true"
         >
           L
         </span>
         <span className="mkr-inb-meta">
-          <span className="mkr-inb-handle">@lena_v</span> · facebook · 5h
+          <span className="mkr-inb-handle">@lena_v</span> · instagram · 5h
         </span>
         <p className="mkr-inb-text">Is there a tutorial for this?</p>
       </div>
@@ -62,8 +62,8 @@ export const InboxReplica = () => (
     <div className="mkr-inb-foot">
       <span className="mkr-inb-foot-dot" aria-hidden="true" />
       <span>
-        bluesky · replies not supported by this platform&apos;s API — shown
-        read-only
+        tiktok · comment management is unavailable through Publishly&apos;s
+        official API integration
       </span>
     </div>
   </div>

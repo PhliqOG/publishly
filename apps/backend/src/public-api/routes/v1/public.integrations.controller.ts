@@ -4,18 +4,18 @@ import {
   Delete,
   Get,
   HttpException,
+  Headers,
+  NotFoundException,
   Param,
   Post,
   Put,
   Query,
+  Res,
   UploadedFile,
   UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
-import {
-  CustomFileValidationPipe,
-  getMaxSize,
-} from '@gitroom/nestjs-libraries/upload/custom.upload.validation';
+import { CustomFileValidationPipe } from '@gitroom/nestjs-libraries/upload/custom.upload.validation';
 import { ApiTags } from '@nestjs/swagger';
 import { withOpenToken } from '@gitroom/helpers/auth/crypto.v2';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
@@ -24,7 +24,6 @@ import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/in
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import { PostsService } from '@gitroom/nestjs-libraries/database/prisma/posts/posts.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import { GetPostsDto } from '@gitroom/nestjs-libraries/dtos/posts/get.posts.dto';
 import { ChangePostStatusDto } from '@gitroom/nestjs-libraries/dtos/posts/change.post.status.dto';
@@ -38,21 +37,6 @@ import { VideoFunctionDto } from '@gitroom/nestjs-libraries/dtos/videos/video.fu
 import { UploadDto } from '@gitroom/nestjs-libraries/dtos/media/upload.dto';
 import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/notifications/notification.service';
 import { GetNotificationsDto } from '@gitroom/nestjs-libraries/dtos/notifications/get.notifications.dto';
-import { Readable } from 'stream';
-import { ssrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { fromBuffer } = require('file-type');
-
-const PUBLIC_API_ALLOWED_MIME = new Set<string>([
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'image/avif',
-  'image/bmp',
-  'image/tiff',
-  'video/mp4',
-]);
 import * as Sentry from '@sentry/nestjs';
 import {
   socialIntegrationList,
@@ -61,22 +45,32 @@ import {
 import { getValidationSchemas } from '@gitroom/nestjs-libraries/chat/validation.schemas.helper';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
 import { RefreshToken } from '@gitroom/nestjs-libraries/integrations/social.abstract';
-import { PostValidationException } from '@gitroom/backend/api/routes/posts.validation.exception';
 import { timer } from '@gitroom/helpers/utils/timer';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
+import { serializeOAuthLoginState } from '@gitroom/nestjs-libraries/integrations/oauth.state';
+import { Response } from 'express';
+import { IdempotencyInProgressException } from '@gitroom/nestjs-libraries/database/prisma/posts/post-creation-idempotency.service';
+import { tokenDaysRemaining } from '@gitroom/nestjs-libraries/reliability/connection.health.policy';
+import { platformTruthResponse } from '@gitroom/nestjs-libraries/reliability/platform.truth';
+import { FleetHealthService } from '@gitroom/nestjs-libraries/database/prisma/fleet-health/fleet-health.service';
+import { WebhooksService } from '@gitroom/nestjs-libraries/database/prisma/webhooks/webhooks.service';
+import { WebhooksDto } from '@gitroom/nestjs-libraries/dtos/webhooks/webhooks.dto';
+import { assertWebhookConnections } from '@gitroom/backend/public-api/public.distribution.policy';
+import { ReliablePostCreationService } from '@gitroom/nestjs-libraries/database/prisma/posts/reliable-post-creation.service';
 
 @ApiTags('Public API')
 @Controller('/public/v1')
 export class PublicIntegrationsController {
-  private storage = UploadFactory.createStorage();
-
   constructor(
     private _integrationService: IntegrationService,
     private _postsService: PostsService,
     private _mediaService: MediaService,
     private _notificationService: NotificationService,
     private _integrationManager: IntegrationManager,
-    private _refreshIntegrationService: RefreshIntegrationService
+    private _refreshIntegrationService: RefreshIntegrationService,
+    private _reliablePostCreation: ReliablePostCreationService,
+    private _fleetHealth: FleetHealthService,
+    private _webhooks: WebhooksService
   ) {}
 
   @Post('/upload')
@@ -91,12 +85,7 @@ export class PublicIntegrationsController {
       throw new HttpException({ msg: 'No file provided' }, 400);
     }
 
-    const getFile = await this.storage.uploadFile(file);
-    return this._mediaService.saveFile(
-      org.id,
-      getFile.originalname,
-      getFile.path
-    );
+    return this._mediaService.uploadAndSave(org.id, file);
   }
 
   @Post('/upload-from-url')
@@ -105,62 +94,7 @@ export class PublicIntegrationsController {
     @Body() body: UploadDto
   ) {
     Sentry.metrics.count('public_api-request', 1);
-    let response: globalThis.Response;
-    try {
-      response = await fetch(body.url, {
-        // @ts-ignore — undici option, not in lib.dom fetch types
-        dispatcher: ssrfSafeDispatcher,
-      });
-    } catch {
-      // Network-level failure (DNS, connection refused, SSRF block, etc.) —
-      // fetch rejects rather than returning a non-ok response.
-      throw new HttpException({ msg: 'Failed to fetch URL' }, 400);
-    }
-    if (!response.ok) {
-      throw new HttpException({ msg: 'Failed to fetch URL' }, 400);
-    }
-
-    // Guard against OOM: bail out before buffering the whole body into memory.
-    // Content-Length may be absent or wrong, so we re-check the real size after
-    // download too. The type isn't known yet (sniffed below), so the pre-check
-    // uses the largest allowed cap (video).
-    const maxDownloadSize = getMaxSize('video/mp4');
-    const declaredSize = Number(response.headers.get('content-length'));
-    if (declaredSize && declaredSize > maxDownloadSize) {
-      throw new HttpException({ msg: 'File is too large.' }, 400);
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const detected = await fromBuffer(buffer);
-    if (!detected || !PUBLIC_API_ALLOWED_MIME.has(detected.mime)) {
-      throw new HttpException({ msg: 'Unsupported file type.' }, 400);
-    }
-
-    if (buffer.length > getMaxSize(detected.mime)) {
-      throw new HttpException({ msg: 'File is too large.' }, 400);
-    }
-
-    const mimetype = detected.mime;
-    const ext = detected.ext;
-
-    const getFile = await this.storage.uploadFile({
-      buffer,
-      mimetype,
-      size: buffer.length,
-      path: '',
-      fieldname: '',
-      destination: '',
-      stream: new Readable(),
-      filename: '',
-      originalname: `upload.${ext}`,
-      encoding: '',
-    });
-
-    return this._mediaService.saveFile(
-      org.id,
-      getFile.originalname,
-      getFile.path
-    );
+    return this._mediaService.importFromUrl(org.id, body.url);
   }
 
   @Get('/find-slot/:id')
@@ -185,76 +119,53 @@ export class PublicIntegrationsController {
     };
   }
 
+  @Get('/posts/:id/status')
+  async getPublishingStatus(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    const job = await this._postsService.getPublishingJob(org.id, id);
+    if (!job) {
+      throw new NotFoundException({
+        failureClass: 'data_problem',
+        code: 'publishing_job_not_found',
+        reason:
+          'No publishing job exists for this post in the current workspace.',
+      });
+    }
+    return job;
+  }
+
+  @Get('/posts/:id/receipts')
+  async getDeliveryReceipts(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    const job = await this._postsService.getPublishingJob(org.id, id);
+    if (!job) {
+      throw new NotFoundException({
+        failureClass: 'data_problem',
+        code: 'publishing_job_not_found',
+        reason:
+          'No publishing job exists for this post in the current workspace.',
+      });
+    }
+    return {
+      postId: id,
+      latestStage: job.deliveryStage,
+      receipts: await this._postsService.listDeliveryReceipts(org.id, id),
+    };
+  }
+
   @Post('/posts')
   @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
   async createPost(
     @GetOrgFromRequest() org: Organization,
-    @Body() rawBody: any
+    @Body() rawBody: any,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Res({ passthrough: true }) response: Response
   ) {
     Sentry.metrics.count('public_api-request', 1);
-    const body = await this._postsService.mapTypeToPost(
-      rawBody,
-      org.id,
-      rawBody?.type === 'draft' || true
-    );
-    body.type = rawBody.type;
-
-    if (
-      process.env.RESTRICT_UPLOAD_DOMAINS &&
-      body.posts.some((p) =>
-        p.value.some((a) =>
-          a.image.some(
-            (i) => i.path.indexOf(process.env.RESTRICT_UPLOAD_DOMAINS) === -1
-          )
-        )
-      )
-    ) {
-      throw new HttpException(
-        {
-          msg: `All media must be uploaded through our upload API route and contain the domain: ${process.env.RESTRICT_UPLOAD_DOMAINS}`,
-        },
-        400
-      );
-    }
-
-    // Server-side validation — same rules as the dashboard, surfaced as a
-    // readable 400 (see PostValidationExceptionFilter).
-    const validation = await this._postsService.validatePosts(
-      org.id,
-      body.posts
-    );
-
-    const fail = (item: (typeof validation)[number], error: string) => {
-      throw new PostValidationException({
-        provider: item.identifier,
-        name: item.name,
-        error,
-      });
-    };
-
-    for (const item of validation) {
-      if (item.emptyContent) {
-        fail(
-          item,
-          'Your post should have at least one character or one image.'
-        );
-      }
-    }
-
-    if (body.type !== 'draft') {
-      for (const item of validation) {
-        if (!item.valid) {
-          fail(item, item.settingsError || 'Please fix your settings');
-        }
-        if (item.errors !== true) {
-          fail(item, item.errors as string);
-        }
-        if (item.tooLong) {
-          fail(item, 'post is too long, please fix it');
-        }
-      }
-    }
-
     const allowedCreationMethods = ['CLI', 'API'] as const;
     const creationMethod = allowedCreationMethods.includes(
       rawBody.creationMethod
@@ -262,7 +173,26 @@ export class PublicIntegrationsController {
       ? (rawBody.creationMethod as 'CLI' | 'API')
       : 'API';
 
-    return this._postsService.createPost(org.id, body, creationMethod);
+    try {
+      const result = await this._reliablePostCreation.create({
+        organizationId: org.id,
+        organizationCreatedAt: org.createdAt,
+        idempotencyKey,
+        rawBody,
+        type: rawBody.type,
+        creationMethod,
+      });
+      response.setHeader(
+        'Idempotency-Replayed',
+        result.replayed ? 'true' : 'false'
+      );
+      return result.value;
+    } catch (error) {
+      if (error instanceof IdempotencyInProgressException) {
+        response.setHeader('Retry-After', String(error.retryAfterSeconds));
+      }
+      throw error;
+    }
   }
 
   @Delete('/posts/:id')
@@ -316,6 +246,18 @@ export class PublicIntegrationsController {
         picture: integration.picture,
         disabled: integration.disabled,
         profile: integration.profile,
+        tokenExpiration: integration.tokenExpiration,
+        tokenDaysRemaining: tokenDaysRemaining(integration.tokenExpiration),
+        tokenHealthState: integration.tokenHealthState,
+        tokenHealthReason: integration.tokenHealthReason,
+        connectionHealthState: integration.connectionHealthState,
+        connectionHealthReason: integration.connectionHealthReason,
+        lastProviderContactAt: integration.lastProviderContactAt,
+        lastSuccessfulPublishAt: integration.lastSuccessfulPublishAt,
+        consecutiveErrors: integration.consecutiveErrors,
+        staleSince: integration.staleSince,
+        deadAccountAt: integration.deadAccountAt,
+        platformTruth: platformTruthResponse(integration),
         customer: integration.customer
           ? {
               id: integration.customer.id,
@@ -323,6 +265,79 @@ export class PublicIntegrationsController {
             }
           : undefined,
       }));
+  }
+
+  @Get('/fleet-health')
+  getFleetHealth(
+    @GetOrgFromRequest() org: Organization,
+    @Query('windowDays') windowDays?: string,
+    @Query('groupId') groupId?: string,
+    @Query('tagId') tagId?: string,
+    @Query('color') color?: string
+  ) {
+    Sentry.metrics.count('public_api-request', 1);
+    return this._fleetHealth.getFleetHealth(org.id, {
+      windowDays,
+      groupId,
+      tagId,
+      color,
+    });
+  }
+
+  @Get('/webhooks')
+  listWebhooks(@GetOrgFromRequest() org: Organization) {
+    Sentry.metrics.count('public_api-request', 1);
+    return this._webhooks.getWebhooks(org.id);
+  }
+
+  @Post('/webhooks')
+  async createWebhook(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: WebhooksDto
+  ) {
+    Sentry.metrics.count('public_api-request', 1);
+    await assertWebhookConnections(
+      org.id,
+      body.integrations,
+      (organizationId, integrationId) =>
+        this._integrationService.getIntegrationById(
+          organizationId,
+          integrationId
+        )
+    );
+    return this._webhooks.createWebhook(org.id, body);
+  }
+
+  @Delete('/webhooks/:id')
+  async deleteWebhook(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    Sentry.metrics.count('public_api-request', 1);
+    const deleted = await this._webhooks.deleteWebhook(org.id, id);
+    if (!deleted) {
+      throw new NotFoundException({
+        code: 'webhook_not_found',
+        reason: 'This webhook was not found in the current workspace.',
+      });
+    }
+    return { deleted: true };
+  }
+
+  @Post('/webhooks/:id/rotate-secret')
+  async rotateWebhookSecret(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    Sentry.metrics.count('public_api-request', 1);
+    const result = await this._webhooks.rotateSigningSecret(org.id, id);
+    if (!result) {
+      throw new NotFoundException({
+        code: 'webhook_not_found',
+        reason: 'This webhook was not found in the current workspace.',
+      });
+    }
+    return result;
   }
 
   @Get('/social/:integration')
@@ -362,7 +377,12 @@ export class PublicIntegrationsController {
       }
 
       await ioRedis.set(`organization:${state}`, org.id, 'EX', 3600);
-      await ioRedis.set(`login:${state}`, codeVerifier, 'EX', 3600);
+      await ioRedis.set(
+        `login:${state}`,
+        serializeOAuthLoginState(integration, codeVerifier),
+        'EX',
+        3600
+      );
 
       return { url };
     } catch (err) {
@@ -411,13 +431,32 @@ export class PublicIntegrationsController {
       org.id,
       id
     );
-    if (isTherePosts.length) {
-      for (const post of isTherePosts) {
-        this._postsService.deletePost(org.id, post.group).catch(() => {});
-      }
+    const deleted = await this._integrationService.deleteChannel(org.id, id);
+    if (!deleted) {
+      throw new NotFoundException({
+        code: 'integration_not_found',
+        reason: 'The integration was not found in this workspace.',
+      });
     }
-
-    return this._integrationService.deleteChannel(org.id, id);
+    const cleanupResults = await Promise.allSettled(
+      isTherePosts.map((post) =>
+        this._postsService.deletePost(org.id, post.group)
+      )
+    );
+    const cleanupFailures = cleanupResults.filter(
+      (result) => result.status === 'rejected'
+    ).length;
+    return {
+      deleted: true,
+      warnings: cleanupFailures
+        ? [
+            {
+              code: 'scheduled_post_cleanup_failed',
+              reason: `${cleanupFailures} scheduled post group(s) could not be removed immediately. The deleted connection cannot publish them; cleanup will be retried by normal retention processing.`,
+            },
+          ]
+        : [],
+    };
   }
 
   @Get('/integration-settings/:id')

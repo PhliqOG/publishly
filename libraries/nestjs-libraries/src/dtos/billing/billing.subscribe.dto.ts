@@ -1,11 +1,15 @@
 import { IsIn } from 'class-validator';
+import {
+  PAID_BILLING_TIERS,
+  PaidBillingTier,
+} from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 
 export class BillingSubscribeDto {
   @IsIn(['MONTHLY', 'YEARLY'])
   period: 'MONTHLY' | 'YEARLY';
 
-  @IsIn(['STANDARD', 'PRO', 'TEAM', 'ULTIMATE'])
-  billing: 'STANDARD' | 'PRO' | 'TEAM' | 'ULTIMATE';
+  @IsIn(PAID_BILLING_TIERS)
+  billing: PaidBillingTier;
 
   utm: string;
 

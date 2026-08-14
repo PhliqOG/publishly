@@ -3,8 +3,8 @@ import { mkdirSync, unlink, writeFileSync } from 'fs';
 import { isSafePublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/webhooks/webhook.url.validator';
 import { ssrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { parseDataUrl } from '@gitroom/nestjs-libraries/upload/data.url';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { fromBuffer } = require('file-type');
+import nodePath from 'node:path';
+import { fromBuffer } from 'file-type';
 
 const LOCAL_STORAGE_ALLOWED_MIME = new Set<string>([
   'image/jpeg',
@@ -114,10 +114,23 @@ export class LocalStorage implements IUploadProvider {
   }
 
   async removeFile(filePath: string): Promise<void> {
-    // Logic to remove the file from the filesystem goes here
+    const publicPrefix = `${(process.env.FRONTEND_URL || '').replace(
+      /\/$/,
+      ''
+    )}/uploads/`;
+    let target = filePath;
+    if (filePath.startsWith(publicPrefix)) {
+      const relative = decodeURIComponent(filePath.slice(publicPrefix.length));
+      target = nodePath.resolve(this.uploadDirectory, relative);
+    }
+    const base = nodePath.resolve(this.uploadDirectory);
+    const resolved = nodePath.resolve(target);
+    if (resolved !== base && !resolved.startsWith(base + nodePath.sep)) {
+      throw new Error('Refusing to delete a file outside the upload directory');
+    }
     return new Promise((resolve, reject) => {
-      unlink(filePath, (err) => {
-        if (err) {
+      unlink(resolved, (err) => {
+        if (err && (err as NodeJS.ErrnoException).code !== 'ENOENT') {
           reject(err);
         } else {
           resolve();

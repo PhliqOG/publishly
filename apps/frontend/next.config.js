@@ -4,9 +4,15 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const monorepoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const backendInternalUrl = (
+  process.env.BACKEND_INTERNAL_URL || 'http://localhost:3000'
+).replace(/\/+$/, '');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Build release candidates beside the currently served tree on the interim
+  // Windows host. The default remains `.next` in containers and normal builds.
+  distDir: process.env.PUBLISHLY_NEXT_DIST_DIR || '.next',
   // Without an explicit root, Next walks up and can adopt a stray workspace
   // file outside the repo, ballooning Turbopack's watch scope.
   turbopack: {
@@ -24,6 +30,24 @@ const nextConfig = {
           {
             key: 'Document-Policy',
             value: 'js-profiling',
+          },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=(self)',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: "base-uri 'self'; object-src 'none'; frame-ancestors 'none'",
           },
         ],
       },
@@ -55,6 +79,10 @@ const nextConfig = {
   },
   async rewrites() {
     return [
+      {
+        source: '/api/:path*',
+        destination: `${backendInternalUrl}/:path*`,
+      },
       {
         source: '/uploads/:path*',
         destination:

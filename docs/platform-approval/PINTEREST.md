@@ -1,56 +1,74 @@
-# Pinterest
+# Pinterest production access runbook
 
-**Purpose**: create Pins (image/video) on the user's own boards; read the
-user's boards and account for the picker and analytics.
+Last verified: 2026-08-10. `APP_ORIGIN` is the public HTTPS `FRONTEND_URL`.
+Trial or Standard access is granted by Pinterest, not by this repository.
 
-## App creation
-- Portal: https://developers.pinterest.com → create app.
-- Pinterest grants **trial access** first (limited rate/feature caps) and
-  **standard access** after review — verify the current tiering on the portal.
+## Account, scopes, and callback
 
-## Exact scopes (from code)
-```
-boards:read
-boards:write
-pins:read
-pins:write
-user_accounts:read
+Use a verified Pinterest business account to administer the app, accept the
+Developer Terms, and request Trial access. Configure this exact redirect URI;
+Pinterest requires an exact match and does not allow it to bounce through a
+second redirect:
+
+```text
+APP_ORIGIN/integrations/social/pinterest
 ```
 
-## Redirect URI(s) to whitelist
-```
-{FRONTEND_URL}/integrations/social/pinterest
-```
-
-## Env vars to set
-```
-PINTEREST_CLIENT_ID=
-PINTEREST_CLIENT_SECRET=
+```dotenv
+PINTEREST_CLIENT_ID=<app ID>
+PINTEREST_CLIENT_SECRET=<app secret>
+FRONTEND_URL=https://app.example.com
 ```
 
-## Review prerequisites (standard access)
-- Working demo of connect → choose board → schedule Pin → Pin appears.
-- Privacy policy + terms URLs; description of data use.
-- Verify current standard-access form requirements on the portal.
+Current adapter scopes:
 
-## Truthful use-case text
-> Publishly is a scheduling tool where users connect their own Pinterest
-> account via OAuth, pick one of their own boards, and schedule Pins that
-> Publishly creates through the official API at the scheduled time. Board and
-> account read scopes power the board picker and the user's own analytics.
+- `boards:read`
+- `pins:read`, `pins:write`
+- `user_accounts:read`
 
-## Data handling
-- Stored: account id/username/avatar, access+refresh tokens (encrypted at
-  rest), board list for the picker, created Pin ids.
-- Deletion: disconnect removes tokens; account deletion removes all data.
+These identify the consenting account, list/select its existing boards, create
+the user-requested Pin, and reconcile results. `boards:write`, secret-board,
+advertising, catalogs, and audience scopes are not requested. The adapter does
+not consume a Pinterest webhook.
 
-## Common rejection causes
-- Trial-access apps exceeding caps instead of applying for standard access.
-- Redirect URI mismatch (must be byte-exact, HTTPS in production).
-- Spam-pattern concerns: describe user-authored content clearly.
+## Setup and access upgrade
 
-## Post-approval canary
-1. Connect the company test account; create a private test board.
-2. Schedule one image Pin (vertical 2:3 image) → verify via the returned Pin URL.
-3. Schedule one short MP4 Pin → Pinterest processes video async; the provider's
-   pending/finalize flow handles it — confirm it reaches completed state.
+1. Complete public privacy, terms, contact, and deletion pages on the final
+   domain.
+2. Connect the app from the business account, submit a specific scheduling use
+   case for Trial access, and wait for the external review.
+3. After approval, add the exact redirect, store the credentials, deploy, and
+   exercise OAuth with an owner-controlled account. A temporary product token
+   can help diagnose API calls but is not a customer OAuth substitute.
+4. Test board discovery and compliant fresh image/video Pin creation. Pinterest
+   states that Trial-created Pins/boards are visible only to their creator, so
+   do not treat that visibility as a production canary.
+5. Request Standard access before serving customers. Submit the live OAuth and
+   Pin-creation screencast requested by Pinterest, plus the accurate app and
+   privacy details.
+
+Suggested description:
+
+> Publishly lets a Pinterest user authorize their own account, select one of
+> their boards, and schedule original media as a Pin. The user sees the selected
+> account, board, media, title/description, and schedule before a durable worker
+> creates the Pin. Publishly stores encrypted OAuth tokens, never collects
+> Pinterest passwords/session cookies, and supports disconnect and data
+> deletion.
+
+The Standard-access video should show the complete OAuth flow, the exact consent
+scopes, board selection, an original-media Pin created through the live API, the
+resulting Pin, and disconnect. Use a dedicated reviewer workspace/account.
+
+Common denials: inaccessible or inaccurate privacy policy; vague description;
+missing OAuth in the video; session-cookie/login collection; wireframe rather
+than a live integration; redirect mismatch/secondary redirect; or asking for
+Standard before demonstrating Trial access. Never describe Trial-only creator
+visibility as a public production post.
+
+Sources:
+
+- [Connect and register a Pinterest app](https://developers.pinterest.com/docs/getting-started/connect-app/)
+- [Pinterest OAuth and scopes](https://developers.pinterest.com/docs/getting-started/set-up-authentication-and-authorization/)
+- [Trial and Standard access tiers/review](https://developers.pinterest.com/docs/key-concepts/access-tiers/)
+- [Create boards and Pins](https://developers.pinterest.com/docs/work-with-organic-content-and-users/create-boards-and-pins/)

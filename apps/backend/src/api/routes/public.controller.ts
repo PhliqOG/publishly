@@ -2,9 +2,14 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpException,
+  Logger,
+  NotFoundException,
   Param,
   Post,
   Query,
+  RawBodyRequest,
   Req,
   Res,
   StreamableFile,
@@ -27,6 +32,9 @@ import { promisify } from 'util';
 import { OnlyURL } from '@gitroom/nestjs-libraries/dtos/webhooks/webhooks.dto';
 import { isSafePublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/webhooks/webhook.url.validator';
 import { ssrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
+import { MetaDataDeletionService } from '@gitroom/nestjs-libraries/database/prisma/meta-deletion/meta-data-deletion.service';
+import { PublicStatusService } from '@gitroom/nestjs-libraries/database/prisma/public-status/public-status.service';
+import { verifyMetaWebhookSignature } from '@gitroom/backend/services/meta-webhook.verifier';
 
 const pump = promisify(pipeline);
 
@@ -37,8 +45,81 @@ export class PublicController {
     private _trackService: TrackService,
     private _agentGraphInsertService: AgentGraphInsertService,
     private _postsService: PostsService,
-    private _subscriptionService: SubscriptionService
+    private _subscriptionService: SubscriptionService,
+    private _metaDataDeletionService: MetaDataDeletionService,
+    private _publicStatus: PublicStatusService
   ) {}
+
+  @Get('/status')
+  async publicStatus(@Res({ passthrough: true }) res: Response) {
+    res.setHeader(
+      'Cache-Control',
+      'public, max-age=30, stale-if-error=300, stale-while-revalidate=30'
+    );
+    return this._publicStatus.getPublicStatus();
+  }
+
+  @Get('/meta/webhooks/instagram')
+  @HttpCode(200)
+  metaInstagramWebhookVerification(
+    @Query('hub.mode') mode: string,
+    @Query('hub.verify_token') verifyToken: string,
+    @Query('hub.challenge') challenge: string
+  ) {
+    const configuredToken = process.env.META_WEBHOOK_VERIFY_TOKEN;
+    if (!configuredToken) {
+      throw new HttpException('Meta webhook is not configured', 503);
+    }
+    if (
+      mode !== 'subscribe' ||
+      !verifyToken ||
+      verifyToken !== configuredToken ||
+      !challenge
+    ) {
+      throw new HttpException('Meta webhook verification failed', 403);
+    }
+    return challenge;
+  }
+
+  @Post('/meta/webhooks/instagram')
+  @HttpCode(200)
+  metaInstagramWebhook(@Req() req: RawBodyRequest<Request>) {
+    if (
+      !verifyMetaWebhookSignature(
+        req.rawBody,
+        req.headers['x-hub-signature-256'],
+        [process.env.FACEBOOK_APP_SECRET, process.env.INSTAGRAM_APP_SECRET]
+      )
+    ) {
+      throw new HttpException('Invalid Meta webhook signature', 401);
+    }
+    const payload = req.body as { object?: string; entry?: unknown[] };
+    Logger.log(
+      JSON.stringify({
+        event: 'meta_webhook_received',
+        object: payload?.object || 'unknown',
+        entryCount: Array.isArray(payload?.entry) ? payload.entry.length : 0,
+      }),
+      'MetaWebhook'
+    );
+    // Inbox data is read from the official Conversations API. The webhook is a
+    // signed low-latency signal; polling remains the source of truth and avoids
+    // persisting duplicated message payloads.
+    return { received: true };
+  }
+
+  @Post('/meta/data-deletion')
+  @HttpCode(200)
+  async metaDataDeletion(@Body('signed_request') signedRequest: string) {
+    return this._metaDataDeletionService.requestDeletion(signedRequest);
+  }
+
+  @Get('/meta/data-deletion/status')
+  async metaDataDeletionStatus(@Query('code') code: string) {
+    const status = await this._metaDataDeletionService.getStatus(code);
+    if (!status) throw new NotFoundException('Deletion request not found');
+    return status;
+  }
   @Post('/agent')
   async createAgent(@Body() body: { text: string; apiKey: string }) {
     if (
@@ -140,11 +221,8 @@ export class PublicController {
         return { success: false };
       }
 
-      const totalChannels = pricing[load.billing].channel || 0;
-
       await this._subscriptionService.modifySubscriptionByOrg(
         load.orgId,
-        totalChannels,
         load.billing
       );
 
@@ -153,7 +231,6 @@ export class PublicController {
       return { success: false };
     }
   }
-
 
   @Get('/stream')
   async streamFile(
@@ -234,6 +311,20 @@ export class PublicController {
 
     try {
       await pump(Readable.fromWeb(r.body as any), res);
-    } catch (err) {}
+    } catch (error) {
+      const reason =
+        error instanceof Error && error.message
+          ? error.message
+          : 'The upstream media stream ended unexpectedly.';
+      console.error({
+        event: 'public_media_proxy_stream_failed',
+        code: 'media_stream_interrupted',
+        reason,
+      });
+      if (!res.headersSent) {
+        return res.status(502).send('Media stream interrupted');
+      }
+      res.destroy(error instanceof Error ? error : new Error(reason));
+    }
   }
 }

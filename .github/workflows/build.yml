@@ -9,7 +9,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: postgresql://publishly_ci:publishly_ci_password@127.0.0.1:5432/publishly_ci_test
+      TEST_DATABASE_URL: postgresql://publishly_ci:publishly_ci_password@127.0.0.1:5432/publishly_ci_test
+      NODE_OPTIONS: --max-old-space-size=4096
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: publishly_ci
+          POSTGRES_PASSWORD: publishly_ci_password
+          POSTGRES_DB: publishly_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U publishly_ci -d publishly_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
 
     strategy:
       matrix:
@@ -49,6 +68,27 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+
+      - name: Verify architecture contracts
+        run: pnpm run verify:architecture
+
+      - name: Apply migrations to the mandatory test database
+        run: pnpm run prisma-migrate-deploy
+
+      - name: Mandatory Bulk Scheduler tenant-isolation gate
+        run: pnpm run test:bulk-scheduler:tenant
+
+      - name: Mandatory Bulk Scheduler 100,000-job gate
+        run: pnpm run test:bulk-scheduler:load
+
+      - name: Preserve Bulk Scheduler benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bulk-scheduler-stage7-${{ github.sha }}
+          path: docs/evidence/bulk-scheduler/benchmarks/stage7-100k.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Build
         run: pnpm run build

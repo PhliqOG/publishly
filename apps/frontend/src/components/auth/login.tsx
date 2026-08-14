@@ -15,6 +15,10 @@ import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { FarcasterProvider } from '@gitroom/frontend/components/auth/providers/farcaster.provider';
 import WalletProvider from '@gitroom/frontend/components/auth/providers/wallet.provider';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import {
+  authNetworkFailure,
+  readAuthFailure,
+} from '@gitroom/frontend/components/auth/auth.failure';
 type Inputs = {
   email: string;
   password: string;
@@ -41,22 +45,32 @@ export function Login() {
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
     setLoading(true);
     setNotActivated(false);
-    const login = await fetchData('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...data,
-        provider: 'LOCAL',
-      }),
-    });
-    if (login.status === 400) {
-      const errorMessage = await login.text();
-      if (errorMessage === 'User is not activated') {
-        setNotActivated(true);
-      } else {
-        form.setError('email', {
-          message: errorMessage,
-        });
+    form.clearErrors('email');
+
+    try {
+      const login = await fetchData('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...data,
+          provider: 'LOCAL',
+        }),
+      });
+
+      if (!login.ok) {
+        const errorMessage = await readAuthFailure(login, 'Sign in failed');
+        if (errorMessage === 'User is not activated') {
+          setNotActivated(true);
+        } else {
+          form.setError('email', {
+            message: errorMessage,
+          });
+        }
       }
+    } catch {
+      form.setError('email', {
+        message: authNetworkFailure('sign in'),
+      });
+    } finally {
       setLoading(false);
     }
   };
@@ -99,13 +113,14 @@ export function Login() {
                   translationKey="label_email"
                   {...form.register('email')}
                   type="email"
+                  autoComplete="username"
                   placeholder={t('email_address', 'Email Address')}
                 />
                 <Input
                   label="Password"
                   translationKey="label_password"
                   {...form.register('password')}
-                  autoComplete="off"
+                  autoComplete="current-password"
                   type="password"
                   placeholder={t('label_password', 'Password')}
                 />

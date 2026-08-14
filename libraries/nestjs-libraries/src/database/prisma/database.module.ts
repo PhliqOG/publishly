@@ -1,5 +1,9 @@
 import { Global, Module } from '@nestjs/common';
-import { PrismaRepository, PrismaService, PrismaTransaction } from './prisma.service';
+import {
+  PrismaRepository,
+  PrismaService,
+  PrismaTransaction,
+} from './prisma.service';
 import { OrganizationRepository } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.repository';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
@@ -53,6 +57,42 @@ import { BulkImportRepository } from '@gitroom/nestjs-libraries/database/prisma/
 import { BulkImportService } from '@gitroom/nestjs-libraries/database/prisma/bulk-import/bulk-import.service';
 import { AnalyticsSnapshotRepository } from '@gitroom/nestjs-libraries/database/prisma/analytics/analytics-snapshot.repository';
 import { OrgDataService } from '@gitroom/nestjs-libraries/database/prisma/organizations/org-data.service';
+import { InboxStateRepository } from '@gitroom/nestjs-libraries/database/prisma/inbox/inbox-state.repository';
+import { PublishingJobRepository } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-job.repository';
+import { PublishingFailureRepository } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-failure.repository';
+import { PublishingFailureService } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-failure.service';
+import { PublishingReceiptRepository } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-receipt.repository';
+import { PublishingReceiptService } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-receipt.service';
+import { PostConfirmationService } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/post-confirmation.service';
+import { MetaDataDeletionService } from '@gitroom/nestjs-libraries/database/prisma/meta-deletion/meta-data-deletion.service';
+import { PostCreationRequestRepository } from '@gitroom/nestjs-libraries/database/prisma/posts/post-creation-request.repository';
+import { PostCreationIdempotencyService } from '@gitroom/nestjs-libraries/database/prisma/posts/post-creation-idempotency.service';
+import { ReliablePostCreationService } from '@gitroom/nestjs-libraries/database/prisma/posts/reliable-post-creation.service';
+import { PublishingRetryService } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-retry.service';
+import { ConnectionHealthRepository } from '@gitroom/nestjs-libraries/database/prisma/connection-health/connection-health.repository';
+import { ConnectionHealthService } from '@gitroom/nestjs-libraries/database/prisma/connection-health/connection-health.service';
+import { FleetHealthRepository } from '@gitroom/nestjs-libraries/database/prisma/fleet-health/fleet-health.repository';
+import { FleetHealthService } from '@gitroom/nestjs-libraries/database/prisma/fleet-health/fleet-health.service';
+import { AccountPublishingQueueRepository } from '@gitroom/nestjs-libraries/database/prisma/account-queue/account-publishing-queue.repository';
+import { AccountPublishingQueueService } from '@gitroom/nestjs-libraries/database/prisma/account-queue/account-publishing-queue.service';
+import { FleetDistributionRepository } from '@gitroom/nestjs-libraries/database/prisma/fleet-distribution/fleet-distribution.repository';
+import { FleetDistributionService } from '@gitroom/nestjs-libraries/database/prisma/fleet-distribution/fleet-distribution.service';
+import { PlatformTruthService } from '@gitroom/nestjs-libraries/database/prisma/platform-truth/platform-truth.service';
+import { PublicStatusRepository } from '@gitroom/nestjs-libraries/database/prisma/public-status/public-status.repository';
+import { PublicStatusService } from '@gitroom/nestjs-libraries/database/prisma/public-status/public-status.service';
+import { BulkCampaignRepository } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/bulk-campaign.repository';
+import { BulkCampaignService } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/bulk-campaign.service';
+import { ProviderMediaRepository } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/provider-media.repository';
+import { ProviderMediaService } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/provider-media.service';
+import { CalendarReservationRepository } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/calendar-reservation.repository';
+import { CalendarReservationService } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/calendar-reservation.service';
+import { PostCalendarWriterService } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/post-calendar-writer.service';
+import { BulkCampaignExecutionRepository } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/bulk-campaign-execution.repository';
+import { PublishingAttemptRepository } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-attempt.repository';
+import { PublishingAttemptService } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-attempt.service';
+import { BulkCampaignExecutionService } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/bulk-campaign-execution.service';
+import { BulkUploadRepository } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/bulk-upload.repository';
+import { BulkUploadService } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/bulk-upload.service';
 
 @Global()
 @Module({
@@ -115,6 +155,42 @@ import { OrgDataService } from '@gitroom/nestjs-libraries/database/prisma/organi
     BulkImportService,
     AnalyticsSnapshotRepository,
     OrgDataService,
+    InboxStateRepository,
+    PublishingJobRepository,
+    PublishingFailureRepository,
+    PublishingFailureService,
+    PublishingReceiptRepository,
+    PublishingReceiptService,
+    PostConfirmationService,
+    MetaDataDeletionService,
+    PostCreationRequestRepository,
+    PostCreationIdempotencyService,
+    ReliablePostCreationService,
+    PublishingRetryService,
+    ConnectionHealthRepository,
+    ConnectionHealthService,
+    FleetHealthRepository,
+    FleetHealthService,
+    AccountPublishingQueueRepository,
+    AccountPublishingQueueService,
+    FleetDistributionRepository,
+    FleetDistributionService,
+    PlatformTruthService,
+    PublicStatusRepository,
+    PublicStatusService,
+    BulkCampaignRepository,
+    BulkCampaignService,
+    ProviderMediaRepository,
+    ProviderMediaService,
+    CalendarReservationRepository,
+    CalendarReservationService,
+    PostCalendarWriterService,
+    BulkCampaignExecutionRepository,
+    PublishingAttemptRepository,
+    PublishingAttemptService,
+    BulkCampaignExecutionService,
+    BulkUploadRepository,
+    BulkUploadService,
   ],
   get exports() {
     return this.providers;

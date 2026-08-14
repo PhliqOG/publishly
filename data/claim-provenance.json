@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "purpose": "Provenance for every competitor/third-party claim published on Publishly pages. Comparison pages must render 'Pricing last checked: <verified_at>' from this file. Stale policy: competitor pricing older than 30 days or platform facts older than 90 days must be flagged for re-verification before the page rebuilds.",
+    "purpose": "Provenance for every competitor or third-party claim published on Publishly pages. Pricing comes from official vendor pages. Reliability comparisons also check official help and developer documentation; third-party review themes are labeled as such. Comparison pages render a visible last-checked date.",
     "stale_after_days": { "competitor_pricing": 30, "platform_facts": 90 },
     "full_findings": ".building/reposition/competitor-pricing.md"
   },
@@ -10,44 +10,62 @@
       "claim": "Ayrshare's published Business plan pricing works out to $1,228.30/mo at 100 profiles ($599 base incl. 30 profiles + 70 × $8.99, monthly billing).",
       "source_url": "https://www.ayrshare.com/pricing",
       "publisher": "Ayrshare (official pricing page)",
-      "retrieved": "2026-08-10",
-      "verified_at": "2026-08-10",
+      "retrieved": "2026-08-11",
+      "verified_at": "2026-08-11",
       "confidence": "confirmed",
+      "supporting_sources": [
+        "https://www.ayrshare.com/docs/apis/webhooks/overview",
+        "https://www.ayrshare.com/docs/apis/post/post",
+        "https://www.ayrshare.com/docs/errors/errors-ayrshare"
+      ],
       "party": "third",
       "pages": ["/compare/ayrshare", "/pricing", "/resources/best-ayrshare-alternatives"]
     },
     {
       "id": "buffer-30-channels",
-      "claim": "Buffer's published Team rate is $10/channel/mo — 30 channels ≈ $300/mo.",
+      "claim": "Buffer's published Team rate is $12 per channel on monthly billing and $10 per channel on annual billing — 30 channels cost $360 monthly or $300 on an annual plan.",
       "source_url": "https://buffer.com/pricing",
       "publisher": "Buffer (official pricing page)",
-      "retrieved": "2026-08-10",
-      "verified_at": "2026-08-10",
+      "retrieved": "2026-08-11",
+      "verified_at": "2026-08-11",
       "confidence": "confirmed",
-      "note": "Operator spec said $360; published rates give $300 — use $300.",
+      "note": "Use $360 for a month-to-month comparison and state the $300 annual-billing equivalent when relevant.",
+      "supporting_sources": [
+        "https://support.buffer.com/article/506-enabling-notifications-in-buffer",
+        "https://support.buffer.com/article/573-refreshing-a-channel-in-buffer",
+        "https://support.buffer.com/article/935-troubleshooting-video-uploads-in-buffer"
+      ],
       "party": "third",
       "pages": ["/compare/buffer", "/pricing"]
     },
     {
       "id": "hootsuite-entry",
-      "claim": "Hootsuite's entry plan is $99/mo billed annually for 10 social accounts; unlimited accounts start at Professional $199/mo.",
+      "claim": "Hootsuite's current self-serve ladder is Standard $99, Professional $199, and Advanced $399 per user per month on annual billing. Standard covers 10 social accounts; Professional and Advanced cover unlimited accounts.",
       "source_url": "https://www.hootsuite.com/plans",
       "publisher": "Hootsuite (official plans page)",
-      "retrieved": "2026-08-10",
-      "verified_at": "2026-08-10",
+      "retrieved": "2026-08-11",
+      "verified_at": "2026-08-11",
       "confidence": "confirmed",
-      "note": "Do NOT publish 'price hikes + complaints' framing as fact — pricing only.",
+      "note": "Pricing is official. Review-theme counts are third-party observations and must stay clearly attributed to G2; do not present them as an outage rate.",
+      "supporting_sources": [
+        "https://help.hootsuite.com/hc/en-us/articles/1260804307929-Manage-email-notifications",
+        "https://www.g2.com/products/hootsuite/reviews"
+      ],
       "party": "third",
       "pages": ["/compare/hootsuite"]
     },
     {
       "id": "bundle-social-entry",
       "claim": "bundle.social's first paid tier is PRO at $100/mo; its free tier covers 3 accounts and 20 posts/mo; paid tiers have unlimited accounts.",
-      "source_url": "https://bundle.social",
-      "publisher": "bundle.social (official site)",
-      "retrieved": "2026-08-10",
-      "verified_at": "2026-08-10",
+      "source_url": "https://bundle.social/pricing",
+      "publisher": "bundle.social (official pricing page)",
+      "retrieved": "2026-08-11",
+      "verified_at": "2026-08-11",
       "confidence": "confirmed",
+      "supporting_sources": [
+        "https://bundle.social/social-media-webhooks-api",
+        "https://bundle.social/content-guidelines"
+      ],
       "party": "third",
       "pages": ["/compare/bundle-social"]
     },

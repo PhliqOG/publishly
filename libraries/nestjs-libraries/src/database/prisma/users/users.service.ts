@@ -51,11 +51,7 @@ export class UsersService {
       );
 
     this._logger.log(
-      `User login switch performed by admin ${adminId}: account ${
-        kept.id
-      } login ${switched.email} -> ${kept.email}; account ${
-        switched.id
-      } login ${kept.email} -> ${switched.email}`
+      `User login switch performed by admin ${adminId}: account ${kept.id} login ${switched.email} -> ${kept.email}; account ${switched.id} login ${kept.email} -> ${switched.email}`
     );
 
     // the swap is already committed; a notification failure must not fail it
@@ -65,8 +61,8 @@ export class UsersService {
           this._notificationService
             .sendEmail(
               account.email,
-              'Your Postiz login was changed',
-              `An administrator changed the login for your Postiz account. ` +
+              'Your Publishly login was changed',
+              `An administrator changed the login for your Publishly account. ` +
                 `You can now sign in using ${account.email}. ` +
                 `Your subscription and plan were not changed by this switch — ` +
                 `if you intended to cancel a subscription, please do that ` +

@@ -9,44 +9,66 @@ datasource db {
 }
 
 model Organization {
-  id                  String               @id @default(uuid())
-  name                String
-  description         String?
-  apiKey              String?
-  paymentId           String?
-  streakSince         DateTime?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  allowTrial          Boolean              @default(false)
-  isTrailing          Boolean              @default(false)
-  shortlink           ShortLinkPreference  @default(ASK)
-  autoPost            AutoPost[]
-  Comments            Comments[]
-  credits             Credits[]
-  customers           Customer[]
-  errors              Errors[]
-  github              GitHub[]
-  Integration         Integration[]
-  media               Media[]
-  buyerOrganization   MessagesGroup[]
-  notifications       Notifications[]
-  plugs               Plugs[]
-  post                Post[]               @relation("organization")
-  submittedPost       Post[]               @relation("submittedForOrg")
-  sets                Sets[]
-  signatures          Signatures[]
-  subscription        Subscription?
-  tags                Tags[]
-  thirdParty          ThirdParty[]
-  usedCodes           UsedCodes[]
-  users               UserOrganization[]
-  webhooks            Webhooks[]
-  oauthApp            OAuthApp[]
-  oauthAuthorizations OAuthAuthorization[]
-  apiKeys             ApiKey[]
-  auditLogs           AuditLog[]
-  analyticsSnapshots  AnalyticsSnapshot[]
-  bulkImports         BulkImport[]
+  id                     String                        @id @default(uuid())
+  name                   String
+  description            String?
+  apiKey                 String?
+  paymentId              String?
+  streakSince            DateTime?
+  createdAt              DateTime                      @default(now())
+  updatedAt              DateTime                      @updatedAt
+  allowTrial             Boolean                       @default(false)
+  isTrailing             Boolean                       @default(false)
+  shortlink              ShortLinkPreference           @default(ASK)
+  autoPost               AutoPost[]
+  Comments               Comments[]
+  credits                Credits[]
+  customers              Customer[]
+  errors                 Errors[]
+  github                 GitHub[]
+  Integration            Integration[]
+  media                  Media[]
+  buyerOrganization      MessagesGroup[]
+  notifications          Notifications[]
+  plugs                  Plugs[]
+  post                   Post[]                        @relation("organization")
+  submittedPost          Post[]                        @relation("submittedForOrg")
+  sets                   Sets[]
+  signatures             Signatures[]
+  subscription           Subscription?
+  tags                   Tags[]
+  thirdParty             ThirdParty[]
+  usedCodes              UsedCodes[]
+  users                  UserOrganization[]
+  webhooks               Webhooks[]
+  oauthApp               OAuthApp[]
+  oauthAuthorizations    OAuthAuthorization[]
+  apiKeys                ApiKey[]
+  auditLogs              AuditLog[]
+  analyticsSnapshots     AnalyticsSnapshot[]
+  bulkImports            BulkImport[]
+  bulkCampaigns          BulkCampaign[]
+  bulkCampaignJobs       BulkCampaignJob[]
+  bulkAssets             BulkAsset[]
+  providerMediaGrants    ProviderMediaGrant[]
+  providerMediaFetches   ProviderMediaFetchEvent[]
+  calendarReservations   CalendarReservation[]
+  reservationBackfills   CalendarReservationBackfill[]
+  inboxStates            InboxState[]
+  publishingJobs         PublishingJob[]
+  publishingAttempts     PublishingAttempt[]
+  publishingFailures     PublishingFailure[]
+  publishingReceipts     PublishingReceipt[]
+  postCreationRequests   PostCreationRequest[]
+  connectionHealthEvents ConnectionHealthEvent[]
+  accountTags            AccountTag[]
+  accountGroups          AccountGroup[]
+  accountQueueStates     AccountPublishingQueueState[]
+  accountQueueItems      AccountPublishingQueueItem[]
+  fleetDistributions     FleetDistribution[]
+  webhookDeliveries      WebhookDeliveryAttempt[]
+  successfulPostUsage    SuccessfulPostUsage[]
+  bulkUploadSessions     BulkUploadSession[]
 
   @@index([apiKey])
   @@index([streakSince])
@@ -119,6 +141,7 @@ model User {
   resetCode             String?
   oauthAuthorizations   OAuthAuthorization[]
   auditLogs             AuditLog[]
+  inboxAssignments      InboxState[]         @relation("InboxAssignee")
 
   @@unique([email, providerName])
   @@index([lastReadNotifications])
@@ -222,7 +245,14 @@ model Media {
   updatedAt          DateTime            @updatedAt
   deletedAt          DateTime?
   fileSize           Int                 @default(0)
+  thumbnailFileSize  Int                 @default(0)
   type               String              @default("image")
+  mimeType           String?
+  width              Int?
+  height             Int?
+  durationSeconds    Float?
+  sha256             String?
+  metadataStatus     String              @default("PENDING")
   thumbnail          String?
   alt                String?
   thumbnailTimestamp Int?
@@ -234,6 +264,7 @@ model Media {
   @@index([name])
   @@index([organizationId])
   @@index([type])
+  @@index([organizationId, sha256])
 }
 
 model SocialMediaAgency {
@@ -318,37 +349,79 @@ model Customer {
 }
 
 model Integration {
-  id                    String                 @id @default(cuid())
-  internalId            String
-  organizationId        String
-  name                  String
-  picture               String?
-  providerIdentifier    String
-  type                  String
-  token                 String
-  disabled              Boolean                @default(false)
-  tokenExpiration       DateTime?
-  refreshToken          String?
-  profile               String?
-  deletedAt             DateTime?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime?              @updatedAt
-  inBetweenSteps        Boolean                @default(false)
-  refreshNeeded         Boolean                @default(false)
-  postingTimes          String                 @default("[{\"time\":120}, {\"time\":400}, {\"time\":700}]")
-  customInstanceDetails String?
-  customerId            String?
-  rootInternalId        String?
-  additionalSettings    String?                @default("[]")
-  exisingPlugData       ExisingPlugData[]
-  customer              Customer?              @relation(fields: [customerId], references: [id])
-  organization          Organization           @relation(fields: [organizationId], references: [id])
-  webhooks              IntegrationsWebhooks[]
-  orderItems            OrderItems[]
-  plugs                 Plugs[]
-  posts                 Post[]
-  analyticsSnapshots    AnalyticsSnapshot[]
+  id                        String                       @id @default(cuid())
+  internalId                String
+  organizationId            String
+  name                      String
+  picture                   String?
+  providerIdentifier        String
+  type                      String
+  token                     String
+  disabled                  Boolean                      @default(false)
+  tokenExpiration           DateTime?
+  tokenIssuedAt             DateTime?
+  tokenLifetimeDays         Int?
+  tokenHealthState          TokenHealthState             @default(UNKNOWN)
+  tokenHealthReason         String?
+  tokenHealthCheckedAt      DateTime?
+  tokenHealthChangedAt      DateTime?
+  tokenWarningDays          Int?
+  refreshToken              String?
+  profile                   String?
+  deletedAt                 DateTime?
+  createdAt                 DateTime                     @default(now())
+  updatedAt                 DateTime?                    @updatedAt
+  inBetweenSteps            Boolean                      @default(false)
+  refreshNeeded             Boolean                      @default(false)
+  rateLimitedUntil          DateTime?
+  rateLimitReason           String?
+  rateLimitObservedAt       DateTime?
+  connectionHealthState     ConnectionHealthState        @default(HEALTHY)
+  connectionHealthReason    String?
+  connectionHealthChangedAt DateTime?
+  platformTruthState        PlatformTruthState           @default(NOT_APPLICABLE)
+  platformPublishingMode    PlatformPublishingMode       @default(NOT_APPLICABLE)
+  platformAuditState        PlatformAuditState           @default(NOT_APPLICABLE)
+  platformTruthCode         String?
+  platformTruthReason       String?
+  platformTruthCheckedAt    DateTime?
+  platformTruthChangedAt    DateTime?
+  platformAccountType       String?
+  platformLinkedResourceId  String?
+  platformTruthMetadata     Json?
+  lastProviderContactAt     DateTime?
+  lastSuccessfulPublishAt   DateTime?
+  lastFailedPublishAt       DateTime?
+  consecutiveErrors         Int                          @default(0)
+  lastConnectionErrorCode   String?
+  lastConnectionErrorReason String?
+  staleSince                DateTime?
+  deadAccountAt             DateTime?
+  postingTimes              String                       @default("[{\"time\":120}, {\"time\":400}, {\"time\":700}]")
+  customInstanceDetails     String?
+  customerId                String?
+  rootInternalId            String?
+  additionalSettings        String?                      @default("[]")
+  exisingPlugData           ExisingPlugData[]
+  customer                  Customer?                    @relation(fields: [customerId], references: [id])
+  organization              Organization                 @relation(fields: [organizationId], references: [id])
+  webhooks                  IntegrationsWebhooks[]
+  orderItems                OrderItems[]
+  plugs                     Plugs[]
+  posts                     Post[]
+  analyticsSnapshots        AnalyticsSnapshot[]
+  inboxStates               InboxState[]
+  healthEvents              ConnectionHealthEvent[]
+  accountTags               IntegrationAccountTag[]
+  accountGroups             IntegrationAccountGroup[]
+  accountQueueState         AccountPublishingQueueState?
+  accountQueueItems         AccountPublishingQueueItem[]
+  fleetDistributionItems    FleetDistributionItem[]
+  publishingJobs            PublishingJob[]
+  calendarReservations      CalendarReservation[]
+  bulkCampaignJobs          BulkCampaignJob[]
 
+  @@unique([id, organizationId])
   @@unique([organizationId, internalId])
   @@index([rootInternalId])
   @@index([organizationId])
@@ -360,6 +433,11 @@ model Integration {
   @@index([inBetweenSteps])
   @@index([refreshNeeded])
   @@index([disabled])
+  @@index([rateLimitedUntil])
+  @@index([tokenHealthState, tokenExpiration])
+  @@index([connectionHealthState, deadAccountAt])
+  @@index([platformTruthState, providerIdentifier])
+  @@index([lastProviderContactAt])
 }
 
 model Signatures {
@@ -398,13 +476,13 @@ model Comments {
 }
 
 model Post {
-  id                         String                    @id @default(cuid())
-  state                      State                     @default(QUEUE)
+  id                         String                      @id @default(cuid())
+  state                      State                       @default(QUEUE)
   publishDate                DateTime
   organizationId             String
   integrationId              String
   content                    String
-  delay                      Int                       @default(0)
+  delay                      Int                         @default(0)
   group                      String
   title                      String?
   description                String?
@@ -415,26 +493,33 @@ model Post {
   image                      String?
   submittedForOrderId        String?
   submittedForOrganizationId String?
-  approvedSubmitForOrder     APPROVED_SUBMIT_FOR_ORDER @default(NO)
-  creationMethod             CreationMethod            @default(UNKNOWN)
+  approvedSubmitForOrder     APPROVED_SUBMIT_FOR_ORDER   @default(NO)
+  creationMethod             CreationMethod              @default(UNKNOWN)
   lastMessageId              String?
   intervalInDays             Int?
   error                      String?
-  createdAt                  DateTime                  @default(now())
-  updatedAt                  DateTime                  @updatedAt
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
   deletedAt                  DateTime?
   comments                   Comments[]
   errors                     Errors[]
   payoutProblems             PayoutProblems[]
-  integration                Integration               @relation(fields: [integrationId], references: [id])
-  lastMessage                Messages?                 @relation(fields: [lastMessageId], references: [id])
-  organization               Organization              @relation("organization", fields: [organizationId], references: [id])
-  parentPost                 Post?                     @relation("parentPostId", fields: [parentPostId], references: [id])
-  childrenPost               Post[]                    @relation("parentPostId")
-  submittedForOrder          Orders?                   @relation(fields: [submittedForOrderId], references: [id])
-  submittedForOrganization   Organization?             @relation("submittedForOrg", fields: [submittedForOrganizationId], references: [id])
+  integration                Integration                 @relation(fields: [integrationId], references: [id])
+  lastMessage                Messages?                   @relation(fields: [lastMessageId], references: [id])
+  organization               Organization                @relation("organization", fields: [organizationId], references: [id])
+  parentPost                 Post?                       @relation("parentPostId", fields: [parentPostId], references: [id])
+  childrenPost               Post[]                      @relation("parentPostId")
+  submittedForOrder          Orders?                     @relation(fields: [submittedForOrderId], references: [id])
+  submittedForOrganization   Organization?               @relation("submittedForOrg", fields: [submittedForOrganizationId], references: [id])
   tags                       TagsPosts[]
+  publishingJob              PublishingJob?
+  publishingFailures         PublishingFailure[]
+  publishingReceipts         PublishingReceipt[]
+  accountQueueItem           AccountPublishingQueueItem?
+  calendarReservations       CalendarReservation[]
+  bulkCampaignJobs           BulkCampaignJob[]
 
+  @@unique([id, organizationId])
   @@index([group])
   @@index([deletedAt])
   @@index([publishDate])
@@ -452,6 +537,734 @@ model Post {
   @@index([integrationId])
 }
 
+model PublishingJob {
+  id                 String                   @id @default(uuid())
+  organizationId     String
+  integrationId      String
+  postId             String                   @unique
+  provider           String
+  state              PublishingJobState       @default(DRAFT)
+  idempotencyKey     String                   @unique
+  attempts           Int                      @default(0)
+  nextAttemptAt      DateTime?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  lastError          String?
+  failureCategory    String?
+  failureClass       PostFailureClass?
+  failureCode        String?
+  failureReason      String?
+  deliveryStage      DeliveryReceiptStage?
+  stageUpdatedAt     DateTime?
+  sentAt             DateTime?
+  confirmedLiveAt    DateTime?
+  providerPostId     String?
+  providerUrl        String?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  organization       Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration        Integration              @relation(fields: [integrationId], references: [id])
+  post               Post                     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  failures           PublishingFailure[]
+  receipts           PublishingReceipt[]
+  bulkAssets         BulkPublishingJobAsset[]
+  bulkCampaignJob    BulkCampaignJob?
+  publishingAttempts PublishingAttempt[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, state])
+  @@index([organizationId, integrationId, completedAt])
+  @@index([integrationId, state, deliveryStage])
+  @@index([provider, state])
+  @@index([nextAttemptAt])
+  @@index([updatedAt])
+}
+
+model SuccessfulPostUsage {
+  id             String       @id @default(cuid())
+  organizationId String
+  postId         String       @unique
+  receiptId      String       @unique
+  provider       String
+  confirmedAt    DateTime
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Deliberately no Post/PublishingReceipt relation: deleting operational post
+  // history must not erase the successful-delivery billing ledger.
+  @@index([organizationId, confirmedAt])
+  @@index([provider, confirmedAt])
+}
+
+model ServiceHealthSample {
+  id         String             @id @default(cuid())
+  component  String
+  bucket     DateTime
+  status     ServiceHealthState
+  latencyMs  Int?
+  code       String
+  reason     String
+  observedAt DateTime
+  createdAt  DateTime           @default(now())
+
+  @@unique([component, bucket])
+  @@index([component, bucket])
+  @@index([bucket])
+}
+
+model AccountTag {
+  id             String                  @id @default(cuid())
+  organizationId String
+  name           String
+  normalizedName String
+  color          String                  @default("#8C66FF")
+  deletedAt      DateTime?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integrations   IntegrationAccountTag[]
+
+  @@unique([organizationId, normalizedName])
+  @@index([organizationId, deletedAt, name])
+}
+
+model IntegrationAccountTag {
+  integrationId String
+  accountTagId  String
+  createdAt     DateTime    @default(now())
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  accountTag    AccountTag  @relation(fields: [accountTagId], references: [id], onDelete: Cascade)
+
+  @@id([integrationId, accountTagId])
+  @@index([accountTagId, integrationId])
+}
+
+model AccountGroup {
+  id             String                    @id @default(cuid())
+  organizationId String
+  name           String
+  normalizedName String
+  color          String                    @default("#3B82F6")
+  deletedAt      DateTime?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  organization   Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integrations   IntegrationAccountGroup[]
+  distributions  FleetDistribution[]
+
+  @@unique([organizationId, normalizedName])
+  @@index([organizationId, deletedAt, name])
+}
+
+model IntegrationAccountGroup {
+  integrationId  String
+  accountGroupId String
+  createdAt      DateTime     @default(now())
+  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  accountGroup   AccountGroup @relation(fields: [accountGroupId], references: [id], onDelete: Cascade)
+
+  @@id([integrationId, accountGroupId])
+  @@index([accountGroupId, integrationId])
+}
+
+model AccountPublishingQueueState {
+  integrationId  String       @id
+  organizationId String
+  leasePostId    String?
+  leaseToken     String?
+  leaseUntil     DateTime?
+  cooldownReason String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, leaseUntil])
+  @@index([leaseUntil])
+}
+
+model AccountPublishingQueueItem {
+  postId         String                 @id
+  organizationId String
+  integrationId  String
+  scheduledAt    DateTime
+  status         AccountQueueItemStatus @default(WAITING)
+  terminalCode   String?
+  terminalReason String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  completedAt    DateTime?
+  post           Post                   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  integration    Integration            @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, integrationId, status, scheduledAt, createdAt], map: "AccountQueue_fifo_idx")
+  @@index([status, updatedAt])
+}
+
+model FleetDistribution {
+  id                String                  @id @default(uuid())
+  organizationId    String
+  accountGroupId    String
+  keyHash           String
+  requestHash       String
+  state             FleetDistributionState  @default(IN_PROGRESS)
+  windowStart       DateTime
+  windowEnd         DateTime
+  timezone          String
+  minimumSpacingSec Int
+  lastFailureClass  PostFailureClass?
+  lastFailureCode   String?
+  lastFailureReason String?
+  completedAt       DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  organization      Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accountGroup      AccountGroup            @relation(fields: [accountGroupId], references: [id])
+  items             FleetDistributionItem[]
+
+  @@unique([organizationId, keyHash])
+  @@index([organizationId, state, updatedAt])
+  @@index([accountGroupId, createdAt])
+}
+
+model FleetDistributionItem {
+  id             String                      @id
+  distributionId String
+  integrationId  String
+  postId         String                      @unique
+  postGroup      String
+  scheduledAt    DateTime
+  status         FleetDistributionItemStatus @default(ALLOCATED)
+  failureClass   PostFailureClass?
+  failureCode    String?
+  failureReason  String?
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+  distribution   FleetDistribution           @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  integration    Integration                 @relation(fields: [integrationId], references: [id])
+
+  @@unique([distributionId, integrationId])
+  @@index([distributionId, status, scheduledAt])
+  @@index([integrationId, scheduledAt])
+}
+
+model BulkCampaign {
+  id                   String                @id
+  organizationId       String
+  name                 String
+  state                BulkCampaignState     @default(DRAFT)
+  idempotencyKeyHash   String
+  requestHash          String
+  currentRevision      Int                   @default(1)
+  issueCount           Int                   @default(0)
+  openIssueCount       Int                   @default(0)
+  pausedAt             DateTime?
+  pausedFromState      BulkCampaignState?
+  cancelledAt          DateTime?
+  completedAt          DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  intents              BulkCampaignIntent[]
+  issues               BulkCampaignIssue[]
+  assets               BulkCampaignAsset[]
+  jobs                 BulkCampaignJob[]
+  uploads              BulkUploadSession[]
+  calendarReservations CalendarReservation[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, idempotencyKeyHash])
+  @@index([organizationId, state, updatedAt, id])
+}
+
+model BulkCampaignIntent {
+  id              String       @id
+  organizationId  String
+  campaignId      String
+  revision        Int
+  schemaVersion   Int          @default(1)
+  intent          Json
+  intentHash      String
+  createdByUserId String?
+  createdAt       DateTime     @default(now())
+  campaign        BulkCampaign @relation(fields: [campaignId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([organizationId, campaignId, revision])
+  @@index([organizationId, campaignId, createdAt, id])
+  @@index([intentHash])
+}
+
+model BulkCampaignIssue {
+  id             String                   @id
+  organizationId String
+  campaignId     String
+  eventKey       String
+  issueClass     BulkCampaignIssueClass
+  failureClass   PostFailureClass
+  code           String
+  reason         String
+  subjectType    BulkCampaignSubjectType?
+  subjectId      String?
+  retryable      Boolean                  @default(false)
+  details        Json?
+  state          BulkCampaignIssueState   @default(open)
+  occurredAt     DateTime                 @default(now())
+  resolvedAt     DateTime?
+  resolutionCode String?
+  resolutionNote String?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  campaign       BulkCampaign             @relation(fields: [campaignId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([organizationId, campaignId, eventKey])
+  @@index([organizationId, campaignId, state, occurredAt, id])
+  @@index([organizationId, issueClass, occurredAt, id])
+  @@index([code, occurredAt])
+}
+
+model BulkAsset {
+  id                  String                   @id
+  organizationId      String
+  storageKey          String                   @unique
+  originalName        String
+  mimeType            String
+  byteLength          Int
+  sha256              String
+  state               BulkAssetState           @default(READY)
+  width               Int?
+  height              Int?
+  durationSeconds     Float?
+  videoCodec          String?
+  audioCodec          String?
+  thumbnailStorageKey String?
+  metadata            Json?
+  normalized          Boolean                  @default(false)
+  quarantinedAt       DateTime?
+  deletedAt           DateTime?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  organization        Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaigns           BulkCampaignAsset[]
+  publishingJobs      BulkPublishingJobAsset[]
+  campaignJobs        BulkCampaignJob[]
+  uploadSessions      BulkUploadSession[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, sha256, createdAt])
+  @@index([organizationId, state, createdAt])
+}
+
+model BulkCampaignAsset {
+  organizationId String
+  campaignId     String
+  assetId        String
+  position       Int
+  pinned         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  campaign       BulkCampaign @relation(fields: [campaignId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  asset          BulkAsset    @relation(fields: [assetId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@id([campaignId, assetId])
+  @@unique([organizationId, campaignId, position])
+  @@index([organizationId, assetId])
+}
+
+model BulkUploadSession {
+  id                   String                 @id
+  organizationId       String
+  campaignId           String
+  clientUploadId       String
+  batchKeyHash         String
+  batchRequestHash     String
+  originalName         String
+  relativePath         String
+  declaredMimeType     String?
+  expectedByteLength   Int
+  chunkSize            Int
+  totalParts           Int
+  receivedParts        Int                    @default(0)
+  receivedBytes        Int                    @default(0)
+  position             Int
+  state                BulkUploadSessionState @default(INITIATED)
+  storagePrefix        String
+  assetId              String?
+  sha256               String?
+  metadata             Json?
+  thumbnailStorageKey  String?
+  normalizationApplied Boolean                @default(false)
+  failureClass         PostFailureClass?
+  failureCode          String?
+  failureReason        String?
+  revision             Int                    @default(1)
+  attemptCount         Int                    @default(0)
+  nextAttemptAt        DateTime?
+  claimTokenHash       String?
+  leaseExpiresAt       DateTime?
+  expiresAt            DateTime
+  completedAt          DateTime?
+  quarantinedAt        DateTime?
+  abortedAt            DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  organization         Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign             BulkCampaign           @relation(fields: [campaignId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  asset                BulkAsset?             @relation(fields: [assetId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  parts                BulkUploadPart[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, campaignId, clientUploadId])
+  @@unique([organizationId, campaignId, position])
+  @@unique([assetId, organizationId])
+  @@index([organizationId, campaignId, state, createdAt, id])
+  @@index([state, leaseExpiresAt, createdAt, id])
+  @@index([organizationId, batchKeyHash, position])
+  @@index([expiresAt, state])
+}
+
+model BulkUploadPart {
+  organizationId String
+  sessionId      String
+  partNumber     Int
+  storageKey     String            @unique
+  byteLength     Int
+  sha256         String
+  receivedAt     DateTime          @default(now())
+  session        BulkUploadSession @relation(fields: [sessionId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@id([sessionId, partNumber])
+  @@index([organizationId, sessionId, partNumber])
+}
+
+model BulkPublishingJobAsset {
+  organizationId  String
+  publishingJobId String
+  assetId         String
+  ordinal         Int
+  createdAt       DateTime             @default(now())
+  publishingJob   PublishingJob        @relation(fields: [publishingJobId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  asset           BulkAsset            @relation(fields: [assetId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  providerGrants  ProviderMediaGrant[]
+
+  @@id([publishingJobId, assetId])
+  @@unique([publishingJobId, assetId, organizationId])
+  @@unique([organizationId, publishingJobId, ordinal])
+  @@index([organizationId, assetId])
+}
+
+model BulkCampaignJob {
+  id                 String                  @id
+  organizationId     String
+  campaignId         String
+  intentRevision     Int
+  assetId            String
+  integrationId      String
+  capabilityTupleId  String
+  ordinal            Int
+  destinationOrdinal Int
+  state              BulkCampaignJobState    @default(PLANNED)
+  scheduledAt        DateTime?
+  localScheduledAt   String?
+  timezone           String
+  utcOffsetMinutes   Int?
+  dstFold            Int?
+  pinned             Boolean                 @default(false)
+  revision           Int                     @default(1)
+  reservationId      String?                 @unique
+  postId             String?                 @unique
+  publishingJobId    String?                 @unique
+  claimTokenHash     String?
+  leaseExpiresAt     DateTime?
+  attemptCount       Int                     @default(0)
+  outcomeClass       BulkCampaignIssueClass?
+  outcomeCode        String
+  outcomeReason      String
+  materializedAt     DateTime?
+  dispatchedAt       DateTime?
+  publishedAt        DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  organization       Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign           BulkCampaign            @relation(fields: [campaignId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  asset              BulkAsset               @relation(fields: [assetId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  integration        Integration             @relation(fields: [integrationId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  reservation        CalendarReservation?    @relation(fields: [reservationId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  post               Post?                   @relation(fields: [postId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  publishingJob      PublishingJob?          @relation(fields: [publishingJobId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, campaignId, intentRevision, ordinal])
+  @@unique([organizationId, campaignId, intentRevision, assetId, integrationId])
+  @@unique([reservationId, organizationId])
+  @@unique([postId, organizationId])
+  @@unique([publishingJobId, organizationId])
+  @@index([organizationId, campaignId, state, scheduledAt, id])
+  @@index([state, scheduledAt, leaseExpiresAt, id])
+  @@index([organizationId, integrationId, scheduledAt])
+  @@index([organizationId, capabilityTupleId, state])
+  @@index([postId, organizationId])
+  @@index([publishingJobId, organizationId])
+}
+
+model PublishingAttempt {
+  id                  String                 @id
+  organizationId      String
+  publishingJobId     String
+  attemptNumber       Int
+  phase               PublishingAttemptPhase
+  state               PublishingAttemptState @default(STARTED)
+  activityKey         String
+  mutationFingerprint String
+  mutationInvoked     Boolean                @default(false)
+  providerPostId      String?
+  providerUrl         String?
+  failureClass        PostFailureClass?
+  failureCode         String?
+  failureReason       String?
+  evidence            Json?
+  startedAt           DateTime               @default(now())
+  completedAt         DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  organization        Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  publishingJob       PublishingJob          @relation(fields: [publishingJobId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, publishingJobId, activityKey])
+  @@unique([organizationId, publishingJobId, attemptNumber, phase])
+  @@index([organizationId, publishingJobId, startedAt, id])
+  @@index([state, startedAt])
+  @@index([failureCode, startedAt])
+}
+
+model ProviderMediaGrant {
+  id                String                    @id
+  organizationId    String
+  publishingJobId   String
+  assetId           String
+  capabilityTupleId String
+  tokenHash         String                    @unique
+  expiresAt         DateTime
+  maxFetches        Int?
+  fetchCount        Int                       @default(0)
+  lastFetchedAt     DateTime?
+  revokedAt         DateTime?
+  revocationCode    String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  organization      Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  jobAsset          BulkPublishingJobAsset    @relation(fields: [publishingJobId, assetId, organizationId], references: [publishingJobId, assetId, organizationId], onDelete: Cascade)
+  fetchEvents       ProviderMediaFetchEvent[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, publishingJobId, expiresAt])
+  @@index([expiresAt, revokedAt])
+}
+
+model ProviderMediaFetchEvent {
+  id             String                   @id
+  organizationId String
+  grantId        String
+  method         ProviderMediaFetchMethod
+  requestedRange String?
+  state          ProviderMediaFetchState  @default(AUTHORIZED)
+  statusCode     Int?
+  bytesServed    Int?
+  code           String
+  reason         String
+  occurredAt     DateTime                 @default(now())
+  completedAt    DateTime?
+  organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  grant          ProviderMediaGrant       @relation(fields: [grantId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@index([organizationId, grantId, occurredAt])
+  @@index([state, occurredAt])
+  @@index([code, occurredAt])
+}
+
+model CalendarReservation {
+  id               String                       @id
+  organizationId   String
+  integrationId    String
+  ownerType        CalendarReservationOwnerType
+  ownerId          String
+  postId           String?
+  campaignId       String?
+  source           String
+  writer           String
+  mode             CalendarReservationMode      @default(SHADOW)
+  state            CalendarReservationState
+  scheduledAt      DateTime
+  localScheduledAt String
+  timezone         String
+  utcOffsetMinutes Int
+  dstFold          Int?
+  pinned           Boolean                      @default(false)
+  ownerRevision    Int                          @default(1)
+  revision         Int                          @default(1)
+  idempotencyKey   String
+  requestHash      String
+  outcomeClass     BulkCampaignIssueClass?
+  outcomeCode      String
+  outcomeReason    String
+  leaseExpiresAt   DateTime?
+  releasedAt       DateTime?
+  cancelledAt      DateTime?
+  verifiedAt       DateTime?
+  metadata         Json?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+  organization     Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration      Integration                  @relation(fields: [integrationId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  post             Post?                        @relation(fields: [postId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  campaign         BulkCampaign?                @relation(fields: [campaignId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  bulkCampaignJob  BulkCampaignJob?
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, idempotencyKey])
+  @@unique([organizationId, ownerType, ownerId, ownerRevision], map: "CalendarReservation_owner_revision_key")
+  @@index([organizationId, integrationId, scheduledAt, mode, state])
+  @@index([organizationId, ownerType, ownerId, ownerRevision], map: "CalendarReservation_owner_revision_idx")
+  @@index([organizationId, state, scheduledAt, id])
+  @@index([organizationId, campaignId, scheduledAt])
+  @@index([organizationId, postId])
+}
+
+model CalendarReservationBackfill {
+  id                       String                           @id
+  organizationId           String
+  source                   String
+  state                    CalendarReservationBackfillState @default(PENDING)
+  sourceHighWatermarkAt    DateTime?
+  sourceHighWatermarkId    String?
+  cursorCreatedAt          DateTime?
+  cursorId                 String?
+  scannedCount             Int                              @default(0)
+  insertedCount            Int                              @default(0)
+  replayedCount            Int                              @default(0)
+  conflictCount            Int                              @default(0)
+  mismatchCount            Int                              @default(0)
+  authorityCursorCreatedAt DateTime?
+  authorityCursorId        String?
+  authorityPromotedCount   Int                              @default(0)
+  authorityActivatedAt     DateTime?
+  outcomeCode              String
+  outcomeReason            String
+  startedAt                DateTime?
+  completedAt              DateTime?
+  verifiedAt               DateTime?
+  createdAt                DateTime                         @default(now())
+  updatedAt                DateTime                         @updatedAt
+  organization             Organization                     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, source])
+  @@index([state, updatedAt])
+  @@index([organizationId, state])
+}
+
+model PublishingFailure {
+  id                String              @id
+  organizationId    String
+  postId            String
+  publishingJobId   String
+  provider          String
+  failureClass      PostFailureClass
+  failureCode       String
+  reason            String
+  willRetry         Boolean             @default(false)
+  attempt           Int                 @default(0)
+  webhookState      FailureWebhookState @default(PENDING)
+  webhookFinishedAt DateTime?
+  occurredAt        DateTime            @default(now())
+  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  post              Post                @relation(fields: [postId], references: [id], onDelete: Cascade)
+  publishingJob     PublishingJob       @relation(fields: [publishingJobId], references: [id], onDelete: Cascade)
+  receipt           PublishingReceipt?  @relation("ReceiptFailure")
+
+  @@index([organizationId, occurredAt])
+  @@index([postId, occurredAt])
+  @@index([provider, failureClass, occurredAt])
+  @@index([webhookState, occurredAt])
+}
+
+model PublishingReceipt {
+  id                 String               @id
+  organizationId     String
+  postId             String
+  publishingJobId    String
+  provider           String
+  stage              DeliveryReceiptStage
+  attempt            Int                  @default(0)
+  providerPostId     String?
+  providerUrl        String?
+  confirmationMethod String?
+  evidence           Json?
+  failureId          String?              @unique
+  webhookState       FailureWebhookState  @default(PENDING)
+  webhookFinishedAt  DateTime?
+  occurredAt         DateTime             @default(now())
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  post               Post                 @relation(fields: [postId], references: [id], onDelete: Cascade)
+  publishingJob      PublishingJob        @relation(fields: [publishingJobId], references: [id], onDelete: Cascade)
+  failure            PublishingFailure?   @relation("ReceiptFailure", fields: [failureId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, occurredAt])
+  @@index([postId, occurredAt])
+  @@index([provider, stage, occurredAt])
+  @@index([webhookState, occurredAt])
+}
+
+model PostCreationRequest {
+  id                String                   @id @default(uuid())
+  organizationId    String
+  keyHash           String
+  requestHash       String
+  creationMethod    CreationMethod
+  status            PostCreationRequestState @default(IN_PROGRESS)
+  leaseToken        String?
+  leaseUntil        DateTime?
+  attempts          Int                      @default(1)
+  allocatedPostIds  Json
+  response          Json?
+  lastFailureClass  PostFailureClass?
+  lastFailureCode   String?
+  lastFailureReason String?
+  completedAt       DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  organization      Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, keyHash])
+  @@index([organizationId, status, updatedAt])
+  @@index([leaseUntil])
+}
+
+model ConnectionHealthEvent {
+  id                String                    @id
+  organizationId    String
+  integrationId     String
+  provider          String
+  type              ConnectionHealthEventType
+  severity          ConnectionHealthSeverity
+  code              String
+  reason            String
+  daysRemaining     Int?
+  consecutiveErrors Int?
+  sourceEventId     String?
+  webhookState      FailureWebhookState       @default(PENDING)
+  webhookFinishedAt DateTime?
+  occurredAt        DateTime                  @default(now())
+  organization      Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration       Integration               @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, occurredAt])
+  @@index([integrationId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([webhookState, occurredAt])
+}
+
 model Notifications {
   id             String       @id @default(uuid())
   organizationId String
@@ -465,6 +1278,27 @@ model Notifications {
   @@index([createdAt])
   @@index([organizationId])
   @@index([deletedAt])
+}
+
+model InboxState {
+  id                String       @id @default(uuid())
+  organizationId    String
+  integrationId     String
+  externalCommentId String
+  readAt            DateTime?
+  resolvedAt        DateTime?
+  assignedUserId    String?
+  internalNote      String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration       Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  assignedUser      User?        @relation("InboxAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, integrationId, externalCommentId])
+  @@index([organizationId, integrationId])
+  @@index([organizationId, resolvedAt])
+  @@index([organizationId, assignedUserId])
 }
 
 model MessagesGroup {
@@ -600,18 +1434,57 @@ model IntegrationsWebhooks {
 }
 
 model Webhooks {
-  id             String                 @id @default(uuid())
+  id             String                   @id @default(uuid())
   name           String
   organizationId String
   url            String
   deletedAt      DateTime?
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  signingSecret  String?
   integrations   IntegrationsWebhooks[]
-  organization   Organization           @relation(fields: [organizationId], references: [id])
+  organization   Organization             @relation(fields: [organizationId], references: [id])
+  deliveries     WebhookDeliveryAttempt[]
 
   @@index([organizationId])
   @@index([deletedAt])
+}
+
+model WebhookDeliveryAttempt {
+  id             String       @id @default(uuid())
+  organizationId String
+  webhookId      String
+  eventId        String
+  eventType      String
+  attempt        Int
+  status         String
+  statusCode     Int?
+  durationMs     Int?
+  error          String?
+  deliveredAt    DateTime?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  webhook        Webhooks     @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@unique([webhookId, eventId, attempt])
+  @@index([organizationId, createdAt])
+  @@index([status, createdAt])
+  @@index([webhookId, createdAt])
+}
+
+model MetaDataDeletionRequest {
+  id                 String    @id @default(uuid())
+  requestHash        String    @unique
+  confirmationCode   String    @unique
+  subjectHash        String
+  providers          String
+  status             String    @default("COMPLETED")
+  connectionsDeleted Int       @default(0)
+  createdAt          DateTime  @default(now())
+  completedAt        DateTime?
+
+  @@index([createdAt])
+  @@index([status, createdAt])
 }
 
 model AutoPost {
@@ -912,6 +1785,267 @@ enum State {
   PUBLISHED
   ERROR
   DRAFT
+}
+
+enum PublishingJobState {
+  DRAFT
+  SCHEDULED
+  QUEUED
+  PROCESSING
+  PUBLISHED
+  PARTIAL_SUCCESS
+  RETRYING
+  FAILED
+  CANCELLED
+}
+
+enum ServiceHealthState {
+  OPERATIONAL
+  DEGRADED
+  OUTAGE
+}
+
+enum PostFailureClass {
+  recoverable
+  user_action_needed
+  data_problem
+}
+
+enum FailureWebhookState {
+  PENDING
+  NOT_CONFIGURED
+  DELIVERED
+  FAILED
+}
+
+enum DeliveryReceiptStage {
+  queued
+  uploading
+  sent
+  confirmed_live
+  failed
+}
+
+enum PostCreationRequestState {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum AccountQueueItemStatus {
+  WAITING
+  COMPLETED
+  FAILED
+  AMBIGUOUS
+  CANCELLED
+}
+
+enum FleetDistributionState {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum FleetDistributionItemStatus {
+  ALLOCATED
+  CREATED
+}
+
+enum BulkCampaignState {
+  DRAFT
+  UPLOADING
+  VALIDATING
+  NORMALIZING
+  PLANNING
+  RESERVING
+  SCHEDULED
+  DISPATCHING
+  PAUSED
+  CANCELLING
+  CANCELLED
+  COMPLETED
+  FAILED
+  NEEDS_REVIEW
+}
+
+enum BulkCampaignIssueClass {
+  blocked
+  failed
+  conflicted
+  quarantined
+  overflow
+}
+
+enum BulkCampaignIssueState {
+  open
+  resolved
+}
+
+enum BulkCampaignSubjectType {
+  campaign
+  upload
+  asset
+  campaign_asset
+  destination
+  schedule_slot
+  publish_job
+}
+
+enum BulkAssetState {
+  READY
+  QUARANTINED
+  DELETED
+}
+
+enum BulkUploadSessionState {
+  INITIATED
+  UPLOADING
+  ASSEMBLING
+  VALIDATING
+  NORMALIZING
+  READY
+  QUARANTINED
+  FAILED
+  RETRYABLE_FAILURE
+  FINAL_FAILURE
+  ABORTED
+  EXPIRED
+}
+
+enum BulkCampaignJobState {
+  PLANNED
+  RESERVING
+  RESERVED
+  CLAIMED
+  MATERIALIZING
+  SCHEDULED
+  DISPATCHING
+  PUBLISHED
+  PAUSED
+  CANCELLING
+  CANCELLED
+  RETRYABLE_FAILURE
+  FINAL_FAILURE
+  NEEDS_REVIEW
+  CONFLICTED
+  OVERFLOW
+  QUARANTINED
+  BLOCKED
+}
+
+enum PublishingAttemptPhase {
+  MUTATION
+  RECONCILIATION
+  VERIFICATION
+}
+
+enum PublishingAttemptState {
+  STARTED
+  ACCEPTED
+  CONFIRMED
+  ABSENT
+  AMBIGUOUS
+  FAILED
+  NEEDS_REVIEW
+}
+
+enum CalendarReservationOwnerType {
+  POST
+  BULK_CAMPAIGN_SLOT
+}
+
+enum CalendarReservationMode {
+  SHADOW
+  AUTHORITATIVE
+}
+
+enum CalendarReservationState {
+  HELD
+  COMMITTED
+  RELEASED
+  CANCELLED
+  CONFLICTED
+}
+
+enum CalendarReservationBackfillState {
+  PENDING
+  RUNNING
+  VERIFYING
+  VERIFIED
+  FAILED
+}
+
+enum ProviderMediaFetchMethod {
+  HEAD
+  GET
+}
+
+enum ProviderMediaFetchState {
+  AUTHORIZED
+  SERVED
+  REJECTED
+  FAILED
+}
+
+enum TokenHealthState {
+  UNKNOWN
+  HEALTHY
+  EXPIRING
+  EXPIRED
+  RECONNECT_REQUIRED
+}
+
+enum ConnectionHealthState {
+  HEALTHY
+  AT_RISK
+  DEAD
+  RECONNECT_REQUIRED
+  DISABLED
+}
+
+enum ConnectionHealthEventType {
+  TOKEN_EXPIRING
+  TOKEN_EXPIRED
+  TOKEN_REFRESHED
+  CONNECTION_AT_RISK
+  CONNECTION_RECONNECT_REQUIRED
+  CONNECTION_STALE
+  CONNECTION_DEAD
+  CONNECTION_RECOVERED
+  PLATFORM_READY
+  PLATFORM_LIMITATION
+  PLATFORM_INVALID
+  PLATFORM_TRUTH_UNKNOWN
+}
+
+enum PlatformTruthState {
+  NOT_APPLICABLE
+  READY
+  LIMITED
+  INVALID
+  UNKNOWN
+}
+
+enum PlatformPublishingMode {
+  NOT_APPLICABLE
+  PUBLIC_CAPABLE
+  ACCOUNT_RESTRICTED
+  SELF_ONLY
+  UNKNOWN
+}
+
+enum PlatformAuditState {
+  NOT_APPLICABLE
+  AUDITED
+  UNAUDITED
+  UNKNOWN
+}
+
+enum ConnectionHealthSeverity {
+  INFO
+  WARNING
+  CRITICAL
+  RECOVERY
 }
 
 enum SubscriptionTier {

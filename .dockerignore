@@ -4,11 +4,13 @@
 **/node_modules
 node_modules/*
 node_modules
+**/*.tsbuildinfo
 docker-data/*
 dist
 .nx
 /apps/frontend/.next
 /apps/backend/dist
+/apps/orchestrator/dist
 /apps/workers/dist
 /apps/cron/dist
 /apps/commands/dist
@@ -21,3 +23,5 @@ dist
 .git
 .github
 reports
+.runtime
+.server-runtime

@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { CSSProperties } from 'react';
 import { MarketingFooter } from '@gitroom/frontend/components/marketing/chrome';
 import { MegaNav } from '@gitroom/frontend/components/marketing/mega-nav';
 import { HalftoneHeroBackground } from '@gitroom/frontend/components/marketing/halftone';
 import { PlatformIcon } from '@gitroom/frontend/components/marketing/icons';
-import { ConnectionDiagram } from '@gitroom/frontend/components/marketing/diagram';
 import { ApiTerminal } from '@gitroom/frontend/components/marketing/terminal';
 import { PricingCards } from '@gitroom/frontend/components/marketing/pricing-cards';
+import { LiveProofBar } from '@gitroom/frontend/components/marketing/live-proof-bar';
+import { AccountHealthPreview } from '@gitroom/frontend/components/marketing/account-health-preview';
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 import {
   Byline,
@@ -17,187 +17,170 @@ import {
 } from '@gitroom/frontend/components/marketing/geo';
 import { POST_FAILURE_CATALOG } from '@gitroom/nestjs-libraries/reliability/post.failure';
 
-// The home page tells one story in order: what breaks (pains) → what Publishly
-// does instead (answers) → the journey a post actually takes → where the
-// product is going (labeled in development) → price → questions.
-// Every claim maps to data/public-product-facts.json. Multi-account language is
-// multi-brand / multi-client / multi-location, never bot/farm/autopilot framing.
-
-// Counted from the catalog the publisher imports, so the number can't drift.
 const FAILURE_CODES = Object.keys(POST_FAILURE_CATALOG).length;
 
-const INTEGRATIONS: Array<{ label: string; href: string; sub: string }> = [
-  { label: 'REST API', href: '/api-docs', sub: 'scoped keys, /public/v1' },
-  { label: 'MCP', href: '/integrations/mcp', sub: 'for AI assistants' },
-  { label: 'n8n', href: '/integrations/n8n', sub: 'HTTP + webhook recipe' },
-  { label: 'Make', href: '/integrations/make', sub: 'HTTP + webhook recipe' },
-  { label: 'Webhooks', href: '/api-docs', sub: 'signed, retried, ledgered' },
+const AUDIENCES = [
+  {
+    href: '/for-agencies',
+    title: 'Agencies',
+    body: 'See the broken client connection before the client sees a missed post.',
+  },
+  {
+    href: '/for-multi-brand',
+    title: 'Multi-brand and multi-location teams',
+    body: 'Keep every brand separate while seeing the health of the whole operation.',
+  },
+  {
+    href: '/for-creator-networks',
+    title: 'Media and creator networks',
+    body: 'Keep every show, newsletter, and channel on schedule without watching each one by hand.',
+  },
+  {
+    href: '/for-developers',
+    title: 'Software teams',
+    body: 'Add dependable social posting to your product without hiding delivery problems from your users.',
+  },
+];
+
+const INTEGRATIONS = [
+  {
+    label: 'REST API',
+    href: '/api-docs',
+    sub: 'Build posting into your product',
+  },
+  { label: 'n8n', href: '/integrations/n8n', sub: 'Connect visual workflows' },
+  { label: 'Make', href: '/integrations/make', sub: 'Connect Make scenarios' },
+  {
+    label: 'MCP',
+    href: '/integrations/mcp',
+    sub: 'Let approved assistants post',
+  },
 ];
 
 const FAQ = [
   {
     q: 'How do I know when a scheduled post fails?',
-    a: `The moment a delivery fails, its receipt flips to RETRYING or FAILED with a plain-English reason and one of ${FAILURE_CODES} documented failure codes, and a signed post.failure webhook fires to your endpoint carrying the class, the code and whether Publishly will retry. You can also poll GET /public/v1/posts/:id/status for any post at any time. You never have to go looking for a red icon — the failure comes to you.`,
+    a: `Publishly alerts you as soon as it knows. The post shows a plain-English reason, one of ${FAILURE_CODES} documented error codes, and whether it will be tried again. Developers can receive the same information inside their own product through a signed webhook.`,
   },
   {
-    q: 'Is there a posting API that doesn’t charge per account?',
-    a: 'Publishly is priced by how much you publish, not by how many accounts you connect. Paid plans start at $29/mo and every one of them includes unlimited connected social accounts; the free plan covers 5 accounts and 50 posts a month. Running 40 client accounts and running 400 costs the same.',
+    q: 'What counts as a successful post?',
+    a: 'A request being accepted is not enough. Publishly marks a destination successful only after it confirms that the post is live and stores the public link in its delivery receipt.',
   },
   {
-    q: 'How do I post to 100 accounts through one API?',
-    a: 'Connect each account once through the platform’s own authorization flow — official OAuth on nine of the ten featured networks, a revocable Bluesky app password on Bluesky — then POST to /public/v1/posts with the destinations you want. One call can carry many destinations, and each destination is tracked as its own delivery with its own receipt, state history and live URL — so a failure on one never hides the other 99.',
+    q: 'Can Publishly warn me before a social connection expires?',
+    a: 'Yes. Publishly checks connection health and warns before expected token expiry. If a connection stops working, that account is held back and the rest of your brands, clients, and locations keep publishing.',
   },
   {
-    q: 'Why do scheduled Instagram posts fail silently?',
-    a: 'Usually the access token died — tokens on the major platforms expire in roughly 60 days, and most schedulers keep marking posts “scheduled” while the connection behind them is dead. Publishly refreshes tokens automatically on schedule, and the moment a refresh fails you get an in-app alert and an email while the account is flagged and pulled out of delivery. The queue stops cleanly instead of posting into nothing.',
+    q: 'Does Publishly charge for every account?',
+    a: 'No. Paid plans are based on how many posts are successfully delivered each month. Every paid plan includes unlimited connected accounts. The free plan includes 50 successful posts across 5 accounts.',
   },
   {
-    q: 'Can Publishly detect a disconnected social account?',
-    a: 'Yes. Scheduled token refreshes and delivery attempts both surface dead connections: a revoked or disconnected account is flagged, excluded from delivery and raised with a reconnect alert. The rest of your calendar keeps publishing while you reconnect the one that broke.',
+    q: 'Can I use Publishly inside my own software?',
+    a: 'Yes. The posting API, status checks, delivery events, n8n package, Make package, and MCP server all use the same posting and safety rules as the Publishly app.',
   },
 ];
-
-const STATEMENT = MARKETING.copyBank.client;
-
-/* ---------------------------------------------------------------- styles */
-
-const PAIN_NUM: CSSProperties = {
-  display: 'block',
-  color: 'var(--mk-blue)',
-  marginBottom: 7,
-};
-
-const COLUMN: CSSProperties = { maxWidth: 720, margin: '0 auto' };
-
-const MONO_NOTE: CSSProperties = {
-  margin: '26px 0 0',
-  color: 'var(--mk-text-3)',
-};
-
-/* ---------------------------------------------------------------- meta */
 
 export const metadata: Metadata = {
   title: {
     absolute:
-      'Publishly — Social media posting API with unlimited accounts | Nothing fails silently',
+      'Publishly — reliable social media posting API with unlimited accounts',
   },
   description:
-    'Publishly is a social media posting API and scheduler for teams running many brands, clients and locations. Every post gets a delivery receipt, every failure gets a reason and a signed webhook, and every paid plan includes unlimited connected accounts from $29/mo.',
+    'Publishly is the reliability layer for social posting at scale. Every post gets proof, every failure gets a reason and safe retry, and every paid plan includes unlimited accounts.',
+  keywords: [
+    'social media posting api',
+    'post to multiple accounts api',
+    'social media api unlimited accounts',
+  ],
   alternates: { canonical: '/' },
 };
-
-/* ---------------------------------------------------------------- page */
 
 export default function MarketingHome() {
   return (
     <>
       <MegaNav />
       <main id="mk-main">
-        {/* ---- 1 · hero + the post lifecycle, live ---- */}
-        <header className="mk-hero mk-hero-c">
+        <header className="mk-hero mk-hero-c mk-home-hero">
           <div className="mk-hero-bleed">
             <div className="mk-hero-panel">
               <HalftoneHeroBackground />
-              <div className="mk-hero-panel-content">
-                <h1 className="mk-h1" data-hero-el>
-                  {MARKETING.tagline}
-                </h1>
-                <p className="mk-hero-sub" data-hero-el>
-                  {MARKETING.sub}
-                </p>
-                <div className="mk-hero-ctas" data-hero-el>
-                  <Link
-                    href={MARKETING.authRegister}
-                    className="mk-btn mk-btn-primary"
-                  >
-                    {MARKETING.cta.primary}
-                  </Link>
-                  <Link href="#journey" className="mk-btn mk-btn-ghost">
-                    {MARKETING.cta.secondary}
-                  </Link>
+              <div className="mk-hero-stage">
+                <LiveProofBar />
+
+                <div className="mk-hero-copy">
+                  <span className="mk-hero-position">
+                    The reliability layer for social posting at scale
+                  </span>
+                  <h1 className="mk-h1" data-hero-el>
+                    {MARKETING.tagline}
+                  </h1>
+                  <p className="mk-hero-sub" data-hero-el>
+                    {MARKETING.sub} Flat price. Unlimited accounts on every paid
+                    plan.
+                  </p>
+                  <div className="mk-hero-ctas" data-hero-el>
+                    <Link
+                      href={MARKETING.authRegister}
+                      className="mk-btn mk-btn-primary"
+                    >
+                      {MARKETING.cta.primary}
+                    </Link>
+                    <Link href="/reliability" className="mk-btn mk-btn-ghost">
+                      See the proof
+                    </Link>
+                  </div>
+                  <p className="mk-hero-note" data-hero-el>
+                    Start free · 50 successful posts · 5 accounts · no card
+                  </p>
                 </div>
-                <p className="mk-hero-note" data-hero-el>
-                  Free forever plan — no credit card. 7-day trial on every paid plan.
-                </p>
+
+                <div className="mk-hero-terminal" data-hero-el>
+                  <ApiTerminal />
+                  <p className="mk-hero-terminal-note">
+                    One post succeeds. One hits a platform limit. Both tell you
+                    exactly what happened next.
+                  </p>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="mk-container">
-            <div className="mk-shot" data-hero-el>
-              <div className="mk-dark">
-                <ApiTerminal />
-              </div>
-              <p
-                className="mk-mono"
-                style={{ margin: '16px 0 0', color: 'var(--mk-text-3)' }}
-              >
-                One endpoint, two outcomes — both of them tell you
-              </p>
             </div>
           </div>
         </header>
 
-        {/* ---- 2 · what Publishly is, in one sentence ---- */}
-        <section className="mk-section" aria-labelledby="home-what">
-          <div className="mk-container">
-            <span className="mk-eyebrow">What this is</span>
-            <h2 id="home-what" className="mk-h2" style={{ marginTop: 14 }}>
-              {MARKETING.copyBank.fleet}
-            </h2>
-            <p className="mk-section-lede" style={{ maxWidth: '62ch' }}>
-              {MARKETING.entity}
-            </p>
-            <QuickAnswer>
-              Publishly is a social media posting API and scheduler for
-              operators running 20 to 500+ accounts across brands, clients and
-              locations. Every destination gets its own delivery receipt with a
-              state history and a live URL, every failure carries one of{' '}
-              {FAILURE_CODES} documented codes and fires a signed post.failure
-              webhook, and transient failures retry without any risk of
-              double-posting. Paid plans start at $29/mo with unlimited
-              connected accounts.
-            </QuickAnswer>
-            <Byline published="2026-08-10" updated="2026-08-10" />
-          </div>
-        </section>
-
         <section className="mk-netrow" aria-label="Supported networks">
           <div className="mk-container">
             <p className="mk-netrow-note">
-              Publishes through official APIs only
+              Authorized connections through official platform APIs
             </p>
             <div className="mk-netrow-items">
-              {MARKETING.networks.map((n) => (
-                <span key={n} className="mk-netrow-item">
-                  <PlatformIcon name={n} />
-                  {n}
+              {MARKETING.networks.map((network) => (
+                <span key={network} className="mk-netrow-item">
+                  <PlatformIcon name={network} />
+                  {network}
                 </span>
               ))}
-              <span className="mk-netrow-item">+ 24 more</span>
+              <span className="mk-netrow-item">+ additional integrations</span>
             </div>
           </div>
         </section>
 
-        {/* ---- 3 · the pain narrative ---- */}
         <section className="mk-section" aria-labelledby="home-pain">
           <div className="mk-container">
             <div className="mk-split" style={{ alignItems: 'start' }}>
               <div>
-                <span className="mk-eyebrow">What actually breaks</span>
+                <span className="mk-eyebrow">Why this exists</span>
                 <h2 id="home-pain" className="mk-h2" style={{ marginTop: 14 }}>
-                  You didn&rsquo;t find out. Your client did.
+                  You scheduled it. Your client noticed it never went live.
                 </h2>
                 <p className="mk-section-lede">
-                  This is the sequence every operator running a couple hundred
-                  accounts already knows by heart. It doesn&rsquo;t start with
-                  a crash &mdash; it starts with silence.
+                  That is the worst way to learn a posting tool broke. The
+                  problem usually follows the same four steps.
                 </p>
               </div>
               <div className="mk-rows">
                 {MARKETING.pains.map((pain, index) => (
                   <div className="mk-row" key={pain.title}>
                     <h3>
-                      <span className="mk-mono" style={PAIN_NUM}>
+                      <span className="mk-mono" style={{ display: 'block' }}>
                         {String(index + 1).padStart(2, '0')}
                       </span>
                       {pain.title}
@@ -207,37 +190,34 @@ export default function MarketingHome() {
                 ))}
               </div>
             </div>
+            <FactLine>
+              At current monthly rates, 100 Ayrshare profiles work out to
+              $1,228.30 and 30 Buffer Team channels cost $360. Publishly Growth
+              is $99 a month with unlimited connected accounts.{' '}
+              <Link href="/pricing">See the source-checked math.</Link>
+            </FactLine>
           </div>
         </section>
 
-        <section className="mk-quiet" style={{ textAlign: 'left' }}>
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="home-answer"
+        >
           <div className="mk-container">
-            <p className="mk-statement">
-              {STATEMENT.split(' ').map((word, index) => (
-                <span className="mk-w" key={index}>
-                  {word}{' '}
-                </span>
-              ))}
-            </p>
-          </div>
-        </section>
-
-        {/* ---- 4 · the answer ---- */}
-        <section className="mk-section" id="answers" aria-labelledby="home-answer">
-          <div className="mk-container">
-            <div style={COLUMN}>
-              <span className="mk-eyebrow">The answer</span>
-              <h2 id="home-answer" className="mk-h2" style={{ marginTop: 14 }}>
-                {MARKETING.copyBank.receipt}
-              </h2>
-            </div>
+            <span className="mk-eyebrow">What Publishly does instead</span>
+            <h2 id="home-answer" className="mk-h2" style={{ marginTop: 14 }}>
+              Every post ends with proof or a clear next step.
+            </h2>
+            <p className="mk-section-lede">{MARKETING.entity}</p>
+            <QuickAnswer>
+              Publishly watches the delivery so your team does not have to. It
+              confirms live posts, explains failed ones, retries temporary
+              problems safely, warns about weak connections, and keeps one
+              broken account from stopping the rest of your work.
+            </QuickAnswer>
             <div className="mk-benefits">
               {MARKETING.answers.map((answer, index) => (
-                <div
-                  className="mk-benefit mk-reveal"
-                  key={answer.title}
-                  data-delay={index * 50}
-                >
+                <div className="mk-benefit" key={answer.title}>
                   <span className="mk-benefit-num">
                     {String(index + 1).padStart(2, '0')}
                   </span>
@@ -248,168 +228,140 @@ export default function MarketingHome() {
                 </div>
               ))}
             </div>
-            <div style={{ ...COLUMN, marginTop: 8 }}>
-              <FactLine>
-                Publishly&rsquo;s paid plans start at $29/mo with unlimited
-                connected accounts &mdash; pricing is sized by how much you
-                post, never by how many accounts you run.
-              </FactLine>
-              <FactLine>
-                Every Publishly post failure carries one of {FAILURE_CODES}{' '}
-                documented failure codes in three classes &mdash; recoverable,
-                needs-your-action, or a content problem &mdash; and fires a
-                signed post.failure webhook the moment it happens.
-              </FactLine>
-              <FactLine>
-                Transient failures retry automatically with backoff from 15
-                seconds to 30 minutes, but the publish call itself fires exactly
-                once &mdash; a retry can never duplicate a post.
-              </FactLine>
-              <p style={{ marginTop: 26 }}>
-                <Link href="/reliability" className="mk-arrow">
-                  The full reliability model
-                </Link>
-              </p>
-            </div>
+            <p style={{ marginTop: 30 }}>
+              <Link href="/reliability" className="mk-arrow">
+                See exactly how failures are handled
+              </Link>
+            </p>
+            <Byline published="2026-08-10" updated="2026-08-11" />
           </div>
         </section>
 
-        {/* ---- 5 · the journey a post takes ---- */}
-        <section
-          className="mk-section mk-section-tint"
-          id="journey"
-          aria-labelledby="home-journey"
-        >
+        <section className="mk-section" aria-labelledby="home-health">
           <div className="mk-container">
-            <div className="mk-split" style={{ alignItems: 'start' }}>
+            <div className="mk-split" style={{ alignItems: 'center' }}>
               <div>
-                <span className="mk-eyebrow">The journey</span>
-                <h2 id="home-journey" className="mk-h2" style={{ marginTop: 14 }}>
-                  {MARKETING.copyBank.watch}
+                <span className="mk-eyebrow">Account health</span>
+                <h2
+                  id="home-health"
+                  className="mk-h2"
+                  style={{ marginTop: 14 }}
+                >
+                  You cannot watch 200 client and brand accounts. Publishly
+                  does.
                 </h2>
                 <p className="mk-section-lede">
-                  One calendar holds every brand you run. Each post is routed to
-                  that brand&rsquo;s own accounts and delivered through each
-                  platform&rsquo;s official API &mdash; one workspace per
-                  client, never a shared pool.
+                  See healthy connections, early token warnings, posts being
+                  retried, and accounts that need reconnecting in one view. Fix
+                  the small problem before it becomes a missed client post.
                 </p>
-                <p className="mk-section-lede">
-                  Every destination hands back its own receipt: the state, the
-                  live URL, and a webhook to your systems. Then the numbers come
-                  home &mdash; views, saves and shares land against the exact
-                  post that earned them.
-                </p>
-                <p className="mk-section-lede">
-                  That measured result is what closes the loop back to the
-                  calendar. The receipt half ships today; the caption learning
-                  half is in development.
-                </p>
-                <p style={{ marginTop: 26 }}>
-                  <Link href="/publishing" className="mk-arrow">
-                    How delivery works
-                  </Link>
-                </p>
+                <ul className="mk-points">
+                  <li>Warnings before expected token expiry</li>
+                  <li>Disconnected accounts held back automatically</li>
+                  <li>Healthy accounts keep publishing</li>
+                  <li>A reason and next action beside every problem</li>
+                </ul>
               </div>
-              <ConnectionDiagram />
+              <AccountHealthPreview />
             </div>
           </div>
         </section>
 
-        {/* ---- 6 · the learning loop — direction, not shipped UI ---- */}
-        <section className="mk-section" aria-labelledby="home-learning">
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="home-for"
+        >
           <div className="mk-container">
-            <span className="mk-eyebrow">Roadmap</span>
-            <h2 id="home-learning" className="mk-h2" style={{ marginTop: 14 }}>
-              Where Publishly is going &mdash; in development now
+            <span className="mk-eyebrow">Built for the operator</span>
+            <h2 id="home-for" className="mk-h2" style={{ marginTop: 14 }}>
+              Built for the person running 50 brands, not one.
             </h2>
             <p className="mk-section-lede">
-              None of this is shipped. It&rsquo;s the direction the product is
-              being built toward, described here so you can judge it before it
-              exists &mdash; not sold to you as a screenshot.
+              Built for teams managing 20–500+ accounts across clients,
+              locations, brands, markets, publications, or their own software
+              users.
             </p>
-            <div className="mk-duo">
-              {MARKETING.learning.map((item) => (
-                <div className="mk-duo-cell" key={item.title}>
-                  <h3>{item.title}</h3>
-                  <p>{item.body}</p>
-                </div>
+            <div className="mk-cards">
+              {AUDIENCES.map((audience, index) => (
+                <Link
+                  href={audience.href}
+                  className="mk-card"
+                  key={audience.title}
+                >
+                  <span className="mk-card-num">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <h3>{audience.title}</h3>
+                  <p>{audience.body}</p>
+                </Link>
               ))}
             </div>
-            <p className="mk-mono" style={MONO_NOTE}>
-              In development · not available today · no dates promised
-            </p>
           </div>
         </section>
 
-        {/* ---- 7 · pricing teaser ---- */}
-        <section className="mk-section mk-section-tint mk-center" id="pricing">
+        <section className="mk-section mk-center" id="pricing">
           <div className="mk-container">
-            <div className="mk-reveal">
-              <h2 className="mk-h2">{MARKETING.copyBank.tax}</h2>
-              <p className="mk-section-lede">
-                Four plans, one variable that matters: how much you publish.
-                Every paid plan includes unlimited connected social accounts, so
-                winning the next 50 accounts doesn&rsquo;t change your bill.
-              </p>
-            </div>
+            <span className="mk-eyebrow">Flat pricing</span>
+            <h2 className="mk-h2" style={{ marginTop: 14 }}>
+              Stop paying a tax on your own growth.
+            </h2>
+            <p className="mk-section-lede">
+              Pay for posts Publishly confirms as live. Failed and unconfirmed
+              posts do not use your allowance. Every paid plan includes
+              unlimited connected accounts.
+            </p>
             <PricingCards compact />
             <p className="mk-free-line">
-              {MARKETING.copyBank.same} Full detail on the{' '}
+              From 5 brand or client accounts to 500 — same posting rules, same
+              flat price.{' '}
               <Link href="/pricing" style={{ textDecoration: 'underline' }}>
-                pricing page
+                Compare every plan and run the calculator
               </Link>
               .
             </p>
           </div>
         </section>
 
-        {/* ---- 8 · driven by your own stack ---- */}
-        <section className="mk-section" aria-labelledby="home-integrations">
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="home-integrations"
+        >
           <div className="mk-container">
-            <span className="mk-eyebrow">Integrations</span>
+            <span className="mk-eyebrow">Works with your tools</span>
             <h2
               id="home-integrations"
               className="mk-h2"
               style={{ marginTop: 14 }}
             >
-              Scheduling, posts, status, media &amp; integrations — all scriptable.
+              Use Publishly in the way your team already works.
             </h2>
             <p className="mk-section-lede">
-              Scoped keys, one posting endpoint, signed delivery events. No
-              first-party n8n node or Make module exists yet &mdash; the recipes
-              use the same REST surface and say so.
+              Use the app, connect a visual workflow, or add reliable social
+              posting to your own product. Every route ends with the same proof
+              and the same failure alerts.
             </p>
-            <div
-              style={{
-                marginTop: 34,
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '14px 40px',
-                borderTop: '1px solid var(--mk-line)',
-                paddingTop: 24,
-              }}
-            >
-              {INTEGRATIONS.map((item) => (
-                <Link key={item.label} href={item.href} className="mk-mono">
-                  {item.label}{' '}
-                  <span style={{ color: 'var(--mk-text-3)' }}>{item.sub}</span>
+            <div className="mk-cards">
+              {INTEGRATIONS.map((item, index) => (
+                <Link href={item.href} className="mk-card" key={item.label}>
+                  <span className="mk-card-num">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <h3>{item.label}</h3>
+                  <p>{item.sub}</p>
                 </Link>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ---- 9 · FAQ ---- */}
-        <FaqBlock title="Questions operators ask" entries={FAQ} />
+        <FaqBlock title="Straight answers" entries={FAQ} />
 
-        {/* ---- 10 · close ---- */}
         <section className="mk-ctaclose" style={{ background: 'none' }}>
           <div className="mk-container">
             <div className="mk-cta-panel">
-              <h2 className="mk-h2">Stop finding out from your clients.</h2>
+              <h2 className="mk-h2">Find the broken connection first.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                Connect an account, schedule a post &amp; read its receipt.
-                Free forever plan — no credit card. 7-day trial on every paid plan.
+                Start free. Schedule one real post. Keep the receipt.
               </p>
               <div className="mk-hero-ctas">
                 <Link
@@ -418,8 +370,8 @@ export default function MarketingHome() {
                 >
                   {MARKETING.cta.primary}
                 </Link>
-                <Link href="/reliability" className="mk-btn mk-btn-ghost">
-                  See how it fails safely
+                <Link href="/status" className="mk-btn mk-btn-ghost">
+                  Open public status
                 </Link>
               </div>
             </div>

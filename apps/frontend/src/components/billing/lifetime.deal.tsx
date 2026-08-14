@@ -3,7 +3,11 @@
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { useCallback, useMemo, useState } from 'react';
-import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
+import {
+  pricingForTier,
+  resolveBillingTier,
+  UNLIMITED_CHANNELS,
+} from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { Input } from '@gitroom/react/form/input';
 import { Button } from '@gitroom/react/form/button';
 import { useSWRConfig } from 'swr';
@@ -42,7 +46,7 @@ export const LifetimeDeal = () => {
     setCode('');
   }, [code]);
   const nextPackage = useMemo(() => {
-    if (user?.tier?.current === 'STANDARD') {
+    if (resolveBillingTier(user?.tier?.current) !== 'FREE') {
       return 'PRO';
     }
     return 'STANDARD';
@@ -55,17 +59,14 @@ export const LifetimeDeal = () => {
     const channelsOr = currentPricing.channel;
     const list = [];
     list.push(
-      `${user.totalChannels} ${
-        user.totalChannels === 1 ? 'channel' : 'channels'
-      }`
+      (channelsOr || 0) >= UNLIMITED_CHANNELS
+        ? 'Unlimited connected accounts'
+        : `${channelsOr || 0} connected accounts`
     );
     list.push(
-      `${
-        currentPricing.posts_per_month > 10000
-          ? 'Unlimited'
-          : currentPricing.posts_per_month
-      } posts per month`
+      `${currentPricing.posts_per_month.toLocaleString()} confirmed-live posts per month`
     );
+    list.push('Failed and unconfirmed posts use no quota');
     if (currentPricing.team_members) {
       list.push(`Unlimited team members`);
     }
@@ -78,17 +79,18 @@ export const LifetimeDeal = () => {
     if (!user?.tier) {
       return [];
     }
-    const currentPricing = pricing[nextPackage];
+    const currentPricing = pricingForTier(nextPackage);
     const channelsOr = currentPricing.channel;
     const list = [];
-    list.push(`${channelsOr} ${channelsOr === 1 ? 'channel' : 'channels'}`);
     list.push(
-      `${
-        currentPricing.posts_per_month > 10000
-          ? 'Unlimited'
-          : currentPricing.posts_per_month
-      } posts per month`
+      (channelsOr || 0) >= UNLIMITED_CHANNELS
+        ? 'Unlimited connected accounts'
+        : `${channelsOr || 0} connected accounts`
     );
+    list.push(
+      `${currentPricing.posts_per_month.toLocaleString()} confirmed-live posts per month`
+    );
+    list.push('Failed and unconfirmed posts use no quota');
     if (currentPricing.team_members) {
       list.push(`Unlimited team members`);
     }
@@ -109,7 +111,7 @@ export const LifetimeDeal = () => {
       <div className="border border-customColor6 bg-sixth p-[24px] flex flex-col gap-[20px] flex-1 rounded-[4px]">
         <div className="text-[30px]">
           {t('current_package', 'Current Package:')}
-          {user?.totalChannels > 8 ? 'EXTRA' : user?.tier?.current}
+          {pricingForTier(user?.tier?.current).display_name}
         </div>
 
         <div className="flex flex-col gap-[10px] justify-center text-[16px] text-customColor18">
@@ -138,18 +140,14 @@ export const LifetimeDeal = () => {
       <div className="border border-customColor6 bg-sixth p-[24px] flex flex-col gap-[20px] flex-1 rounded-[4px]">
         <div className="text-[30px]">
           {t('next_package', 'Next Package:')}
-          {user?.tier?.current === 'PRO'
-            ? 'EXTRA'
-            : !user?.tier?.current
-            ? 'FREE'
-            : user?.tier?.current === 'STANDARD'
-            ? 'PRO'
-            : 'STANDARD'}
+          {resolveBillingTier(user?.tier?.current) === 'PRO'
+            ? 'Scale (maximum)'
+            : pricingForTier(nextPackage).display_name}
         </div>
 
         <div className="flex flex-col gap-[10px] justify-center text-[16px] text-customColor18">
-          {(user?.tier?.current === 'PRO'
-            ? [`${(user?.totalChannels || 0) + 5} channels`]
+          {(resolveBillingTier(user?.tier?.current) === 'PRO'
+            ? ['Unlimited connected accounts', 'No higher lifetime tier']
             : nextFeature
           ).map((feature) => (
             <div key={feature} className="flex gap-[20px]">
@@ -171,24 +169,26 @@ export const LifetimeDeal = () => {
             </div>
           ))}
 
-          <div className="mt-[20px] flex items-center gap-[10px]">
-            <div className="flex-1">
-              <Input
-                label="Code"
-                translationKey="label_code"
-                placeholder="Enter your code"
-                disableForm={true}
-                name="code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-              />
+          {resolveBillingTier(user?.tier?.current) !== 'PRO' && (
+            <div className="mt-[20px] flex items-center gap-[10px]">
+              <div className="flex-1">
+                <Input
+                  label="Code"
+                  translationKey="label_code"
+                  placeholder="Enter your code"
+                  disableForm={true}
+                  name="code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                />
+              </div>
+              <div>
+                <Button disabled={code.length < 4} onClick={claim}>
+                  {t('claim', 'Claim')}
+                </Button>
+              </div>
             </div>
-            <div>
-              <Button disabled={code.length < 4} onClick={claim}>
-                {t('claim', 'Claim')}
-              </Button>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

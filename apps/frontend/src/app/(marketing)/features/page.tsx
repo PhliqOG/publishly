@@ -7,9 +7,9 @@ import {
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
 export const metadata: Metadata = {
-  title: 'Features',
+  title: 'Social media publishing features with delivery proof',
   description:
-    'Compose once, schedule the week & let a durable workflow deliver. Every capability listed here ships in the product today.',
+    'Create once, schedule across brands and clients, and get proof or a clear reason for every selected account.',
   alternates: { canonical: '/features' },
 };
 
@@ -27,7 +27,7 @@ const COMPOSE = [
   },
   {
     h: 'Limits, checked early',
-    p: 'Character counts & media rules are validated before you schedule, so a post never fails for a reason the composer could see coming.',
+    p: 'Character counts and media rules are checked before you schedule, preventing avoidable failures later.',
   },
   {
     h: 'First comments',
@@ -41,12 +41,12 @@ const COMPOSE = [
 
 const SCHEDULE = [
   {
-    h: '3 altitudes, one schedule',
-    p: 'Month for the plan, week for the rhythm, day for the detail — the same posts at 3 zoom levels.',
+    h: '3 views, one schedule',
+    p: 'Month for the plan, week for the rhythm, and day for the detail — the same posts at three useful levels.',
   },
   {
     h: 'Drag & drop',
-    p: 'Reschedule by dragging a post to its new slot. The publishing pipeline follows — no orphaned jobs, no stale queues.',
+    p: 'Drag a post to its new time and Publishly updates the real schedule with it.',
   },
   {
     h: 'Timezone-aware slots',
@@ -64,24 +64,24 @@ const SCHEDULE = [
 
 const DELIVER = [
   {
-    h: 'Durable workflows',
-    p: 'Each destination runs as its own durable workflow. It survives crashes, restarts & deploys — mid-publish included.',
+    h: 'Keeps working after the browser closes',
+    p: 'Each selected account is handled by the server, so a closed tab, restart, or deployment does not erase the schedule.',
   },
   {
     h: 'No double posts',
-    p: 'Deterministic workflow identities make retries converge instead of repeating. The dangerous step simply isn’t repeatable.',
+    p: 'Safe checks can run again, but Publishly never blindly repeats the step that creates the public post.',
   },
   {
-    h: 'Partial success',
-    p: 'A post to 6 networks is 6 deliveries. If one fails, the other 5 stay published & only the failed one retries.',
+    h: 'One failure does not undo five successes',
+    p: 'A post sent to six selected brand or client accounts gets six results. If one fails, the other five stay published.',
   },
   {
     h: 'Failures you can see',
     p: 'A failed post gets a red ring on the calendar and the platform’s own error on hover, plus an in-app alert and email. Full state history and attempt count live on the delivery receipt via the API.',
   },
   {
-    h: 'The sweeper',
-    p: 'An hourly sweeper re-queues posts missed in the last two days on healthy channels. If a channel needs reconnecting, its posts stop and tell you why instead of piling up silently.',
+    h: 'Missed-time recovery',
+    p: 'A regular check finds recent schedule times missed during a restart or service problem. Healthy accounts are queued again; disconnected ones stop and tell you why.',
   },
 ];
 
@@ -103,16 +103,16 @@ const AROUND = [
     p: 'Platform-reported metrics only, snapshotted as they refresh. Anything a network doesn’t expose is labelled unavailable — never estimated.',
   },
   {
-    h: 'A capability-gated inbox',
+    h: 'Comments only where supported',
     p: 'Comments from connected channels in one queue, replies through the same official APIs. Channels that can’t support it say so.',
   },
   {
-    h: 'Scoped API keys',
-    p: 'Hashed, scope-limited keys you can revoke at any time. Scheduling, media, integrations and analytics — all scriptable with the same scoped keys.',
+    h: 'API keys you can limit',
+    p: 'Give each integration only the access it needs and revoke the key at any time. The same API covers scheduling, media, connections, and analytics.',
   },
   {
-    h: 'Webhooks',
-    p: 'Outgoing webhooks fire on publishing events, so your own systems stay in the loop.',
+    h: 'Alerts to your own software',
+    p: 'Publishly can send a verified event to your own software whenever a post moves forward or fails.',
   },
   {
     h: 'Open source',
@@ -146,12 +146,12 @@ export default function FeaturesPage() {
                 className="mk-h2-lg"
                 style={{ marginTop: 18, maxWidth: '13ch' }}
               >
-                Compose. Schedule. Deliver.
+                Create it once. Know what happened.
               </h1>
               <p className="mk-section-lede">
-                The whole job in 3 moves. Everything on this page ships in
-                the product today — where a network limits a feature, the
-                interface says so instead of pretending.
+                The whole job in 3 moves. Everything on this page ships in the
+                product today — where a network limits a feature, the interface
+                says so instead of pretending.
               </p>
             </div>
           </div>
@@ -168,9 +168,9 @@ export default function FeaturesPage() {
                   Compose once, in every voice.
                 </h2>
                 <p className="mk-section-lede">
-                  One draft carries the message. Captions, tags & first
-                  comments adapt per network — checked against each
-                  platform&rsquo;s real limits before you schedule.
+                  One draft carries the message. Captions, tags & first comments
+                  adapt per network — checked against each platform&rsquo;s real
+                  limits before you schedule.
                 </p>
               </div>
               <Rows items={COMPOSE} />
@@ -196,8 +196,8 @@ export default function FeaturesPage() {
                   Schedule the week in one sitting.
                 </h2>
                 <p className="mk-section-lede">
-                  Month, week & day views over one calendar. Move a slot &
-                  the pipeline moves with it.
+                  Month, week, and day views over one calendar. Move a post and
+                  its real schedule moves with it.
                 </p>
               </div>
               <Rows items={SCHEDULE} />
@@ -212,11 +212,11 @@ export default function FeaturesPage() {
                 03
               </span>
               <h2 id="ft-deliver" className="mk-h2" style={{ marginTop: 12 }}>
-                Delivery you don&rsquo;t babysit.
+                Delivery your team does not have to watch by hand.
               </h2>
               <p className="mk-section-lede">
-                Publishing runs on a durable workflow engine, so crashes, rate
-                limits & expired tokens stay boring.
+                The server keeps the schedule alive, explains failures, and
+                tries temporary problems again safely.
               </p>
             </div>
             <div style={{ marginTop: 44 }}>
@@ -296,12 +296,9 @@ export default function FeaturesPage() {
             <div className="mk-band">
               <div>
                 <h2 style={{ fontSize: 'clamp(1.7rem, 3.2vw, 2.4rem)' }}>
-                  See the board clear itself.
+                  Schedule one real post. Keep the receipt.
                 </h2>
-                <p>
-                  Create the workspace first — choose a plan when a channel is
-                  ready to go live.
-                </p>
+                <p>Start free with five brand, client, or location accounts.</p>
               </div>
               <Link
                 href={MARKETING.authRegister}

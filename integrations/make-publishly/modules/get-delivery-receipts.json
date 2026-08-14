@@ -1,0 +1,39 @@
+{
+  "name": "getDeliveryReceipts",
+  "label": "Get delivery receipts",
+  "description": "Returns the durable per-platform lifecycle and classified failure evidence for a post.",
+  "type": "action",
+  "connection": "publishly",
+  "mappableParameters": [
+    {
+      "name": "postId",
+      "label": "Post ID",
+      "type": "text",
+      "required": true
+    }
+  ],
+  "communication": {
+    "url": "/posts/{{encodeURL(parameters.postId)}}/receipts",
+    "method": "GET",
+    "response": {
+      "output": "{{body}}"
+    }
+  },
+  "interface": [
+    {
+      "name": "postId",
+      "label": "Post ID",
+      "type": "text"
+    },
+    {
+      "name": "latestStage",
+      "label": "Latest delivery stage",
+      "type": "text"
+    },
+    {
+      "name": "receipts",
+      "label": "Delivery receipts",
+      "type": "array"
+    }
+  ]
+}

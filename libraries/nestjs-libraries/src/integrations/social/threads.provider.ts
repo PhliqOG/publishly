@@ -68,7 +68,7 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
       return {
         type: 'bad-body',
         value:
-          "One of the media URLs is invalid or inaccessible, make sure it's being uploaded to Postiz first",
+          "One of the media URLs is invalid or inaccessible; upload it to Publishly first.",
       };
     }
     if (body.includes('text must be at most 500 characters')) {
@@ -810,6 +810,28 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
     }
 
     return false;
+  }
+
+  public override async confirmPost(
+    accessToken: string,
+    postId: string,
+    releaseURL: string,
+    integration: Integration
+  ) {
+    return this.confirmJsonResource({
+      platform: 'Threads',
+      method: 'threads_media_read',
+      url: `https://graph.threads.net/v1.0/${encodeURIComponent(
+        postId
+      )}?fields=id,permalink,media_type&access_token=${encodeURIComponent(
+        accessToken
+      )}`,
+      expectedId: postId,
+      fallbackUrl: releaseURL,
+      getId: (body) => body?.id,
+      getUrl: (body) => body?.permalink,
+      evidence: (body) => ({ mediaType: body?.media_type || null }),
+    });
   }
 
   async postAnalytics(

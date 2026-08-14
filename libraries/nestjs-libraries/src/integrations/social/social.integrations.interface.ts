@@ -1,4 +1,5 @@
 import { Integration } from '@prisma/client';
+import { PlatformTruthSnapshot } from '@gitroom/nestjs-libraries/reliability/platform.truth';
 
 export interface ClientInformation {
   client_id: string;
@@ -15,6 +16,7 @@ export interface IAuthenticator {
     clientInformation?: ClientInformation
   ): Promise<AuthTokenDetails | string>;
   refreshToken(refreshToken: string): Promise<AuthTokenDetails>;
+  revokeConnection?(accessToken: string, refreshToken?: string): Promise<void>;
   reConnect?(
     id: string,
     requiredId: string,
@@ -32,7 +34,7 @@ export interface IAuthenticator {
     integrationId: string,
     accessToken: string,
     postId: string,
-    fromDate: number,
+    fromDate: number
   ): Promise<AnalyticsData[]>;
   changeNickname?(
     id: string,
@@ -56,7 +58,6 @@ export interface AnalyticsData {
   percentageChange: number;
 }
 
-
 export type GenerateAuthUrlResponse = {
   url: string;
   codeVerifier: string;
@@ -79,6 +80,7 @@ export type AuthTokenDetails = {
     value: any;
     regex?: string;
   }[];
+  platformTruth?: PlatformTruthSnapshot;
 };
 
 export interface ISocialMediaIntegration {
@@ -130,6 +132,42 @@ export type PendingCheckResponse =
   | { status: 'ready'; pendingData: any }
   | { status: 'completed'; postId: string; releaseURL: string };
 
+export type PostConfirmationResult =
+  | {
+      status: 'confirmed';
+      method: string;
+      providerPostId?: string;
+      providerUrl?: string;
+      evidence?: Record<string, string | number | boolean | null>;
+    }
+  | {
+      status: 'pending' | 'not_found' | 'unsupported';
+      method: string;
+      reason: string;
+      evidence?: Record<string, string | number | boolean | null>;
+    };
+
+export type AmbiguousPostReconciliationResult =
+  | {
+      status: 'confirmed';
+      method: string;
+      providerPostId: string;
+      providerUrl: string;
+      evidence?: Record<string, string | number | boolean | null>;
+    }
+  | {
+      status: 'absent' | 'inconclusive';
+      method: string;
+      reason: string;
+      evidence?: Record<string, string | number | boolean | null>;
+    };
+
+export type AmbiguousPostReconciliationInput = {
+  publishlyPostId: string;
+  mutationFingerprint: string;
+  mutationStartedAt: string;
+};
+
 export type PostDetails<T = any> = {
   id: string;
   message: string;
@@ -157,6 +195,7 @@ export type FetchPageInformationResult = {
   access_token: string;
   picture: string;
   username: string;
+  platformTruth?: PlatformTruthSnapshot;
 };
 
 // A platform comment surfaced in the unified inbox. Values come straight from
@@ -169,6 +208,22 @@ export type InboxComment = {
   message: string;
   createdAt: string;
   repliesCount?: number;
+};
+
+// A text message returned by an official provider conversations API. The
+// response-window fields let the product prevent replies the platform would
+// reject instead of presenting an always-enabled composer.
+export type InboxDirectMessage = {
+  id: string;
+  threadId: string;
+  recipientId: string;
+  author: { id?: string; name: string; username?: string; picture?: string };
+  message: string;
+  createdAt: string;
+  direction: 'inbound' | 'outbound';
+  replyAllowed: boolean;
+  windowExpiresAt?: string;
+  unsupported?: boolean;
 };
 
 export interface SocialProvider
@@ -196,6 +251,17 @@ export interface SocialProvider
     pendingData: any,
     integration: Integration
   ): Promise<PendingCheckResponse>;
+  confirmPost(
+    accessToken: string,
+    postId: string,
+    releaseURL: string,
+    integration: Integration
+  ): Promise<PostConfirmationResult>;
+  reconcileAmbiguousPost(
+    accessToken: string,
+    input: AmbiguousPostReconciliationInput,
+    integration: Integration
+  ): Promise<AmbiguousPostReconciliationResult>;
   isWeb3?: boolean;
   isChromeExtension?: boolean;
   extensionCookies?: { name: string; domain: string }[];
@@ -232,6 +298,10 @@ export interface SocialProvider
     accessToken: string,
     data: any
   ): Promise<FetchPageInformationResult>;
+  inspectPlatformTruth?(
+    accessToken: string,
+    integration: Integration
+  ): Promise<PlatformTruthSnapshot>;
   // Unified-inbox capability: only providers whose official API exposes
   // comment reading/replying implement these. The UI derives support flags
   // from their presence - absent means the feature is honestly unavailable.
@@ -247,4 +317,18 @@ export interface SocialProvider
     message: string,
     postId?: string
   ): Promise<{ id: string; releaseURL?: string }>;
+  // Direct messages are intentionally separate from comments. Providers only
+  // implement these when their official business API exposes conversations.
+  listDirectMessages?(
+    accessToken: string,
+    integration: Integration,
+    params: { page?: number }
+  ): Promise<{ messages: InboxDirectMessage[]; nextPage?: number }>;
+  sendDirectMessage?(
+    accessToken: string,
+    integration: Integration,
+    threadId: string,
+    recipientId: string,
+    message: string
+  ): Promise<{ id: string }>;
 }

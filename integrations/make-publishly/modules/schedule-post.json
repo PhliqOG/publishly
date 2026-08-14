@@ -1,0 +1,76 @@
+{
+  "name": "schedulePost",
+  "label": "Schedule a post",
+  "description": "Creates an idempotent scheduled post for one or more destinations.",
+  "type": "action",
+  "connection": "publishly",
+  "mappableParameters": [
+    {
+      "name": "idempotencyKey",
+      "label": "Idempotency key",
+      "type": "text",
+      "required": true,
+      "help": "Stable 8-200 character key for this creation intent. Reuse it when Make retries the same bundle."
+    },
+    {
+      "name": "scheduledAt",
+      "label": "Scheduled at",
+      "type": "date",
+      "required": true
+    },
+    {
+      "name": "shortLink",
+      "label": "Shorten links",
+      "type": "boolean",
+      "required": true,
+      "default": false
+    },
+    {
+      "name": "tags",
+      "label": "Post tags JSON",
+      "type": "json",
+      "required": true,
+      "default": "[]"
+    },
+    {
+      "name": "posts",
+      "label": "Destination posts JSON",
+      "type": "json",
+      "required": true,
+      "help": "A non-empty array using the Publishly public-v1 post shape."
+    }
+  ],
+  "communication": {
+    "url": "/posts",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json",
+      "Idempotency-Key": "{{parameters.idempotencyKey}}"
+    },
+    "body": {
+      "type": "schedule",
+      "date": "{{parameters.scheduledAt}}",
+      "shortLink": "{{parameters.shortLink}}",
+      "tags": "{{parameters.tags}}",
+      "posts": "{{parameters.posts}}"
+    },
+    "response": {
+      "output": {
+        "result": "{{body}}",
+        "idempotencyReplayed": "{{lower(ifempty(headers.`idempotency-replayed`, headers.`Idempotency-Replayed`)) == 'true'}}"
+      }
+    }
+  },
+  "interface": [
+    {
+      "name": "result",
+      "label": "Created posts",
+      "type": "array"
+    },
+    {
+      "name": "idempotencyReplayed",
+      "label": "Idempotency replayed",
+      "type": "boolean"
+    }
+  ]
+}

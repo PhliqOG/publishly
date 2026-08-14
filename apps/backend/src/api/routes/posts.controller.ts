@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpException,
+  Headers,
   Param,
   Post,
   Put,
@@ -12,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { PostsService } from '@gitroom/nestjs-libraries/database/prisma/posts/posts.service';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
-import { Organization, User } from '@prisma/client';
+import { Organization, PublishingJobState, User } from '@prisma/client';
 import { GetPostsDto } from '@gitroom/nestjs-libraries/dtos/posts/get.posts.dto';
 import { GetPostsListDto } from '@gitroom/nestjs-libraries/dtos/posts/get.posts.list.dto';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
@@ -29,6 +30,12 @@ import {
   Sections,
 } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 import { PostValidationException } from '@gitroom/backend/api/routes/posts.validation.exception';
+import {
+  IdempotencyInProgressException,
+  PostCreationIdempotencyService,
+} from '@gitroom/nestjs-libraries/database/prisma/posts/post-creation-idempotency.service';
+import { FleetDistributionService } from '@gitroom/nestjs-libraries/database/prisma/fleet-distribution/fleet-distribution.service';
+import { CalendarScheduleIntentDto } from '@gitroom/nestjs-libraries/dtos/posts/create.post.dto';
 
 @ApiTags('Posts')
 @Controller('/posts')
@@ -36,7 +43,9 @@ export class PostsController {
   constructor(
     private _postsService: PostsService,
     private _agentGraphService: AgentGraphService,
-    private _shortLinkService: ShortLinkService
+    private _shortLinkService: ShortLinkService,
+    private _postCreationIdempotency: PostCreationIdempotencyService,
+    private _fleetDistribution: FleetDistributionService
   ) {}
 
   @Get('/:id/statistics')
@@ -67,6 +76,59 @@ export class PostsController {
   @Post('/should-shortlink')
   async shouldShortlink(@Body() body: { messages: string[] }) {
     return { ask: this._shortLinkService.askShortLinkedin(body.messages) };
+  }
+
+  @Get('/publishing-jobs')
+  publishingJobs(
+    @GetOrgFromRequest() org: Organization,
+    @Query('state') state?: PublishingJobState,
+    @Query('cursor') cursor?: string,
+    @Query('take') take?: string
+  ) {
+    const allowed = new Set<PublishingJobState>([
+      'DRAFT',
+      'SCHEDULED',
+      'QUEUED',
+      'PROCESSING',
+      'PUBLISHED',
+      'PARTIAL_SUCCESS',
+      'RETRYING',
+      'FAILED',
+      'CANCELLED',
+    ]);
+    if (state && !allowed.has(state)) {
+      throw new HttpException('Invalid publishing job state', 400);
+    }
+    return this._postsService.listPublishingJobs(
+      org.id,
+      state,
+      cursor,
+      Math.min(100, Math.max(1, parseInt(take || '50', 10) || 50))
+    );
+  }
+
+  @Get('/:id/publishing-job')
+  async publishingJob(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    const job = await this._postsService.getPublishingJob(org.id, id);
+    if (!job) throw new HttpException('Publishing job not found', 404);
+    return job;
+  }
+
+  @Get('/:id/receipts')
+  async deliveryReceipts(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    const job = await this._postsService.getPublishingJob(org.id, id);
+    if (!job) throw new HttpException('Publishing job not found', 404);
+    return {
+      postId: id,
+      latestStage: job.deliveryStage,
+      receipts: await this._postsService.listDeliveryReceipts(org.id, id),
+    };
   }
 
   @Post('/:id/comments')
@@ -159,7 +221,10 @@ export class PostsController {
   }
 
   @Get('/group/:group')
-  getPostsByGroup(@GetOrgFromRequest() org: Organization, @Param('group') group: string) {
+  getPostsByGroup(
+    @GetOrgFromRequest() org: Organization,
+    @Param('group') group: string
+  ) {
     return this._postsService.getPostsByGroup(org.id, group);
   }
 
@@ -176,11 +241,33 @@ export class PostsController {
     return this._postsService.validatePosts(org.id, rawBody?.posts || []);
   }
 
+  @Post('/fleet-stagger')
+  @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
+  async createFleetStagger(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: any,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    const result = await this._fleetDistribution.create(
+      org.id,
+      idempotencyKey,
+      body || {}
+    );
+    response.setHeader(
+      'Idempotency-Replayed',
+      result.replayed ? 'true' : 'false'
+    );
+    return result;
+  }
+
   @Post('/')
   @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
   async createPost(
     @GetOrgFromRequest() org: Organization,
-    @Body() rawBody: any
+    @Body() rawBody: any,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Res({ passthrough: true }) response: Response
   ) {
     // Server-side validation — never trust the client to have validated.
     const validation = await this._postsService.validatePosts(
@@ -188,11 +275,20 @@ export class PostsController {
       rawBody?.posts || []
     );
 
-    const fail = (item: (typeof validation)[number], error: string) => {
+    const fail = (
+      item: (typeof validation)[number],
+      error: string,
+      failure: {
+        failureClass: 'recoverable' | 'user_action_needed' | 'data_problem';
+        code: string;
+        reason: string;
+      }
+    ) => {
       throw new PostValidationException({
         provider: item.identifier,
         name: item.name,
         error,
+        ...failure,
       });
     };
 
@@ -200,7 +296,8 @@ export class PostsController {
       if (item.emptyContent) {
         fail(
           item,
-          'Your post should have at least one character or one image.'
+          'Your post should have at least one character or one image.',
+          item.emptyContentFailure!
         );
       }
     }
@@ -208,19 +305,52 @@ export class PostsController {
     if (rawBody?.type !== 'draft') {
       for (const item of validation) {
         if (!item.valid) {
-          fail(item, item.settingsError || 'Please fix your settings');
+          fail(
+            item,
+            item.settingsError || 'Please fix your settings',
+            item.settingsFailure!
+          );
         }
         if (item.errors !== true) {
-          fail(item, item.errors as string);
+          fail(
+            item,
+            item.errors as string,
+            item.preflightFailure || item.mediaFailure!
+          );
         }
         if (item.tooLong) {
-          fail(item, 'post is too long, please fix it');
+          fail(item, 'post is too long, please fix it', item.tooLongFailure!);
         }
       }
     }
 
     const body = await this._postsService.mapTypeToPost(rawBody, org.id);
-    return this._postsService.createPost(org.id, body, 'WEB');
+    try {
+      const result = await this._postCreationIdempotency.execute({
+        organizationId: org.id,
+        idempotencyKey,
+        body,
+        creationMethod: 'WEB',
+        operation: (allocatedBody) =>
+          this._postsService.createPost(
+            org.id,
+            allocatedBody,
+            'WEB',
+            false,
+            true
+          ),
+      });
+      response.setHeader(
+        'Idempotency-Replayed',
+        result.replayed ? 'true' : 'false'
+      );
+      return result.value;
+    } catch (error) {
+      if (error instanceof IdempotencyInProgressException) {
+        response.setHeader('Retry-After', String(error.retryAfterSeconds));
+      }
+      throw error;
+    }
   }
 
   @Post('/generator/draft')
@@ -276,9 +406,19 @@ export class PostsController {
     // 'update' is the safe default: clients that don't send an action must
     // never requeue (and thereby republish) a post by accident
     @Body('action') action: 'schedule' | 'update' = 'update',
-    @Body('republish') republish = false
+    @Body('republish') republish = false,
+    @Body('scheduleIntent') scheduleIntent?: CalendarScheduleIntentDto,
+    @Headers('idempotency-key') operationKey?: string
   ) {
-    return this._postsService.changeDate(org.id, id, date, action, republish);
+    return this._postsService.changeDate(
+      org.id,
+      id,
+      date,
+      action,
+      republish,
+      scheduleIntent,
+      operationKey
+    );
   }
 
   @Post('/separate-posts')

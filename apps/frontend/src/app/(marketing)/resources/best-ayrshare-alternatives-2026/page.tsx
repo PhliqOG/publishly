@@ -16,7 +16,7 @@ import {
 export const metadata: Metadata = {
   title: 'Best Ayrshare alternatives (2026)',
   description:
-    'Four Ayrshare alternatives compared from official pricing pages — Publishly, Upload-Post, Buffer & Metricool — against Ayrshare’s published $1,228.30/mo at 100 profiles, with honest fit notes for each. Last checked 2026-08-10.',
+    'Four Ayrshare alternatives compared from official pricing pages — Publishly, Upload-Post, Buffer & Metricool — against Ayrshare’s published $1,228.30/mo at 100 profiles. Last checked 2026-08-11.',
   keywords: [
     'ayrshare alternatives',
     'ayrshare alternative 2026',
@@ -27,8 +27,8 @@ export const metadata: Metadata = {
 
 // Competitor numbers: data/claim-provenance.json (ayrshare-100-profiles,
 // buffer-30-channels, metricool-tiers, upload-post-tiers, retrieved
-// 2026-08-10). Publishly numbers: data/public-product-facts.json.
-const CHECKED = '2026-08-10';
+// 2026-08-11). Publishly numbers: data/public-product-facts.json.
+const CHECKED = '2026-08-11';
 
 const ENTRIES = [
   {
@@ -41,7 +41,7 @@ const ENTRIES = [
   },
   {
     name: 'Buffer',
-    p: 'Buffer trades Ayrshare’s API-first design for a polished consumer scheduler with a real free tier — but its $10/channel Team pricing still scales with the roster, reaching $1,000/mo at 100 channels. Best fit for smaller teams that want a well-known, easy-to-use tool rather than an API.',
+    p: 'Buffer trades Ayrshare’s API-first design for a polished consumer scheduler with a real free tier — but its $12/channel monthly Team pricing still grows with every channel. Best fit for smaller teams that want a well-known, easy-to-use tool.',
   },
   {
     name: 'Metricool',
@@ -61,7 +61,7 @@ const ROWS: string[][] = [
     'Cost at 100 accounts',
     '$99/mo Growth (unlimited accounts, 15k posts)',
     'Between $147–$438 (75/225-profile tiers)',
-    '$1,000/mo at 100 channels (≈$300/mo at 30)',
+    '$1,200/mo at 100 channels ($360/mo at 30), monthly billing',
     'Not offered — plans cap at 50 brands',
   ],
   [
@@ -111,11 +111,11 @@ export default function BestAyrshareAlternativesPage() {
               $1,228.30/mo. The strongest alternatives are Publishly (flat
               plans, unlimited accounts, $99/mo Growth), Upload-Post
               (profile-count tiers up to $438/mo), Buffer (per-channel at
-              $10/channel, ≈$1,000/mo at 100), and Metricool (analytics-first,
+              $12/channel monthly, $1,200/mo at 100), and Metricool (analytics-first,
               capped at 50 brands). Which one fits depends on whether you need
               an API, a consumer scheduler, or an analytics suite.
             </QuickAnswer>
-            <Byline published="2026-08-10" updated="2026-08-10" />
+            <Byline published="2026-08-10" updated="2026-08-11" />
           </div>
         </header>
 
@@ -150,7 +150,7 @@ export default function BestAyrshareAlternativesPage() {
               Side by side.
             </h2>
             <FactLine>
-              At published rates on 2026-08-10, Ayrshare’s per-profile pricing
+              At published rates on 2026-08-11, Ayrshare’s per-profile pricing
               works out to $1,228.30/mo at 100 profiles — every alternative
               here either drops the per-profile bill entirely (Publishly,
               unlimited accounts at $99/mo Growth) or reduces it substantially

@@ -41,6 +41,13 @@ export class EmailService {
     addTo: 'top' | 'bottom',
     replyTo?: string
   ) {
+    // EmptyProvider means email is intentionally disabled. Do not make
+    // account registration or other request paths wait on a Temporal workflow
+    // that cannot deliver anything.
+    if (!this.hasProvider()) {
+      return;
+    }
+
     return this._temporalService.client
       .getRawClient()
       ?.workflow.signalWithStart('sendEmailWorkflow', {

@@ -38,7 +38,24 @@ describe('provider.env.registry', () => {
 
   it('treats env-free providers as always configured', () => {
     expect(isProviderConfigured('bluesky')).toBe(true);
+    expect(isProviderConfigured('mastodon')).toBe(true);
     expect(isProviderConfigured('testprovider')).toBe(true);
+  });
+
+  it('disables the optional Skool adapter until the exact Publishly extension is configured', () => {
+    delete process.env.EXTENSION_ID;
+    delete process.env.NEXT_PUBLIC_CHROME_EXTENSION_URL;
+    expect(missingProviderEnv('skool')).toEqual([
+      'EXTENSION_ID',
+      'NEXT_PUBLIC_CHROME_EXTENSION_URL',
+    ]);
+    expect(isProviderConfigured('skool')).toBe(false);
+
+    process.env.EXTENSION_ID = 'publishly-extension-id';
+    process.env.NEXT_PUBLIC_CHROME_EXTENSION_URL =
+      'https://chromewebstore.google.com/detail/publishly/example';
+    cleanup.push('EXTENSION_ID', 'NEXT_PUBLIC_CHROME_EXTENSION_URL');
+    expect(isProviderConfigured('skool')).toBe(true);
   });
 
   it('treats unknown identifiers as configured (no server gate)', () => {

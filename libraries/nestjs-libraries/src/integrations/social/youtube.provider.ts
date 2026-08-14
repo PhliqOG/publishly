@@ -57,21 +57,40 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
   identifier = 'youtube';
   name = 'YouTube';
   isBetweenSteps = true;
+  refreshCron = true;
   dto = YoutubeSettingsDto;
   scopes = [
     'https://www.googleapis.com/auth/userinfo.profile',
-    'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/youtube',
-    'https://www.googleapis.com/auth/youtube.force-ssl',
     'https://www.googleapis.com/auth/youtube.readonly',
     'https://www.googleapis.com/auth/youtube.upload',
-    'https://www.googleapis.com/auth/youtubepartner',
     'https://www.googleapis.com/auth/yt-analytics.readonly',
   ];
 
   editor = 'normal' as const;
   maxLength() {
     return 5000;
+  }
+
+  async revokeConnection(accessToken: string, refreshToken?: string) {
+    const token = refreshToken || accessToken;
+    const response = await fetch('https://oauth2.googleapis.com/revoke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token }).toString(),
+    });
+
+    // Google returns 400 when a token is already invalid/revoked. There is no
+    // remaining authorization to preserve in that case, so local deletion can
+    // proceed. Network, rate-limit, and server failures remain retryable and
+    // visible to the caller.
+    if (response.ok || response.status === 400) {
+      await response.text().catch(() => '');
+      return;
+    }
+    await response.text().catch(() => '');
+    throw new Error(
+      `Google authorization revocation is temporarily unavailable (HTTP ${response.status}).`
+    );
   }
 
   override async checkValidity(
@@ -427,6 +446,8 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
   // Resolves the total byte size of the media without loading it into memory:
   // a HEAD request for remote URLs, statSync for local files.
   private async youtubeMediaSize(path: string): Promise<number> {
+    const transport = this.resolveMediaTransportRequest(path);
+    path = transport.url;
     if (path.indexOf('http') === 0) {
       // the media path is user-influenced, keep the SSRF-safe dispatcher that
       // this.fetch applies to every other outbound request. identity encoding
@@ -434,7 +455,10 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
       // (fetch transparently decompresses encoded bodies).
       const head = await fetch(path, {
         method: 'HEAD',
-        headers: { 'accept-encoding': 'identity' },
+        headers: {
+          ...transport.headers,
+          'accept-encoding': 'identity',
+        },
         dispatcher: getSsrfSafeDispatcher(),
       } as any);
       const length = head.headers.get('content-length');
@@ -456,12 +480,15 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
   // never hold the whole file in memory: a ranged GET for remote URLs, a ranged
   // read stream for local files.
   private async youtubeChunkStream(path: string, start: number, end: number) {
+    const transport = this.resolveMediaTransportRequest(path);
+    path = transport.url;
     if (path.indexOf('http') === 0) {
       // identity encoding so the store keeps content-length and can answer
       // with the requested range: a transformed (compressed) response loses
       // its length, and a length-less object is answered with the full body.
       const response = await fetch(path, {
         headers: {
+          ...transport.headers,
           Range: `bytes=${start}-${end}`,
           'accept-encoding': 'identity',
         },
@@ -957,6 +984,58 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
       return acc;
     } catch (err) {
       return [];
+    }
+  }
+
+  public override async confirmPost(
+    accessToken: string,
+    postId: string,
+    releaseURL: string,
+    integration: Integration
+  ) {
+    const { client, youtube } = clientAndYoutube();
+    client.setCredentials({ access_token: accessToken });
+    try {
+      const response = await youtube(client).videos.list({
+        part: ['id', 'status'],
+        id: [postId],
+      });
+      const video = response.data.items?.[0];
+      if (video?.id === postId) {
+        return {
+          status: 'confirmed' as const,
+          method: 'youtube_videos_read',
+          providerPostId: postId,
+          providerUrl: releaseURL,
+          evidence: {
+            uploadStatus: video.status?.uploadStatus || null,
+            privacyStatus: video.status?.privacyStatus || null,
+          },
+        };
+      }
+      return {
+        status: 'not_found' as const,
+        method: 'youtube_videos_read',
+        reason:
+          'YouTube did not return the uploaded video from its videos API yet. Publishly will retry the read-only confirmation.',
+        evidence: { httpStatus: response.status || 200 },
+      };
+    } catch (error) {
+      const status = Number((error as any)?.response?.status || 0);
+      return {
+        status:
+          status === 404
+            ? ('not_found' as const)
+            : status === 401 || status === 403
+            ? ('unsupported' as const)
+            : ('pending' as const),
+        method: 'youtube_videos_read',
+        reason:
+          error instanceof Error
+            ? `YouTube confirmation could not complete: ${error.message}`
+            : 'YouTube confirmation could not reach the videos API.',
+        evidence: { httpStatus: status || null },
+      };
     }
   }
 

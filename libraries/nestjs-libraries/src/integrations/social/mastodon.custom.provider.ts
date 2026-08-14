@@ -10,14 +10,14 @@ import { getSsrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/s
 import { Integration } from '@prisma/client';
 
 export class MastodonCustomProvider extends MastodonProvider {
-  override identifier = 'mastodon-custom';
-  override name = 'M. Instance';
+  override identifier = 'mastodon';
+  override name = 'Mastodon';
   override maxConcurrentJob = 5; // Custom Mastodon instances typically have generous limits
   editor = 'normal' as const;
 
   async externalUrl(url: string) {
     const form = new FormData();
-    form.append('client_name', 'Postiz');
+    form.append('client_name', 'Publishly');
     form.append(
       'redirect_uris',
       `${process.env.FRONTEND_URL}/integrations/social/mastodon`
@@ -38,17 +38,13 @@ export class MastodonCustomProvider extends MastodonProvider {
       client_secret,
     };
   }
-  override async generateAuthUrl(
-    refresh?: string,
-    external?: ClientInformation
-  ) {
+  override async generateAuthUrl(external?: ClientInformation) {
     const state = makeId(6);
     const url = this.generateUrlDynamic(
       external?.instanceUrl!,
       state,
       external?.client_id!,
-      process.env.FRONTEND_URL!,
-      refresh
+      process.env.FRONTEND_URL!
     );
 
     return {
@@ -74,16 +70,16 @@ export class MastodonCustomProvider extends MastodonProvider {
     );
   }
 
-  // The user's instance URL, saved encrypted at connection time. Falls back to
-  // the default instance for legacy integrations that predate storing it.
+  // The user's instance URL, saved encrypted at connection time. The fallback
+  // exists only for legacy rows created by the former single-instance flow.
   private instanceUrl(integration?: Integration) {
     try {
       const { instanceUrl } = JSON.parse(
         AuthService.fixedDecryption(integration?.customInstanceDetails || '')
       );
-      return instanceUrl || process.env.MASTODON_URL || 'https://mastodon.social';
+      return instanceUrl || 'https://mastodon.social';
     } catch (err) {
-      return process.env.MASTODON_URL || 'https://mastodon.social';
+      return 'https://mastodon.social';
     }
   }
 

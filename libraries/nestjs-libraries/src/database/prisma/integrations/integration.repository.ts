@@ -1,12 +1,20 @@
-import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
+import {
+  PrismaRepository,
+  PrismaService,
+} from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { seal } from '@gitroom/helpers/auth/crypto.v2';
 import dayjs from 'dayjs';
-import { Integration } from '@prisma/client';
+import { Integration, Prisma } from '@prisma/client';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { IntegrationTimeDto } from '@gitroom/nestjs-libraries/dtos/integrations/integration.time.dto';
-import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
+import {
+  getPublicStorageUrl,
+  UploadFactory,
+} from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { PlugDto } from '@gitroom/nestjs-libraries/dtos/plugs/plug.dto';
+import { resolveTokenWindow } from '@gitroom/nestjs-libraries/reliability/connection.health.policy';
+import { cancelCalendarReservationsInTransaction } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/calendar-reservation.mutation';
 
 @Injectable()
 export class IntegrationRepository {
@@ -17,7 +25,8 @@ export class IntegrationRepository {
     private _plugs: PrismaRepository<'plugs'>,
     private _exisingPlugData: PrismaRepository<'exisingPlugData'>,
     private _customers: PrismaRepository<'customer'>,
-    private _mentions: PrismaRepository<'mentions'>
+    private _mentions: PrismaRepository<'mentions'>,
+    private _prisma: PrismaService
   ) {}
 
   getMentions(platform: string, q: string) {
@@ -150,10 +159,12 @@ export class IntegrationRepository {
     if (params.refreshToken) {
       params.refreshToken = seal(params.refreshToken);
     }
+    const storageUrl = getPublicStorageUrl();
+    const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
     if (
       params.picture &&
-      (params.picture.indexOf(process.env.CLOUDFLARE_BUCKET_URL!) === -1 ||
-        params.picture.indexOf(process.env.FRONTEND_URL!) === -1)
+      (!storageUrl || !params.picture.startsWith(`${storageUrl}/`)) &&
+      (!frontendUrl || !params.picture.startsWith(`${frontendUrl}/`))
     ) {
       params.picture = await this.storage.uploadSimple(params.picture);
     }
@@ -168,23 +179,38 @@ export class IntegrationRepository {
     });
 
     if (existing) {
-      await this._posts.model.post.updateMany({
-        where: {
-          integrationId: id,
-        },
-        data: {
-          deletedAt: new Date(),
-        },
-      });
-
-      await this._integration.model.integration.update({
-        where: {
-          id,
-        },
-        data: {
-          internalId: `deleted_${params.internalId}_${makeId(10)}`,
-          deletedAt: new Date(),
-        },
+      await this._prisma.$transaction(async (tx) => {
+        const now = new Date();
+        const posts = await tx.post.findMany({
+          where: {
+            organizationId: params.organizationId!,
+            integrationId: id,
+            deletedAt: null,
+          },
+          select: { id: true },
+        });
+        await cancelCalendarReservationsInTransaction(tx, {
+          organizationId: params.organizationId!,
+          integrationIds: [id],
+          action: 'calendar.writer.connection_replaced',
+          subject: id,
+          code: 'calendar_connection_replaced',
+          reason:
+            'The connection was replaced; its pending calendar work was cancelled.',
+          actor: { actorType: 'system' },
+          now,
+        });
+        await tx.post.updateMany({
+          where: { id: { in: posts.map((post) => post.id) } },
+          data: { deletedAt: now },
+        });
+        await tx.integration.update({
+          where: { id, organizationId: params.organizationId! },
+          data: {
+            internalId: `deleted_${params.internalId}_${makeId(10)}`,
+            deletedAt: now,
+          },
+        });
       });
     }
 
@@ -208,6 +234,13 @@ export class IntegrationRepository {
       },
       data: {
         refreshNeeded: true,
+        tokenHealthState: 'RECONNECT_REQUIRED',
+        tokenHealthReason: 'Reconnect this account before publishing.',
+        tokenHealthCheckedAt: new Date(),
+        tokenHealthChangedAt: new Date(),
+        connectionHealthState: 'RECONNECT_REQUIRED',
+        connectionHealthReason: 'Reconnect this account before publishing.',
+        connectionHealthChangedAt: new Date(),
       },
     });
   }
@@ -231,13 +264,41 @@ export class IntegrationRepository {
     provider: string,
     token: string,
     refreshToken = '',
-    expiresIn = 999999999,
+    expiresIn?: number,
     username?: string,
     isBetweenSteps = false,
     refresh?: string,
     timezone?: number,
     customInstanceDetails?: string
   ) {
+    const tokenWindow = resolveTokenWindow({
+      providerIdentifier: provider,
+      expiresInSeconds: expiresIn,
+    });
+    const tokenProjection = {
+      tokenIssuedAt: tokenWindow.issuedAt,
+      tokenExpiration: tokenWindow.expiration,
+      tokenLifetimeDays: tokenWindow.lifetimeDays,
+      tokenHealthState: tokenWindow.expiration
+        ? ('HEALTHY' as const)
+        : ('UNKNOWN' as const),
+      tokenHealthReason: tokenWindow.expiration
+        ? 'A fresh provider token is within its expected lifetime.'
+        : 'The platform did not provide a token expiry.',
+      tokenHealthCheckedAt: tokenWindow.issuedAt,
+      tokenHealthChangedAt: tokenWindow.issuedAt,
+      tokenWarningDays: null as number | null,
+    } satisfies Pick<
+      Prisma.IntegrationUncheckedCreateInput,
+      | 'tokenIssuedAt'
+      | 'tokenExpiration'
+      | 'tokenLifetimeDays'
+      | 'tokenHealthState'
+      | 'tokenHealthReason'
+      | 'tokenHealthCheckedAt'
+      | 'tokenHealthChangedAt'
+      | 'tokenWarningDays'
+    >;
     // At-rest encryption: tokens are sealed before touching the database and
     // opened just-in-time at provider call sites. Legacy plaintext rows keep
     // working (open() passes them through) and re-seal on their next write.
@@ -269,13 +330,19 @@ export class IntegrationRepository {
         ...(picture ? { picture } : {}),
         inBetweenSteps: isBetweenSteps,
         refreshToken,
-        ...(expiresIn
-          ? { tokenExpiration: new Date(Date.now() + expiresIn * 1000) }
-          : {}),
+        ...tokenProjection,
         internalId,
         ...postTimes,
         organizationId: org,
         refreshNeeded: false,
+        connectionHealthState: 'HEALTHY',
+        connectionHealthReason: 'The account connected successfully.',
+        connectionHealthChangedAt: tokenWindow.issuedAt,
+        consecutiveErrors: 0,
+        lastConnectionErrorCode: null,
+        lastConnectionErrorReason: null,
+        staleSince: null,
+        deadAccountAt: null,
         rootInternalId: internalId,
         ...(customInstanceDetails ? { customInstanceDetails } : {}),
         additionalSettings: additionalSettings
@@ -298,13 +365,19 @@ export class IntegrationRepository {
         providerIdentifier: provider,
         token,
         refreshToken,
-        ...(expiresIn
-          ? { tokenExpiration: new Date(Date.now() + expiresIn * 1000) }
-          : {}),
+        ...tokenProjection,
         internalId,
         organizationId: org,
         deletedAt: null,
         refreshNeeded: false,
+        connectionHealthState: 'HEALTHY',
+        connectionHealthReason: 'The account connected successfully.',
+        connectionHealthChangedAt: tokenWindow.issuedAt,
+        consecutiveErrors: 0,
+        lastConnectionErrorCode: null,
+        lastConnectionErrorReason: null,
+        staleSince: null,
+        deadAccountAt: null,
       },
     });
 
@@ -330,9 +403,16 @@ export class IntegrationRepository {
           token,
           refreshToken,
           refreshNeeded: false,
-          ...(expiresIn
-            ? { tokenExpiration: new Date(Date.now() + expiresIn * 1000) }
-            : {}),
+          ...tokenProjection,
+          connectionHealthState: 'HEALTHY',
+          connectionHealthReason:
+            'The shared account token refreshed successfully.',
+          connectionHealthChangedAt: tokenWindow.issuedAt,
+          consecutiveErrors: 0,
+          lastConnectionErrorCode: null,
+          lastConnectionErrorReason: null,
+          staleSince: null,
+          deadAccountAt: null,
         },
       });
     }
@@ -371,6 +451,13 @@ export class IntegrationRepository {
       },
       data: {
         refreshNeeded: true,
+        tokenHealthState: 'RECONNECT_REQUIRED',
+        tokenHealthReason: 'Reconnect this account before publishing.',
+        tokenHealthCheckedAt: new Date(),
+        tokenHealthChangedAt: new Date(),
+        connectionHealthState: 'RECONNECT_REQUIRED',
+        connectionHealthReason: 'Reconnect this account before publishing.',
+        connectionHealthChangedAt: new Date(),
       },
     });
   }
@@ -509,27 +596,34 @@ export class IntegrationRepository {
   }
 
   async disableChannel(org: string, id: string) {
-    await this._integration.model.integration.update({
+    const updated = await this._integration.model.integration.updateMany({
       where: {
         id,
         organizationId: org,
+        deletedAt: null,
       },
       data: {
         disabled: true,
+        connectionHealthState: 'DISABLED',
+        connectionHealthReason: 'This connection is disabled.',
+        connectionHealthChangedAt: new Date(),
       },
     });
+    return updated.count > 0;
   }
 
   async enableChannel(org: string, id: string) {
-    await this._integration.model.integration.update({
+    const updated = await this._integration.model.integration.updateMany({
       where: {
         id,
         organizationId: org,
+        deletedAt: null,
       },
       data: {
         disabled: false,
       },
     });
+    return updated.count > 0;
   }
 
   getPostsForChannel(org: string, id: string) {
@@ -543,15 +637,99 @@ export class IntegrationRepository {
     });
   }
 
-  deleteChannel(org: string, id: string) {
-    return this._integration.model.integration.update({
-      where: {
-        id,
+  async deleteChannel(org: string, id: string) {
+    return this._prisma.$transaction(async (tx) => {
+      const integration = await tx.integration.findFirst({
+        where: { id, organizationId: org, deletedAt: null },
+        select: { id: true },
+      });
+      if (!integration) return false;
+
+      const posts = await tx.post.findMany({
+        where: { integrationId: id },
+        select: { id: true },
+      });
+      const postIds = posts.map(({ id: postId }) => postId);
+      const now = new Date();
+      await cancelCalendarReservationsInTransaction(tx, {
         organizationId: org,
-      },
-      data: {
-        deletedAt: new Date(),
-      },
+        integrationIds: [id],
+        action: 'calendar.writer.connection_deleted',
+        subject: id,
+        code: 'calendar_connection_deleted',
+        reason:
+          'The connected account was deleted; its pending calendar work was cancelled.',
+        actor: { actorType: 'user' },
+        now,
+      });
+      await tx.inboxState.deleteMany({ where: { integrationId: id } });
+      await tx.analyticsSnapshot.deleteMany({ where: { integrationId: id } });
+      await tx.integrationsWebhooks.deleteMany({
+        where: { integrationId: id },
+      });
+      await tx.exisingPlugData.deleteMany({ where: { integrationId: id } });
+      await tx.plugs.deleteMany({ where: { integrationId: id } });
+      if (postIds.length) {
+        await tx.comments.deleteMany({ where: { postId: { in: postIds } } });
+        await tx.errors.deleteMany({ where: { postId: { in: postIds } } });
+        await tx.publishingReceipt.updateMany({
+          where: { postId: { in: postIds } },
+          data: {
+            providerPostId: null,
+            providerUrl: null,
+            evidence: Prisma.DbNull,
+          },
+        });
+        await tx.publishingJob.updateMany({
+          where: { postId: { in: postIds } },
+          data: {
+            providerPostId: null,
+            providerUrl: null,
+            lastError: null,
+          },
+        });
+        await tx.post.updateMany({
+          where: { id: { in: postIds } },
+          data: { releaseId: null, releaseURL: null, error: null },
+        });
+      }
+
+      await tx.integration.update({
+        where: { id },
+        data: {
+          internalId: `deleted_${id}_${makeId(10)}`,
+          rootInternalId: null,
+          name: 'Deleted connection',
+          profile: null,
+          picture: null,
+          deletedAt: now,
+          disabled: true,
+          token: seal('revoked'),
+          refreshToken: null,
+          tokenExpiration: null,
+          tokenHealthState: 'UNKNOWN',
+          tokenHealthReason: 'This connection was deleted.',
+          tokenHealthCheckedAt: now,
+          tokenHealthChangedAt: now,
+          connectionHealthState: 'DISABLED',
+          connectionHealthReason: 'This connection was deleted.',
+          connectionHealthChangedAt: now,
+          platformTruthState: 'NOT_APPLICABLE',
+          platformPublishingMode: 'NOT_APPLICABLE',
+          platformAuditState: 'NOT_APPLICABLE',
+          platformTruthCode: null,
+          platformTruthReason: null,
+          platformTruthCheckedAt: null,
+          platformTruthChangedAt: now,
+          platformAccountType: null,
+          platformLinkedResourceId: null,
+          platformTruthMetadata: Prisma.DbNull,
+          lastProviderContactAt: null,
+          customInstanceDetails: null,
+          additionalSettings: '[]',
+        },
+      });
+      return true;
     });
   }
 
@@ -682,6 +860,19 @@ export class IntegrationRepository {
       select: {
         postingTimes: true,
       },
+    });
+  }
+
+  listPlatformTruthConnections() {
+    return this._integration.model.integration.findMany({
+      where: {
+        deletedAt: null,
+        disabled: false,
+        inBetweenSteps: false,
+        type: 'social',
+        providerIdentifier: { in: ['tiktok', 'instagram'] },
+      },
+      orderBy: [{ organizationId: 'asc' }, { id: 'asc' }],
     });
   }
 }

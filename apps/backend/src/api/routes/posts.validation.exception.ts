@@ -13,6 +13,9 @@ export type PostValidationError = {
   name: string;
   /** The readable validation error. */
   error: string;
+  failureClass: 'recoverable' | 'user_action_needed' | 'data_problem';
+  code: string;
+  reason: string;
 };
 
 export class PostValidationException extends HttpException {
@@ -27,14 +30,17 @@ export class PostValidationExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
     const status = exception.getStatus();
-    const { provider, name, error } =
+    const { provider, name, error, failureClass, code, reason } =
       exception.getResponse() as PostValidationError;
 
     response.status(status).json({
       statusCode: status,
       provider,
       name,
-      message: error,
+      failureClass,
+      code,
+      reason,
+      message: error || reason,
     });
   }
 }

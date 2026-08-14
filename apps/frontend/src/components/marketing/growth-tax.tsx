@@ -13,14 +13,15 @@ import type { CSSProperties } from 'react';
 const AYRSHARE_BASE = 599; // Business plan, monthly billing
 const AYRSHARE_INCLUDED_PROFILES = 30; // included in the base price
 const AYRSHARE_PER_EXTRA_PROFILE = 8.99; // per profile beyond 30
-const BUFFER_PER_CHANNEL = 10; // Team plan, per channel per month
+const BUFFER_PER_CHANNEL = 12; // Team plan, monthly billing; $10 on annual billing
 const METRICOOL_BRAND_CAP = 50; // published 50-brand maximum
 const METRICOOL_ADVANCED_RANGE = '$53–$159'; // published Advanced range
 
 const ayrshareCost = (n: number) =>
   n <= AYRSHARE_INCLUDED_PROFILES
     ? AYRSHARE_BASE
-    : AYRSHARE_BASE + (n - AYRSHARE_INCLUDED_PROFILES) * AYRSHARE_PER_EXTRA_PROFILE;
+    : AYRSHARE_BASE +
+      (n - AYRSHARE_INCLUDED_PROFILES) * AYRSHARE_PER_EXTRA_PROFILE;
 
 const money = (n: number) => {
   const cents = Math.round(n * 100);
@@ -80,8 +81,11 @@ export const GrowthTax = () => {
             flexWrap: 'wrap',
           }}
         >
-          <label htmlFor="gt-accounts" style={{ fontSize: 15, fontWeight: 600 }}>
-            Connected social accounts
+          <label
+            htmlFor="gt-accounts"
+            style={{ fontSize: 15, fontWeight: 600 }}
+          >
+            Connected brand, client, or location accounts
           </label>
           <output htmlFor="gt-accounts" className="mk-tile-stat">
             {accounts}
@@ -96,8 +100,12 @@ export const GrowthTax = () => {
           step={5}
           value={accounts}
           onChange={(e) => setAccounts(Number(e.target.value))}
-          aria-valuetext={`${accounts} connected accounts`}
-          style={{ width: '100%', margin: 0, accentColor: 'var(--mk-brand-600)' }}
+          aria-valuetext={`${accounts} connected brand, client, or location accounts`}
+          style={{
+            width: '100%',
+            margin: 0,
+            accentColor: 'var(--mk-brand-600)',
+          }}
         />
         <div
           className="mk-mono"
@@ -156,7 +164,10 @@ export const GrowthTax = () => {
             ${money(buffer)}
             <span> /month</span>
           </div>
-          <p style={noteStyle}>$10 per channel per month, at {accounts} channels.</p>
+          <p style={noteStyle}>
+            $12 per channel on monthly billing ($10 when billed annually), at{' '}
+            {accounts} channels.
+          </p>
           {bar(buffer)}
         </div>
 

@@ -1,0 +1,9 @@
+credentials-file: /etc/cloudflared/credentials.json
+protocol: quic
+
+ingress:
+  - hostname: publishlyapi.com
+    service: http://caddy:80
+  - hostname: www.publishlyapi.com
+    service: http://caddy:80
+  - service: http_status:404

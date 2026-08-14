@@ -6,7 +6,7 @@ import { PLATFORM_SPECS } from '@gitroom/frontend/app/(marketing)/platforms/[net
 // Every marketing route, one place. Add a path here the same PR it ships —
 // robots.ts points crawlers at this file, and docs/seo/DEPLOY-CHECKLIST.md
 // gates go-live on it being reachable at the real origin.
-const LAST_MODIFIED = new Date('2026-08-10');
+const LAST_MODIFIED = new Date('2026-08-11');
 
 // Leaf routes are generated from the same source the pages themselves render
 // from, so the sitemap structurally cannot drift from what actually exists:
@@ -37,6 +37,7 @@ const ROUTES: Array<[string, number]> = [
   ['/api-docs', 0.7],
   ['/pricing', 0.9],
   ['/reliability', 0.8],
+  ['/status', 0.6],
 
   // Company / legal
   ['/about', 0.5],
@@ -47,6 +48,7 @@ const ROUTES: Array<[string, number]> = [
   ['/terms', 0.3],
   ['/acceptable-use', 0.3],
   ['/data-deletion', 0.3],
+  ['/platform-review', 0.4],
 
   // Compare
   ['/compare', 0.8],
@@ -55,6 +57,7 @@ const ROUTES: Array<[string, number]> = [
   ['/compare/metricool', 0.8],
   ['/compare/upload-post', 0.8],
   ['/compare/hootsuite', 0.8],
+  ['/compare/bundle-social', 0.8],
   ['/methodology/api-comparisons', 0.6],
 
   // Solutions

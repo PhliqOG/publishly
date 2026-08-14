@@ -55,6 +55,44 @@ export const useMenuItem = () => {
       path: '/launches',
     },
     {
+      name: t('fleet_health', 'Fleet Health'),
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="21"
+          height="21"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <path
+            d="M12 3L20 6.5V11.5C20 16.2 16.8 20.2 12 21.5C7.2 20.2 4 16.2 4 11.5V6.5L12 3Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M7.5 12H9.5L10.8 9L13.1 15L14.5 12H16.5"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ),
+      path: '/fleet',
+    },
+    {
+      name: 'Bulk Scheduler',
+      icon: (
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+          <path d="M4 5.5H20M4 12H20M4 18.5H14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          <path d="M7 3V8M12 9.5V14.5M17 16V21" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      ),
+      path: '/bulk-scheduler',
+    },
+    {
       name: 'Agent',
       icon: (
         <svg

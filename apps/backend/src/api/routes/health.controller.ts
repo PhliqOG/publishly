@@ -9,11 +9,11 @@ import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 // dependencies, no config values, no secrets. Temporal health is owned by the
 // orchestrator's /health/status endpoint.
 @ApiTags('Health')
-@Controller('/health')
+@Controller()
 export class HealthController {
   constructor(private _prisma: PrismaService) {}
 
-  @Get('/')
+  @Get(['/health', '/readiness'])
   async health(@Res() res: Response) {
     const checks = {
       database: await this.checkDatabase(),

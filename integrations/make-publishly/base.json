@@ -1,0 +1,51 @@
+{
+  "baseUrl": "{{connection.baseUrl}}/public/v1",
+  "headers": {
+    "Accept": "application/json",
+    "Authorization": "{{connection.apiKey}}"
+  },
+  "response": {
+    "error": {
+      "type": "RuntimeError",
+      "message": "[{{statusCode}}] {{ifempty(body.code, 'publishly_error')}}: {{ifempty(body.reason, ifempty(body.message, ifempty(body.msg, 'Publishly request failed.')))}}",
+      "400": {
+        "type": "DataError",
+        "message": "[400] {{ifempty(body.code, 'invalid_request')}}: {{ifempty(body.reason, ifempty(body.message, 'Publishly rejected the request data.'))}}"
+      },
+      "401": {
+        "type": "InvalidAccessTokenError",
+        "message": "[401] {{ifempty(body.reason, ifempty(body.message, body.msg))}}"
+      },
+      "403": {
+        "type": "InvalidAccessTokenError",
+        "message": "[403] {{ifempty(body.reason, ifempty(body.message, body.msg))}}"
+      },
+      "409": {
+        "type": "RuntimeError",
+        "message": "[409] {{ifempty(body.code, 'request_conflict')}}: {{ifempty(body.reason, ifempty(body.message, 'The idempotent request is in progress or the key was reused.'))}}"
+      },
+      "429": {
+        "type": "RateLimitError",
+        "message": "[429] {{ifempty(body.code, 'rate_limited')}}: {{ifempty(body.reason, ifempty(body.message, 'Publishly rate-limited this request.'))}}"
+      },
+      "500": {
+        "type": "ConnectionError",
+        "message": "[500] {{ifempty(body.reason, ifempty(body.message, 'Publishly could not complete the request.'))}}"
+      },
+      "503": {
+        "type": "ConnectionError",
+        "message": "[503] {{ifempty(body.reason, ifempty(body.message, 'Publishly is temporarily unavailable.'))}}"
+      },
+      "504": {
+        "type": "ConnectionError",
+        "message": "[504] {{ifempty(body.reason, ifempty(body.message, 'Publishly timed out before returning a result.'))}}"
+      }
+    }
+  },
+  "log": {
+    "sanitize": [
+      "request.headers.Authorization",
+      "response.body.signingSecret"
+    ]
+  }
+}

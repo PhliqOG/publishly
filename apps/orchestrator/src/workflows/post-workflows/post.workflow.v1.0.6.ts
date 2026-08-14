@@ -64,6 +64,7 @@ const {
   updatePost,
   sendWebhooks,
   isCommentable,
+  changePublishingJobState,
 } = proxyActivities<PostActivity>({
   startToCloseTimeout: '10 minute',
   retry: {
@@ -123,6 +124,10 @@ export async function postWorkflowV106({
     return;
   }
 
+  if (!postNow && firstPost.state === 'PUBLISHED') {
+    return;
+  }
+
   if (!postNow && firstPost.state !== 'QUEUE') {
     await changeState(firstPost.id, 'ERROR', 'Already posted', [firstPost]);
     return;
@@ -136,6 +141,8 @@ export async function postWorkflowV106({
         : dayjs(firstPost.publishDate).diff(dayjs(), 'millisecond')
     );
   }
+
+  await changePublishingJobState(postId, 'QUEUED');
 
   const postsListBefore = await getPostsList(organizationId, postId);
   const [post] = postsListBefore;
@@ -203,18 +210,16 @@ export async function postWorkflowV106({
   // 'stop' - the token could not be refreshed
   // 'bad-body' - the platform rejected the action
   // 'timeout' - the activity timed out, its outcome is unknown
-  // 'unknown' - anything else (transient errors)
+  // 'transient' - provider proved no mutation was accepted, safe to retry
+  // 'unknown' - outcome may be ambiguous and must never be replayed
   const handleActivityError = async (
     err: unknown,
     getIntegration?: () => Promise<any>
   ): Promise<{
-    type: 'retry' | 'stop' | 'bad-body' | 'timeout' | 'unknown';
+    type: 'retry' | 'stop' | 'bad-body' | 'timeout' | 'transient' | 'unknown';
     message: string;
   }> => {
-    if (
-      err instanceof ActivityFailure &&
-      err.cause instanceof TimeoutFailure
-    ) {
+    if (err instanceof ActivityFailure && err.cause instanceof TimeoutFailure) {
       return { type: 'timeout', message: '' };
     }
 
@@ -243,6 +248,10 @@ export async function postWorkflowV106({
       return { type: 'bad-body', message: cause.message || '' };
     }
 
+    if (cause?.type === 'provider_transient') {
+      return { type: 'transient', message: cause.message || '' };
+    }
+
     return { type: 'unknown', message: '' };
   };
 
@@ -251,6 +260,12 @@ export async function postWorkflowV106({
   // account before reposting manually and duplicating it.
   const markUnconfirmed = async (err: any) => {
     await changeState(postsList[0].id, 'ERROR', err, postsList);
+    await changePublishingJobState(
+      postsList[0].id,
+      'FAILED',
+      err instanceof Error ? err.message : String(err),
+      'outcome_unknown'
+    );
     await inAppNotification(
       post.organizationId,
       `We couldn't confirm your post on ${capitalize(
@@ -365,10 +380,11 @@ export async function postWorkflowV106({
     let posted = false;
     let updated = false;
     // this is a small trick to repeat an action in case of token refresh
-    for (const _ of iterate) {
+    for (let attempt = 0; attempt < iterate.length; attempt++) {
       try {
         // first post the main post
         if (i === 0) {
+          await changePublishingJobState(postsList[0].id, 'PROCESSING');
           postsResults.push(
             ...(await postSocialPending(post.integration as Integration, [
               postsList[i],
@@ -468,6 +484,14 @@ export async function postWorkflowV106({
 
         // token refreshed, repeat the action
         if (handle.type === 'retry') {
+          await changePublishingJobState(
+            postsList[0].id,
+            'RETRYING',
+            handle.message,
+            'authentication',
+            5
+          );
+          await sleep('5 seconds');
           continue;
         }
 
@@ -482,15 +506,14 @@ export async function postWorkflowV106({
           return false;
         }
 
-        // for other errors, change state and inform the user if needed
-        await changeState(postsList[0].id, 'ERROR', err, postsList);
-
         if (handle.type === 'stop') {
+          await changeState(postsList[0].id, 'ERROR', err, postsList);
           return false;
         }
 
         // specific case for bad body errors
         if (handle.type === 'bad-body') {
+          await changeState(postsList[0].id, 'ERROR', err, postsList);
           await inAppNotification(
             post.organizationId,
             `Error posting${i === 0 ? ' ' : ' comments '}on ${
@@ -505,6 +528,33 @@ export async function postWorkflowV106({
           );
           return false;
         }
+
+        const retryDelays = [15, 60, 300, 900, 1800];
+        if (handle.type === 'transient' && attempt < iterate.length - 1) {
+          const retryInSeconds = retryDelays[attempt];
+          await changePublishingJobState(
+            postsList[0].id,
+            'RETRYING',
+            handle.message ||
+              (err instanceof Error ? err.message : String(err)),
+            'provider_transient',
+            retryInSeconds
+          );
+          await sleep(`${retryInSeconds} seconds`);
+          continue;
+        }
+
+        if (handle.type === 'unknown') {
+          try {
+            await markUnconfirmed(err);
+          } catch (e) {
+            /**empty**/
+          }
+          return false;
+        }
+
+        await changeState(postsList[0].id, 'ERROR', err, postsList);
+        return false;
       }
     }
 

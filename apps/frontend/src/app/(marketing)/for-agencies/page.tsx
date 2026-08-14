@@ -15,11 +15,11 @@ import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.conf
 export const metadata: Metadata = {
   title: 'Social Media API for Agencies',
   description:
-    'The social media API & scheduler for agencies running 20–500 client accounts: delivery receipts per client account, failure webhooks before the client notices, workspace isolation & flat $29–$299 pricing — never per profile.',
+    'The social media posting API for agencies running 20–500+ client accounts: proof for every post, clear failure alerts before the client notices, separate client workspaces, and flat $29–$299 pricing.',
   alternates: { canonical: '/for-agencies' },
 };
 
-// The agency angle: you manage a fleet you cannot watch by hand, so the tool
+// The agency angle: you manage client accounts you cannot watch by hand, so the tool
 // has to be the one that tells you — before the client does. Facts on this
 // page map to data/public-product-facts.json + data/claim-provenance.json
 // (ayrshare-100-profiles).
@@ -31,7 +31,7 @@ const FLEET_REALITY = [
   },
   {
     h: 'Tokens die on a timer',
-    p: 'Access tokens on the major platforms expire in roughly 60 days. One quiet expiry and a client’s account slips into a reconnect loop while its queue keeps “posting” into nothing.',
+    p: 'Platform connections do not last forever. Some common access tokens last about 60 days; others renew more often. When that renewal breaks quietly, a client’s scheduled posts can stop with it.',
   },
   {
     h: 'No reasons, just red',
@@ -48,12 +48,12 @@ const RECEIPTS = [
   {
     num: '02',
     h: 'Failures with reasons',
-    p: 'A failed post carries a plain-English reason, classed as recoverable, needs-your-action, or a content problem. The same moment, a signed post.failure webhook tells your systems.',
+    p: 'A failed post carries a plain-English reason and tells you whether Publishly will try again, needs your help, or needs different content. Your own software can receive the same alert immediately.',
   },
   {
     num: '03',
     h: 'Retries that never double-post',
-    p: 'Transient failures retry automatically with backoff. The publish call itself fires exactly once — a retry can never post twice to a client’s account.',
+    p: 'Temporary problems are tried again after a safe delay. The step that creates the post is never repeated blindly, so a retry cannot post twice to a client’s account.',
   },
 ];
 
@@ -64,7 +64,7 @@ const FAQ = [
   },
   {
     q: 'How do I know a client’s post failed before they do?',
-    a: 'The moment a post fails, Publishly records a plain-English failure reason and sends a signed post.failure webhook — alongside an in-app alert. Transient failures retry automatically with backoff, so many failures resolve before anyone outside your team ever notices.',
+    a: 'The moment a post fails, Publishly records a plain-English reason and sends an in-app alert. Your own software can receive the same signed failure event. Temporary problems are tried again safely, so many failures resolve before anyone outside your team notices.',
   },
   {
     q: 'Can I keep client accounts isolated?',
@@ -72,7 +72,7 @@ const FAQ = [
   },
   {
     q: 'What does Publishly cost for an agency?',
-    a: 'Plans run $29 to $299 a month, sized by how much you post — connected accounts are unlimited on every paid plan. At 100 profiles, Ayrshare’s published Business pricing works out to $1,228.30 a month and Buffer’s Team rate to $1,000; Publishly doesn’t price per profile at all.',
+    a: 'Plans run $29 to $299 a month, sized by how much you post — connected accounts are unlimited on every paid plan. At 100 profiles, Ayrshare’s published Business pricing works out to $1,228.30 a month; 30 Buffer Team channels cost $360 on monthly billing. Publishly does not price per profile or channel.',
   },
 ];
 
@@ -85,8 +85,11 @@ export default function ForAgenciesPage() {
         <section className="mk-hero">
           <div className="mk-container">
             <span className="mk-eyebrow">For agencies</span>
-            <h1 className="mk-h2-lg" style={{ marginTop: 18, maxWidth: '16ch' }}>
-              Find out from a webhook, not your client.
+            <h1
+              className="mk-h2-lg"
+              style={{ marginTop: 18, maxWidth: '16ch' }}
+            >
+              Find out before your client does.
             </h1>
             <p className="mk-section-lede" style={{ maxWidth: '54ch' }}>
               You&rsquo;re running 20, 100, maybe 500 client accounts. The tool
@@ -94,11 +97,10 @@ export default function ForAgenciesPage() {
               something breaks — before the client&rsquo;s report does.
             </p>
             <QuickAnswer>
-              Publishly is a social media API and scheduler built for agencies
-              running large client fleets. Every post gets a delivery receipt
-              per client account, every failure fires an alert with a reason
-              before the client notices, and pricing stays flat at $29–$299 a
-              month — never per profile.
+              Publishly is built for agencies managing many client accounts.
+              Every post gets proof, every failure sends an alert with a clear
+              reason, and every paid plan includes unlimited accounts for a flat
+              $29–$299 a month.
             </QuickAnswer>
             <Byline published="2026-08-10" />
             <div
@@ -110,7 +112,10 @@ export default function ForAgenciesPage() {
                 marginTop: 34,
               }}
             >
-              <Link href={MARKETING.authRegister} className="mk-btn mk-btn-primary">
+              <Link
+                href={MARKETING.authRegister}
+                className="mk-btn mk-btn-primary"
+              >
                 {MARKETING.cta.primary}
               </Link>
               <Link href="/pricing" className="mk-arrow">
@@ -120,12 +125,12 @@ export default function ForAgenciesPage() {
           </div>
         </section>
 
-        {/* ---- the fleet reality: split heading beside failure rows ---- */}
+        {/* ---- account health: split heading beside failure rows ---- */}
         <section className="mk-section mk-section-tint">
           <div className="mk-container">
             <div className="mk-split" style={{ alignItems: 'start' }}>
               <div>
-                <span className="mk-eyebrow">The fleet reality</span>
+                <span className="mk-eyebrow">The agency reality</span>
                 <h2 className="mk-h2" style={{ marginTop: 14 }}>
                   Twenty clients. Two hundred accounts. Zero spare eyes.
                 </h2>
@@ -165,7 +170,7 @@ export default function ForAgenciesPage() {
             </div>
             <FactLine>
               Every failed post in Publishly records a plain-English reason and
-              fires a signed post.failure webhook the moment it happens.
+              can alert your own software the moment it happens.
             </FactLine>
           </div>
         </section>
@@ -188,7 +193,10 @@ export default function ForAgenciesPage() {
         {/* ---- isolation: reversed split, boundary you can hand to a client ---- */}
         <section className="mk-section">
           <div className="mk-container">
-            <div className="mk-split mk-split-rev" style={{ alignItems: 'start' }}>
+            <div
+              className="mk-split mk-split-rev"
+              style={{ alignItems: 'start' }}
+            >
               <div className="mk-rows">
                 <div className="mk-row">
                   <h3>Separate by construction</h3>
@@ -210,8 +218,8 @@ export default function ForAgenciesPage() {
                   <h3>Clean offboarding</h3>
                   <p>
                     When a client leaves, their workspace leaves with them.
-                    Disconnecting a channel destroys its tokens immediately —
-                    no residue in your stack.
+                    Disconnecting a channel destroys its tokens immediately — no
+                    residue in your stack.
                   </p>
                 </div>
               </div>
@@ -242,21 +250,20 @@ export default function ForAgenciesPage() {
         {/* ---- pricing: the growth-tax section ---- */}
         <section className="mk-section mk-section-tint">
           <div className="mk-container">
-            <span className="mk-eyebrow">Pricing at fleet scale</span>
+            <span className="mk-eyebrow">Pricing for growing agencies</span>
             <h2 className="mk-h2" style={{ marginTop: 14 }}>
               Winning a client shouldn&rsquo;t raise your software bill.
             </h2>
             <p className="mk-section-lede">
-              Per-profile pricing is a tax on your growth: every account you
-              win for a client is a line item you pay for. Publishly sizes
-              plans by how much you post — accounts are unlimited on every
-              paid plan.
+              Per-profile pricing is a tax on your growth: every account you win
+              for a client is a line item you pay for. Publishly sizes plans by
+              how much you post — accounts are unlimited on every paid plan.
             </p>
             <FactLine>
               At 100 profiles, Ayrshare’s published Business pricing works out
-              to $1,228.30 a month and Buffer’s Team rate to $1,000. Publishly
-              runs $29–$299 a month flat, with unlimited connected accounts on
-              every paid plan.
+              to $1,228.30 a month; 30 Buffer Team channels cost $360 on monthly
+              billing. Publishly runs $29–$299 a month flat, with unlimited
+              connected accounts on every paid plan.
             </FactLine>
           </div>
         </section>
@@ -266,12 +273,15 @@ export default function ForAgenciesPage() {
           <div className="mk-container">
             <div className="mk-band">
               <div>
-                <h2 className="mk-h2" style={{ fontSize: 'clamp(1.5rem, 2.6vw, 2rem)' }}>
-                  Need hands as well as rails?
+                <h2
+                  className="mk-h2"
+                  style={{ fontSize: 'clamp(1.5rem, 2.6vw, 2rem)' }}
+                >
+                  Want help setting it up?
                 </h2>
                 <p style={{ maxWidth: '58ch' }}>
-                  We offer managed multi-brand operations — brand setup,
-                  isolation architecture, planning cadence. Ask us.
+                  We can help organize brands, separate client workspaces, and
+                  set a clear publishing routine. Ask us.
                 </p>
               </div>
               <Link href="/contact" className="mk-arrow">
@@ -287,9 +297,10 @@ export default function ForAgenciesPage() {
         <section className="mk-ctaclose" style={{ background: 'none' }}>
           <div className="mk-container">
             <div className="mk-cta-panel">
-              <h2 className="mk-h2">Run the fleet. Keep the receipts.</h2>
+              <h2 className="mk-h2">Run every client account with proof.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                Free forever plan — no credit card. 7-day trial on every paid plan.
+                Free forever plan — no credit card. 7-day trial on every paid
+                plan.
               </p>
               <div className="mk-hero-ctas">
                 <Link

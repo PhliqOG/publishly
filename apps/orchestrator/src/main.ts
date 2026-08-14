@@ -16,27 +16,36 @@ function checkConfiguration() {
   const checker = new ConfigurationChecker();
   checker.readEnvFromProcess();
   checker.check();
-  checker.checkSecretStrength('JWT_SECRET');
 
   if (checker.hasIssues()) {
     for (const issue of checker.getIssues()) {
       Logger.warn(issue, 'Configuration issue');
     }
-    if (process.env.CONFIG_STRICT === 'true') {
-      Logger.error('CONFIG_STRICT=true - refusing to run with config issues.');
-      process.exit(1);
+    if (
+      process.env.NODE_ENV === 'production' ||
+      process.env.CONFIG_STRICT === 'true'
+    ) {
+      throw new Error(
+        `Production configuration is invalid; refusing to run with ${checker.getIssuesCount()} issue(s).`
+      );
     }
   }
 }
 
 async function bootstrap() {
+  checkConfiguration();
+
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
   const port = process.env.ORCHESTRATOR_PORT || 3002;
   await app.listen(port);
   console.log(`Orchestrator health check listening on port ${port}`);
-  checkConfiguration();
 }
 
 
-bootstrap();
+bootstrap().catch((error) => {
+  const reason =
+    error instanceof Error ? error.stack || error.message : String(error);
+  Logger.error('Orchestrator failed to start.', reason);
+  process.exitCode = 1;
+});

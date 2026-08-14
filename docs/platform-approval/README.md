@@ -1,62 +1,59 @@
-# Platform Approval Package — Publishly
+# Publishly platform approval package
 
-One runbook per provider for creating the developer apps, whitelisting redirect
-URIs, requesting the exact scopes the code uses, and passing platform review.
-All scopes, env var names, and redirect URIs in these files are extracted
-verbatim from `libraries/nestjs-libraries/src/integrations/social/*.provider.ts`
-— they are what the running code actually requests. Platform *process* details
-(review forms, tiers, timelines) change frequently; where marked, verify on the
-portal before submitting.
+Start with the complete operator sequence in
+[../APPROVAL_AND_LAUNCH.md](../APPROVAL_AND_LAUNCH.md). This directory provides
+provider-specific detail; `data/provider-approval-manifest.json` and the public
+`/platform-review` page are the checked permission/callback contract.
 
-`{FRONTEND_URL}` below = the deployed app origin (e.g. `https://app.yourdomain.com`).
-It must be HTTPS in production. Several Meta/TikTok providers wrap non-HTTPS dev
-URLs with `https://redirectmeto.com/…` — that is a dev convenience only; whitelist
-the wrapped URL only for local development, never rely on it in production.
+These runbooks map the exact OAuth scopes and callback paths used by Publishly
+to each provider's current developer-review process. Provider portals and review
+forms change, so confirm portal wording immediately before submission. Nothing
+in this package represents an approval, certification, or platform partnership.
 
-## Recommended sequence
+Use these canonical review files:
 
-1. **No-review providers first (same-day canaries):**
-   - `bluesky.md` — no app, users connect with app passwords. Zero setup.
-   - `mastodon.md` — register an app on your chosen instance(s). Minutes.
-2. **Meta portal (one business, up to four products):** `facebook.md`,
-   `instagram.md`, `threads.md`, `instagram-standalone.md`. Create the app(s) on
-   developers.facebook.com, add products, complete Business Verification early —
-   it gates Advanced Access for everything else and takes the longest.
-3. **Google:** `youtube.md` — OAuth consent screen + verification for
-   sensitive/restricted scopes.
-4. **TikTok:** `tiktok.md` — app + Content Posting API audit (posts are
-   private-only until audited).
-5. **LinkedIn:** `linkedin.md` — products for member posting; organization
-   scopes need Community Management approval.
-6. **Pinterest:** `pinterest.md` — trial access first, standard access review after.
-7. **X:** `x.md` — paid API tier decision required for write access.
+- [META.md](META.md) - Facebook Pages, Instagram via Facebook Login,
+  Instagram Login, and Threads
+- [TIKTOK.md](TIKTOK.md)
+- [YOUTUBE.md](YOUTUBE.md)
+- [LINKEDIN.md](LINKEDIN.md)
+- [X.md](X.md)
+- [PINTEREST.md](PINTEREST.md)
 
-## What every review needs from you (prepare once)
+Bluesky and Mastodon do not have a central app-review process. Their operational
+setup notes remain in [bluesky.md](bluesky.md) and [mastodon.md](mastodon.md).
 
-- Public privacy policy URL and terms URL (marketing site serves these).
-- A data-deletion instructions page URL (Meta requires it; see Data handling
-  sections). Publishly does not yet expose an automated deletion callback
-  endpoint — use the instructions-URL option and treat the callback as roadmap.
-- A screen recording of the connect → compose → schedule → publish flow per
-  Meta/TikTok/LinkedIn review (record once against the test/dev app).
-- The truthful use-case text included in each file — do not embellish it.
+## URL convention
 
-## Review-gating summary
+Set `FRONTEND_URL=https://app.example.com` in production. Publishly's reference
+proxy exposes the backend under `/api`, so the public URLs are:
 
-| Provider | Works before review? | Review gates |
-|---|---|---|
-| Bluesky | Yes (fully) | none |
-| Mastodon | Yes (per-instance app) | none |
-| Facebook Pages | Dev-role users only | Advanced Access (all page scopes) + Business Verification |
-| Instagram (FB login) | Dev-role users only | Advanced Access + Business Verification |
-| Instagram (standalone) | Tester users only | App Review of instagram_business_* scopes |
-| Threads | Tester users only | App Review of threads_* scopes |
-| YouTube | 100 test users, warning screen | Google OAuth verification (restricted scopes) |
-| TikTok | Private/self-only posts | Content Posting API audit |
-| LinkedIn member | Yes with products enabled | org scopes need Community Management access |
-| Pinterest | Trial-tier limits | Standard access review |
-| X | Depends on paid tier | tier purchase (verify current pricing) |
+```text
+OAuth callback: https://app.example.com/integrations/social/<provider>
+Meta deletion callback: https://app.example.com/api/public/meta/data-deletion
+Deletion instructions/status: https://app.example.com/data-deletion
+Privacy: https://app.example.com/privacy
+Terms: https://app.example.com/terms
+```
 
-First-canary rule for every provider: one post to a dedicated test account,
-verify the permalink renders, then stop and review rate/error logs before
-enabling customer traffic.
+Production callbacks must use the exact, public HTTPS origin. The development
+`redirectmeto.com` compatibility path is not a production configuration.
+
+## Submission preparation
+
+Before any review, deploy the public HTTPS site, publish truthful legal and data
+handling pages, configure support contact details, create owner-controlled test
+accounts, and record the complete connect -> consent -> compose -> schedule ->
+worker publish -> status flow. Demonstrate every requested permission. Give
+reviewers credentials only through the provider's protected review form.
+
+## Safest approval order
+
+1. Bluesky and a controlled Mastodon instance.
+2. YouTube in consent-screen test mode.
+3. LinkedIn member posting.
+4. Meta development-role/tester accounts.
+5. TikTok unaudited/private-only test posting.
+6. Pinterest trial access.
+7. X after funding Developer Console credits and setting a spend limit.
+8. Submit provider reviews, then repeat one low-volume canary after approval.

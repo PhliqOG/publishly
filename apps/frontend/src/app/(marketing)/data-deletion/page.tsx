@@ -58,6 +58,29 @@ export default function DataDeletionPage() {
                 identifiers are anonymized. Meta then shows you a confirmation
                 link to this page.
               </p>
+              <h2>Google and YouTube revocation</h2>
+              <p>
+                Disconnecting YouTube in {MARKETING.brand} first asks Google to
+                revoke the authorization, then removes the stored credential
+                and provider-derived connection data. If Google cannot confirm
+                revocation because of a temporary service error, Publishly
+                reports that failure and keeps the connection available so you
+                can retry instead of claiming it was disconnected.
+              </p>
+              <p>
+                You can also revoke access directly from your{' '}
+                <a
+                  href="https://myaccount.google.com/permissions"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Google Account third-party access page
+                </a>
+                . Google/YouTube authorized data is removed as soon as it is no
+                longer needed and no later than seven days after a valid
+                revocation or deletion request, except where retention is
+                legally required.
+              </p>
               <p>
                 Need help with a deletion request?{' '}
                 {MARKETING.supportEmail ? (

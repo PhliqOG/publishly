@@ -20,18 +20,20 @@ import { createReadStream } from 'fs';
 import { getSsrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { Integration } from '@prisma/client';
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
+import { deriveTikTokPlatformTruth } from '@gitroom/nestjs-libraries/reliability/platform.truth';
+import { generateOAuthState } from '@gitroom/nestjs-libraries/integrations/oauth.state';
 
 @Rules(
   [
     'TikTok can have one video or one picture or multiple pictures, it cannot be without an attachment.',
-    'content_posting_method=DIRECT_POST publishes the post to the account. content_posting_method=UPLOAD does NOT publish: it only sends the media to the user inbox of the TikTok app, where the user must manually complete and publish it within 24 hours or it is discarded. Use DIRECT_POST unless the user explicitly asks to review or edit the post inside the TikTok app first.',
+    'content_posting_method=DIRECT_POST publishes the post to the account. content_posting_method=UPLOAD does NOT publish: it only sends the media to the user inbox of the TikTok app, where the user must manually complete and publish it. Use DIRECT_POST unless the user explicitly asks to review or edit the post inside the TikTok app first.',
     'With content_posting_method=UPLOAD, TikTok ignores every setting except the title / post content. Never tell the user that video_made_with_ai, privacy_level, duet, stitch, comment, autoAddMusic, brand_content_toggle or brand_organic_toggle will be applied in UPLOAD mode - they are silently discarded. If the user asks for any of those settings, tell them it requires DIRECT_POST.',
     'video_made_with_ai, duet and stitch apply to video posts only. TikTok has no equivalent field for photo posts, so those settings are discarded when the attachment is a picture.',
   ].join(' ')
 )
 export class TiktokProvider extends SocialAbstract implements SocialProvider {
   identifier = 'tiktok';
-  name = 'Tiktok';
+  name = 'TikTok';
   isBetweenSteps = false;
   convertToJPEG = true;
   scopes = [
@@ -45,6 +47,127 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
   override maxConcurrentJob = 10000;
   dto = TikTokDto;
   editor = 'normal' as const;
+
+  private async requestOAuthToken(
+    value: Record<string, string>,
+    operation: 'exchange' | 'refresh'
+  ) {
+    if (!value.client_key || !value.client_secret) {
+      throw new Error(
+        `TikTok OAuth ${operation} is not configured for this deployment.`
+      );
+    }
+
+    const response = await fetch(
+      'https://open.tiktokapis.com/v2/oauth/token/',
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Cache-Control': 'no-store',
+        },
+        method: 'POST',
+        body: new URLSearchParams(value).toString(),
+      }
+    );
+    const responseText = await response.text().catch(() => '');
+    let payload: any = {};
+    try {
+      payload = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      // Provider response bodies are never reflected into exceptions because
+      // they can contain credentials or other reviewer account data.
+    }
+    const errorCode = String(
+      payload?.error?.code || payload?.error || payload?.code || ''
+    )
+      .replace(/[^a-zA-Z0-9_.-]/g, '')
+      .slice(0, 80);
+
+    if (!response.ok) {
+      throw new Error(
+        `TikTok OAuth ${operation} failed (HTTP ${response.status}${
+          errorCode ? `, code ${errorCode}` : ''
+        }).`
+      );
+    }
+    if (
+      typeof payload.access_token !== 'string' ||
+      !payload.access_token ||
+      typeof payload.refresh_token !== 'string' ||
+      !payload.refresh_token ||
+      typeof payload.scope !== 'string' ||
+      !payload.scope
+    ) {
+      throw new Error(
+        `TikTok OAuth ${operation} returned an incomplete token response.`
+      );
+    }
+
+    this.checkScopes(this.scopes, payload.scope);
+    const providerExpiresIn = Number(payload.expires_in);
+    return {
+      accessToken: payload.access_token as string,
+      refreshToken: payload.refresh_token as string,
+      // Renew one hour before TikTok's advertised deadline. The documented
+      // access-token lifetime is 24 hours, which remains the safe fallback.
+      expiresIn: Math.max(
+        60,
+        Math.floor(
+          (Number.isFinite(providerExpiresIn) && providerExpiresIn > 0
+            ? providerExpiresIn
+            : 24 * 60 * 60) -
+            60 * 60
+        )
+      ),
+    };
+  }
+
+  private async requestUserIdentity(accessToken: string) {
+    const response = await fetch(
+      'https://open.tiktokapis.com/v2/user/info/?fields=open_id,avatar_url,display_name,union_id,username',
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Cache-Control': 'no-store',
+        },
+      }
+    );
+    const responseText = await response.text().catch(() => '');
+    let payload: any = {};
+    try {
+      payload = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      // See requestOAuthToken: never echo upstream bodies into an exception.
+    }
+    const errorCode = String(payload?.error?.code || '')
+      .replace(/[^a-zA-Z0-9_.-]/g, '')
+      .slice(0, 80);
+    const user = payload?.data?.user;
+    if (
+      !response.ok ||
+      !user ||
+      typeof user.open_id !== 'string' ||
+      !user.open_id ||
+      typeof user.display_name !== 'string' ||
+      !user.display_name
+    ) {
+      throw new Error(
+        `TikTok user identity lookup failed (HTTP ${response.status}${
+          errorCode && errorCode.toLowerCase() !== 'ok'
+            ? `, code ${errorCode}`
+            : ''
+        }).`
+      );
+    }
+    return user as {
+      avatar_url?: string;
+      display_name: string;
+      open_id: string;
+      username?: string;
+    };
+  }
+
   maxLength() {
     return 2000;
   }
@@ -217,7 +340,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       return {
         type: 'bad-body' as const,
         value:
-          'You have to upload the picture/video to Postiz when sending a URL',
+          'Upload the picture or video to Publishly before sending its URL.',
       };
     }
 
@@ -278,36 +401,14 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       refresh_token: refreshToken,
     };
 
-    const { access_token, refresh_token, ...all } = await (
-      await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        method: 'POST',
-        body: new URLSearchParams(value).toString(),
-      })
-    ).json();
-
-    const {
-      data: {
-        user: { avatar_url, display_name, open_id, username },
-      },
-    } = await (
-      await fetch(
-        'https://open.tiktokapis.com/v2/user/info/?fields=open_id,avatar_url,display_name,union_id,username',
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${access_token}`,
-          },
-        }
-      )
-    ).json();
+    const token = await this.requestOAuthToken(value, 'refresh');
+    const { avatar_url, display_name, open_id, username } =
+      await this.requestUserIdentity(token.accessToken);
 
     return {
-      refreshToken: refresh_token,
-      expiresIn: dayjs().add(23, 'hours').unix() - dayjs().unix(),
-      accessToken: access_token,
+      refreshToken: token.refreshToken,
+      expiresIn: token.expiresIn,
+      accessToken: token.accessToken,
       id: open_id.replace(/-/g, ''),
       name: display_name,
       picture: avatar_url || '',
@@ -315,8 +416,59 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
+  async revokeConnection(accessToken: string): Promise<void> {
+    const clientKey = process.env.TIKTOK_CLIENT_ID;
+    const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
+    if (!clientKey || !clientSecret) {
+      throw new Error(
+        'TikTok authorization revocation is not configured for this deployment.'
+      );
+    }
+
+    const response = await fetch(
+      'https://open.tiktokapis.com/v2/oauth/revoke/',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Cache-Control': 'no-store',
+        },
+        body: new URLSearchParams({
+          client_key: clientKey,
+          client_secret: clientSecret,
+          token: accessToken,
+        }).toString(),
+      }
+    );
+    const responseText = await response.text().catch(() => '');
+    let errorCode = '';
+    try {
+      const parsed = responseText ? JSON.parse(responseText) : {};
+      errorCode = String(
+        parsed?.error?.code || parsed?.error || parsed?.code || ''
+      );
+      if (errorCode.toLowerCase() === 'ok') errorCode = '';
+    } catch {
+      // The response body is deliberately not reflected into an exception:
+      // provider bodies can contain tokens or other reviewer data.
+    }
+
+    if (response.ok && !errorCode) return;
+    if (
+      (response.status === 400 || response.status === 401) &&
+      /^(?:access_token_invalid|invalid_token|token_revoked)$/i.test(errorCode)
+    ) {
+      return;
+    }
+    throw new Error(
+      `TikTok authorization revocation was not confirmed (HTTP ${response.status}${
+        errorCode ? `, code ${errorCode.slice(0, 80)}` : ''
+      }).`
+    );
+  }
+
   async generateAuthUrl() {
-    const state = Math.random().toString(36).substring(2);
+    const state = generateOAuthState();
 
     return {
       url:
@@ -347,7 +499,6 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       client_secret: process.env.TIKTOK_CLIENT_SECRET!,
       code: params.code,
       grant_type: 'authorization_code',
-      code_verifier: params.codeVerifier,
       redirect_uri: `${
         process?.env?.FRONTEND_URL?.indexOf('https') === -1
           ? 'https://redirectmeto.com/'
@@ -355,40 +506,16 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       }${process?.env?.FRONTEND_URL}/integrations/social/tiktok`,
     };
 
-    const { access_token, refresh_token, scope } = await (
-      await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        method: 'POST',
-        body: new URLSearchParams(value).toString(),
-      })
-    ).json();
-
-    this.checkScopes(this.scopes, scope);
-
-    const {
-      data: {
-        user: { avatar_url, display_name, open_id, username },
-      },
-    } = await (
-      await fetch(
-        'https://open.tiktokapis.com/v2/user/info/?fields=open_id,avatar_url,display_name,union_id,username',
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${access_token}`,
-          },
-        }
-      )
-    ).json();
+    const token = await this.requestOAuthToken(value, 'exchange');
+    const { avatar_url, display_name, open_id, username } =
+      await this.requestUserIdentity(token.accessToken);
 
     return {
       id: open_id.replace(/-/g, ''),
       name: display_name,
-      accessToken: access_token,
-      refreshToken: refresh_token,
-      expiresIn: dayjs().add(23, 'hours').unix() - dayjs().unix(),
+      accessToken: token.accessToken,
+      refreshToken: token.refreshToken,
+      expiresIn: token.expiresIn,
       picture: avatar_url,
       username: username,
     };
@@ -458,10 +585,12 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     const { status, publicaly_available_post_id } = post?.data || {};
 
     if (status === 'SEND_TO_USER_INBOX') {
+      // TikTok defines this as inbox-notification delivery, not publication.
+      // Keep polling until PUBLISH_COMPLETE so Publishly can never turn an
+      // upload-to-inbox receipt into a confirmed_live post or billable usage.
       return {
-        status: 'completed',
-        releaseURL: 'https://www.tiktok.com/messages?lang=en',
-        postId: 'missing',
+        status: 'pending',
+        pendingData: { ...pendingData, inboxDelivered: true },
       };
     }
 
@@ -531,8 +660,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
             ? { title: firstPost.message }
             : {}),
           ...(isPhoto ? { description: firstPost.message } : {}),
-          privacy_level:
-            firstPost.settings.privacy_level || 'PUBLIC_TO_EVERYONE',
+          privacy_level: firstPost.settings.privacy_level,
           ...(isPhoto
             ? {}
             : { disable_duet: !this.assetBoolean(firstPost.settings.duet) }),
@@ -687,11 +815,14 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
   // never hold the whole file in memory: a ranged GET for remote URLs, a ranged
   // read stream for local files.
   private async tiktokChunkStream(path: string, start: number, end: number) {
+    const transport = this.resolveMediaTransportRequest(path);
+    path = transport.url;
     if (path.indexOf('http') === 0) {
       // identity encoding so the store keeps content-length and can answer
       // with the requested range, matching every other media read
       const response = await fetch(path, {
         headers: {
+          ...transport.headers,
           Range: `bytes=${start}-${end}`,
           'accept-encoding': 'identity',
         },
@@ -786,6 +917,25 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       };
     }
 
+    // TikTok requires server-hosted media to use URL pull. This avoids moving
+    // the same bytes through Publishly again and is the review-compliant path
+    // once S3_PUBLIC_URL/CLOUDFLARE_BUCKET_URL is verified in TikTok's URL
+    // properties. Local development files retain FILE_UPLOAD below.
+    if (/^https:\/\//i.test(firstPost?.media?.[0]?.path || '')) {
+      return {
+        source_info: {
+          source: 'PULL_FROM_URL',
+          video_url: firstPost.media?.[0]?.path,
+          ...(firstPost?.media?.[0]?.thumbnailTimestamp
+            ? {
+                video_cover_timestamp_ms:
+                  firstPost.media[0].thumbnailTimestamp,
+              }
+            : {}),
+        },
+      };
+    }
+
     const { chunkSize, totalChunkCount } = this.tiktokChunkPlan(videoSize || 0);
 
     return {
@@ -808,10 +958,33 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     const isPhoto = !hasExtension(firstPost?.media?.[0]?.path, 'mp4');
     const videoPath = firstPost?.media?.[0]?.path!;
 
+    if (firstPost?.settings?.publish_consent !== true) {
+      throw new BadBody(
+        'tiktok-consent-required',
+        '{}',
+        '{}',
+        "Explicitly agree to TikTok's Music Usage Confirmation before sending this post."
+      );
+    }
+    if (
+      this.contentPostingMethod(firstPost) === 'DIRECT_POST' &&
+      firstPost.settings.disclose === true &&
+      !firstPost.settings.brand_organic_toggle &&
+      !firstPost.settings.brand_content_toggle
+    ) {
+      throw new BadBody(
+        'tiktok-disclosure-selection-required',
+        '{}',
+        '{}',
+        'TikTok content disclosure is on. Select Your brand, Branded content, or both.'
+      );
+    }
+
     // For videos we only need the total size up front (HEAD / statSync) so we
     // can init the upload; the bytes themselves are streamed later, never fully
     // loaded into memory.
-    const videoSize = isPhoto
+    const videoUsesPull = !isPhoto && /^https:\/\//i.test(videoPath);
+    const videoSize = isPhoto || videoUsesPull
       ? undefined
       : await this.mediaSize(videoPath, 'tiktok-error-upload');
 
@@ -838,7 +1011,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     ).json();
 
     // Videos: stream the bytes to the upload_url returned by the init call.
-    if (!isPhoto && upload_url && videoSize) {
+    if (!isPhoto && !videoUsesPull && upload_url && videoSize) {
       try {
         await this.uploadTikTokVideoBytes(
           upload_url,
@@ -1102,6 +1275,58 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       console.error('Error fetching TikTok missing content:', err);
       return [];
     }
+  }
+
+  public override async confirmPost(
+    accessToken: string,
+    postId: string,
+    releaseURL: string,
+    integration: Integration
+  ) {
+    if (!postId || postId === 'missing') {
+      return {
+        status: 'unsupported' as const,
+        method: 'tiktok_video_query',
+        reason:
+          'TikTok did not expose a public video ID. Publishly requires the publish-status receipt to confirm a private SELF_ONLY post.',
+      };
+    }
+    return this.confirmJsonResource({
+      platform: 'TikTok',
+      method: 'tiktok_video_query',
+      url: 'https://open.tiktokapis.com/v2/video/query/?fields=id,create_time',
+      request: {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filters: { video_ids: [postId] } }),
+      },
+      expectedId: postId,
+      fallbackUrl: releaseURL,
+      getId: (body) => body?.data?.videos?.[0]?.id,
+      evidence: (body) => ({
+        createTime: body?.data?.videos?.[0]?.create_time || null,
+      }),
+    });
+  }
+
+  async inspectPlatformTruth(accessToken: string) {
+    const response = await this.fetch(
+      'https://open.tiktokapis.com/v2/post/publish/creator_info/query/',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+      this.identifier,
+      0,
+      true
+    );
+    return deriveTikTokPlatformTruth(await response.json());
   }
 
   async postAnalytics(

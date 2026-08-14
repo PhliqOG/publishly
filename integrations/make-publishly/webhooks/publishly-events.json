@@ -1,0 +1,47 @@
+{
+  "name": "publishlyEvents",
+  "label": "Publishly delivery and health events",
+  "type": "dedicated-attached",
+  "connection": "publishly",
+  "attach": {
+    "url": "/webhooks",
+    "method": "POST",
+    "body": {
+      "name": "Make {{webhook.id}}",
+      "url": "{{webhook.url}}",
+      "integrations": []
+    },
+    "response": {
+      "data": {
+        "externalHookId": "{{body.id}}",
+        "signingSecret": "{{body.signingSecret}}"
+      }
+    }
+  },
+  "detach": {
+    "url": "/webhooks/{{encodeURL(webhook.externalHookId)}}",
+    "method": "DELETE"
+  },
+  "communication": {
+    "verification": {
+      "condition": "{{headers.`X-Publishly-Signature` != 't=' + headers.`X-Publishly-Timestamp` + ',v1=' + sha256(headers.`X-Publishly-Timestamp` + '.' + createJSON(body), 'hex', parameters.signingSecret) || abs(parseNumber(formatDate(now, 'X')) - parseNumber(headers.`X-Publishly-Timestamp`)) > 300 || headers.`X-Publishly-Event-Id` != body.id || headers.`X-Publishly-Event` != body.type}}",
+      "respond": {
+        "type": "json",
+        "status": 401,
+        "body": {
+          "code": "invalid_webhook_signature",
+          "reason": "The Publishly webhook signature, timestamp, event ID, or event type is invalid."
+        }
+      }
+    },
+    "condition": "{{headers.`X-Publishly-Signature` == 't=' + headers.`X-Publishly-Timestamp` + ',v1=' + sha256(headers.`X-Publishly-Timestamp` + '.' + createJSON(body), 'hex', parameters.signingSecret) && abs(parseNumber(formatDate(now, 'X')) - parseNumber(headers.`X-Publishly-Timestamp`)) <= 300 && headers.`X-Publishly-Event-Id` == body.id && headers.`X-Publishly-Event` == body.type}}",
+    "respond": {
+      "type": "json",
+      "status": 202,
+      "body": {
+        "accepted": true
+      }
+    },
+    "output": "{{body}}"
+  }
+}

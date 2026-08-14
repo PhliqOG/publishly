@@ -36,7 +36,10 @@ import { NoAuthIntegrationsController } from '@gitroom/backend/api/routes/no.aut
 import { EnterpriseController } from '@gitroom/backend/api/routes/enterprise.controller';
 import { OAuthAppController } from '@gitroom/backend/api/routes/oauth-app.controller';
 import { ApprovedAppsController } from '@gitroom/backend/api/routes/approved-apps.controller';
-import { OAuthController, OAuthAuthorizedController } from '@gitroom/backend/api/routes/oauth.controller';
+import {
+  OAuthController,
+  OAuthAuthorizedController,
+} from '@gitroom/backend/api/routes/oauth.controller';
 import { AnnouncementsController } from '@gitroom/backend/api/routes/announcements.controller';
 import { AdminController } from '@gitroom/backend/api/routes/admin.controller';
 import { ApiKeysController } from '@gitroom/backend/api/routes/api-keys.controller';
@@ -49,6 +52,8 @@ import { GoogleProvider } from '@gitroom/backend/services/auth/providers/google.
 import { FarcasterProvider } from '@gitroom/backend/services/auth/providers/farcaster.provider';
 import { WalletProvider } from '@gitroom/backend/services/auth/providers/wallet.provider';
 import { OauthProvider } from '@gitroom/backend/services/auth/providers/oauth.provider';
+import { ProviderMediaController } from '@gitroom/backend/api/routes/provider-media.controller';
+import { CalendarReservationsController } from '@gitroom/backend/api/routes/calendar-reservations.controller';
 
 const authenticatedController = [
   UsersController,
@@ -74,6 +79,7 @@ const authenticatedController = [
   AuditLogsController,
   BulkImportController,
   InboxController,
+  CalendarReservationsController,
 ];
 @Module({
   imports: [UploadModule],
@@ -87,6 +93,7 @@ const authenticatedController = [
     EnterpriseController,
     NoAuthIntegrationsController,
     OAuthController,
+    ProviderMediaController,
     ...authenticatedController,
   ],
   providers: [

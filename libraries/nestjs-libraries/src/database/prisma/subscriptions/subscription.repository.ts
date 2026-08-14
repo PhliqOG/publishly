@@ -5,6 +5,7 @@ import {
 } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
 import dayjs from 'dayjs';
 import { Organization } from '@prisma/client';
+import { PaidBillingTier } from './pricing';
 
 @Injectable()
 export class SubscriptionRepository {
@@ -13,7 +14,8 @@ export class SubscriptionRepository {
     private readonly _organization: PrismaRepository<'organization'>,
     private readonly _user: PrismaRepository<'user'>,
     private readonly _credits: PrismaRepository<'credits'>,
-    private _usedCodes: PrismaRepository<'usedCodes'>
+    private _usedCodes: PrismaRepository<'usedCodes'>,
+    private _successfulPostUsage: PrismaRepository<'successfulPostUsage'>
   ) {}
 
   getUserAccount(userId: string) {
@@ -140,7 +142,7 @@ export class SubscriptionRepository {
     identifier: string,
     customerId: string,
     totalChannels: number,
-    billing: 'STANDARD' | 'TEAM' | 'PRO' | 'ULTIMATE',
+    billing: PaidBillingTier,
     period: 'MONTHLY' | 'YEARLY',
     cancelAt: number | null,
     code?: string,
@@ -222,6 +224,19 @@ export class SubscriptionRepository {
       where: {
         organizationId,
         deletedAt: null,
+      },
+    });
+  }
+
+  countSuccessfulPostUsage(
+    organizationId: string,
+    periodStart: Date,
+    periodEnd: Date
+  ) {
+    return this._successfulPostUsage.model.successfulPostUsage.count({
+      where: {
+        organizationId,
+        confirmedAt: { gte: periodStart, lt: periodEnd },
       },
     });
   }

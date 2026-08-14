@@ -1,12 +1,16 @@
 import Stripe from 'stripe';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Organization, User } from '@prisma/client';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { BillingSubscribeDto } from '@gitroom/nestjs-libraries/dtos/billing/billing.subscribe.dto';
-import { groupBy } from 'lodash';
-import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
+import {
+  PaidBillingTier,
+  pricing,
+  publicPricing,
+  resolveBillingTier,
+} from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { TrackService } from '@gitroom/nestjs-libraries/track/track.service';
 import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
@@ -16,6 +20,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_nothing');
 
 @Injectable()
 export class StripeService {
+  private readonly logger = new Logger(StripeService.name);
+
   constructor(
     private _subscriptionService: SubscriptionService,
     private _organizationService: OrganizationService,
@@ -97,12 +103,8 @@ export class StripeService {
   }
 
   async createSubscription(event: Stripe.CustomerSubscriptionCreatedEvent) {
-    const {
-      uniqueId,
-      billing,
-      period,
-    } = event.data.object.metadata as {
-      billing: 'STANDARD' | 'PRO';
+    const { uniqueId, billing, period } = event.data.object.metadata as {
+      billing: PaidBillingTier | 'ULTIMATE';
       period: 'MONTHLY' | 'YEARLY';
       uniqueId: string;
     };
@@ -120,19 +122,14 @@ export class StripeService {
       event.data.object.status !== 'active',
       uniqueId,
       event.data.object.customer as string,
-      pricing[billing].channel!,
       billing,
       period,
       event.data.object.cancel_at
     );
   }
   async updateSubscription(event: Stripe.CustomerSubscriptionUpdatedEvent) {
-    const {
-      uniqueId,
-      billing,
-      period,
-    } = event.data.object.metadata as {
-      billing: 'STANDARD' | 'PRO';
+    const { uniqueId, billing, period } = event.data.object.metadata as {
+      billing: PaidBillingTier | 'ULTIMATE';
       period: 'MONTHLY' | 'YEARLY';
       uniqueId: string;
     };
@@ -146,7 +143,6 @@ export class StripeService {
       event.data.object.status !== 'active',
       uniqueId,
       event.data.object.customer as string,
-      pricing[billing].channel!,
       billing,
       period,
       event.data.object.cancel_at
@@ -188,9 +184,20 @@ export class StripeService {
       [...emailByCustomer].map(([customerId, email]) =>
         stripe.customers
           .update(customerId, {
-            email: email.indexOf('@') > -1 ? email : `${email}@postiz.com`,
+            email:
+              email.indexOf('@') > -1 ? email : `${email}@publishly.invalid`,
           })
-          .catch(() => {})
+          .catch((error) => {
+            this.logger.error({
+              event: 'stripe_customer_email_sync_failed',
+              customerId,
+              code: 'stripe_customer_update_failed',
+              reason:
+                error instanceof Error && error.message
+                  ? error.message
+                  : 'Stripe customer email synchronization failed.',
+            });
+          })
       )
     );
   }
@@ -202,7 +209,10 @@ export class StripeService {
 
     const users = await this._organizationService.getTeam(organization.id);
     const customer = await stripe.customers.create({
-      email: users.users[0].user.email.indexOf('@') > -1 ? users.users[0].user.email : `${users.users[0].user.email}@postiz.com`,
+      email:
+        users.users[0].user.email.indexOf('@') > -1
+          ? users.users[0].user.email
+          : `${users.users[0].user.email}@publishly.invalid`,
       name: organization.name,
     });
     await this._subscriptionService.updateCustomerId(
@@ -213,27 +223,10 @@ export class StripeService {
   }
 
   async getPackages() {
-    const products = await stripe.prices.list({
-      active: true,
-      expand: ['data.tiers', 'data.product'],
-      lookup_keys: [
-        'standard_monthly',
-        'standard_yearly',
-        'pro_monthly',
-        'pro_yearly',
-      ],
-    });
-
-    const productsList = groupBy(
-      products.data.map((p) => ({
-        name: (p.product as Stripe.Product)?.name,
-        recurring: p?.recurring?.interval!,
-        price: p?.tiers?.[0]?.unit_amount! / 100,
-      })),
-      'recurring'
-    );
-
-    return { ...productsList };
+    // This is the same authoritative catalog used to resolve/create Stripe
+    // Prices during checkout. It deliberately has no Stripe network dependency,
+    // so billing settings still render in credential-independent deployments.
+    return publicPricing;
   }
 
   async prorate(organizationId: string, body: BillingSubscribeDto) {
@@ -467,7 +460,10 @@ export class StripeService {
 
     try {
       await stripe.customers.update(customer, {
-        email: user.email.indexOf('@') > -1 ? user.email : `${user.email}@postiz.com`,
+        email:
+          user.email.indexOf('@') > -1
+            ? user.email
+            : `${user.email}@publishly.invalid`,
         ...(body.dub
           ? {
               metadata: {
@@ -477,7 +473,18 @@ export class StripeService {
             }
           : {}),
       });
-    } catch (err) {}
+    } catch (error) {
+      this.logger.error({
+        event: 'stripe_checkout_customer_update_failed',
+        customerId: customer,
+        userId,
+        code: 'stripe_customer_update_failed',
+        reason:
+          error instanceof Error && error.message
+            ? error.message
+            : 'Stripe customer metadata could not be updated.',
+      });
+    }
 
     // Check for auto-apply promotion code (only for monthly plans)
     let autoApplyPromoCode: string | null = null;
@@ -1205,9 +1212,7 @@ export class StripeService {
             ? invoiceSubscription
             : invoiceSubscription?.id;
 
-        chargeSubscription = subscriptions.find(
-          (f) => f.id === subscriptionId
-        );
+        chargeSubscription = subscriptions.find((f) => f.id === subscriptionId);
 
         if (chargeSubscription) {
           lastCharge = charge;
@@ -1302,6 +1307,15 @@ export class StripeService {
     if (getCurrentSubscription && !getCurrentSubscription?.isLifetime) {
       throw new Error('You already have a non lifetime subscription');
     }
+    if (
+      getCurrentSubscription &&
+      resolveBillingTier(getCurrentSubscription.subscriptionTier) === 'PRO'
+    ) {
+      return {
+        success: false,
+        reason: 'already_on_scale',
+      };
+    }
 
     try {
       const testCode = AuthService.fixedDecryption(code);
@@ -1313,15 +1327,10 @@ export class StripeService {
       }
 
       const nextPackage = !getCurrentSubscription ? 'STANDARD' : 'PRO';
-      const findPricing = pricing[nextPackage];
-
       await this._subscriptionService.createOrUpdateSubscription(
         false,
         makeId(10),
         organizationId,
-        getCurrentSubscription?.subscriptionTier === 'PRO'
-          ? getCurrentSubscription.totalChannels + 5
-          : findPricing.channel!,
         nextPackage,
         'MONTHLY',
         null,

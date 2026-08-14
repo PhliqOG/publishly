@@ -187,7 +187,9 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     if (processedMedia.length === 0) {
       const response = await telegramBot.sendMessage(accessToken, text, {
         parse_mode: 'HTML',
-        ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
+        ...(replyToMessageId
+          ? { reply_parameters: { message_id: replyToMessageId } }
+          : {}),
       });
       messageId = response.message_id;
     }
@@ -197,7 +199,9 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
       const options = {
         caption: text,
         parse_mode: 'HTML' as const,
-        ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
+        ...(replyToMessageId
+          ? { reply_parameters: { message_id: replyToMessageId } }
+          : {}),
       };
       const response =
         media.type === 'video'
@@ -238,7 +242,7 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
           mediaGroup as any[],
           {
             ...(replyToMessageId && i === 0
-              ? { reply_to_message_id: replyToMessageId }
+              ? { reply_parameters: { message_id: replyToMessageId } }
               : {}),
           }
         );
@@ -319,12 +323,15 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     try {
       const chatMember = await telegramBot.getChatMember(chatId, botId);
 
+      if (chatMember.status === 'creator') {
+        return true;
+      }
+
       if (
-        chatMember.status === 'administrator' ||
-        chatMember.status === 'creator'
+        chatMember.status === 'administrator' &&
+        'can_delete_messages' in chatMember
       ) {
-        const permissions = chatMember.can_delete_messages;
-        return !!permissions; // Return true if bot can delete messages
+        return !!chatMember.can_delete_messages;
       }
 
       return false;

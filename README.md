@@ -1,98 +1,107 @@
 # Publishly
 
-Multi-tenant social media scheduling SaaS: one composer, ten networks over
-official APIs, and a publishing pipeline that treats delivery like
-infrastructure. Built on the open-source
-[Postiz](https://github.com/gitroomhq/postiz-app) engine (AGPL-3.0) — see
-[LICENSE](LICENSE) and [LICENSE-COMPLIANCE.md](LICENSE-COMPLIANCE.md) for what
-that means for operators.
+Publishly is a multi-tenant social-media management SaaS built on the
+[Postiz](https://github.com/gitroomhq/postiz-app) engine. It provides a universal
+composer, content calendar, durable scheduling, analytics snapshots, a unified
+comment inbox, bulk CSV operations, Stripe billing, scoped customer API keys,
+operator tooling, and an original responsive marketing site.
 
-## What it does
+The product name is **Publishly**. Brand strings live in the shared brand module
+and can be overridden with `NEXT_PUBLIC_BRAND_NAME`; provider and tenant logic do
+not depend on the commercial name.
 
-- **Networks (official APIs/OAuth only):** Instagram, Facebook, TikTok,
-  YouTube, X, Threads, LinkedIn (member + pages), Pinterest, Bluesky, Mastodon —
-  plus ~20 more providers inherited from the engine. Providers without server
-  credentials render as honestly disabled, never broken.
-- **Publishing pipeline:** every post is a durable Temporal workflow
-  (`post_<id>`), exactly-once by construction (non-retryable finalize phase),
-  per-destination partial success, automatic token refresh, hourly sweeper for
-  missed slots.
-- **Composer & calendar:** per-network captions/settings with live previews and
-  enforced platform limits, first comments, drafts, tags, saved channel sets;
-  month/week/day calendar with drag-and-drop.
-- **Bulk:** async CSV import with validation preview and per-row error report;
-  bulk shift/delete.
-- **Analytics:** platform-reported metrics only, cached in Redis and snapshotted
-  daily to Postgres for history (`GET /analytics/history/:integration`).
-  Unavailable metrics are labelled, never fabricated.
-- **Inbox (framework):** capability-gated unified comments with authorized
-  replies; live for the internal test provider, real-network adapters land
-  after platform approvals.
-- **Billing:** Stripe — FREE + 4 paid tiers with 7-day trials, customer portal,
-  signature-verified webhooks with replay protection; entitlements are config
-  (`PRICING_OVERRIDES_JSON`), enforced server-side.
-- **Security:** social tokens encrypted at rest (AES-256-GCM), hashed scoped
-  API keys, single-use password resets, per-workspace audit log, org-scoped
-  queries with cross-tenant tests. Details in [docs/SECURITY.md](docs/SECURITY.md).
-- **Marketing site:** served from `/` for logged-out visitors (route group
-  `apps/frontend/src/app/(marketing)`), rebrandable from a single config.
+## Implemented product surface
 
-## Quickstart (development)
+- Workspaces with owner/admin/member authorization, invitations, ownership
+  transfer, tenant-scoped repositories, audit logs, export, and deletion.
+- Official integrations for Facebook, Instagram, Instagram Login, TikTok,
+  YouTube, X, Threads, LinkedIn members/pages, Pinterest, Bluesky, and Mastodon,
+  while preserving useful upstream providers. Unconfigured providers are shown
+  disabled with the exact missing environment variables.
+- Implementation-backed provider capability registry for image, video,
+  carousel, story, short-form video, scheduling, first comment, thumbnail,
+  collaborators, tags, analytics, comments, and replies.
+- Object-storage media pipeline with local development storage or generic
+  S3-compatible storage, signed/multipart uploads, MIME sniffing, metadata,
+  thumbnails, SHA-256 deduplication, quotas, and delayed cleanup.
+- Temporal publishing workflows plus a `PublishingJob` ledger. Safe,
+  explicitly pre-request transient failures retry with backoff; an ambiguous
+  post-request outcome fails closed and is never automatically replayed.
+- Month/week/day/list calendar, per-platform composer settings and previews,
+  drafts, duplicate/edit flows, server-side validation, and bulk imports that
+  execute in the worker rather than the request process.
+- Provider-reported analytics only, with retention-aware historical snapshots;
+  unavailable metrics remain unavailable rather than being estimated.
+- Unified comment inbox with read/resolved/assignment/notes state. Official
+  Facebook and Instagram comment/reply adapters are implemented; other
+  providers are exposed only when their adapter advertises support.
+- Stripe Checkout/portal/webhooks and deploy-time entitlement overrides.
+  Subscription truth and limits are enforced server-side.
+- Hashed, scoped `pub_` API keys; legacy workspace keys are disabled unless an
+  operator explicitly enables the migration escape hatch.
+- Signed outgoing webhooks with delivery attempts, a signed Meta data-deletion
+  callback, health/readiness probes, structured request/job context, and an
+  internal operations dashboard.
 
-Requirements: Node.js ≥22.12 <23, pnpm 10, Docker.
+## Local quickstart
+
+Requirements: Node.js `>=22.12 <23`, pnpm 10, Docker, and FFmpeg for local media
+processing.
 
 ```bash
-# 1. Infrastructure: Postgres :5433, Redis :6380, Temporal :7233 (+ES), UI :8082
 docker compose -f docker-compose.publishly.dev.yaml up -d
+cp .env.example .env
+pnpm install --frozen-lockfile
+pnpm run prisma-migrate-deploy
+pnpm run prisma-generate
 
-# 2. Environment
-cp .env.example .env    # dev defaults for the required block already match the compose file
-
-# 3. Install + database
-pnpm install
-pnpm run prisma-db-push
-
-# 4. Run
-pnpm run dev:frontend       # Next.js on :4200
-pnpm run dev:backend        # NestJS API on :3000
-pnpm run dev:orchestrator   # Temporal worker + health on :3002
+# Run in separate terminals
+pnpm run dev:frontend
+pnpm run dev:backend
+pnpm run dev:orchestrator
 ```
 
-Windows note: `nest start --watch` is unreliable here (silent no-spawn after
-failed first compiles, taskkill races). The proven flow on Windows is compile +
-run split: `tsc -p tsconfig.build.json --watch` inside `apps/backend` for
-feedback, and run the app from `dist` with
-`dotenv -e ../../.env -- node -r tsconfig-paths/register --experimental-require-module ./dist/apps/backend/src/main.js`
-(uses `tsconfig.runtime.json`). The orchestrator must be built with
-`nest build` — see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#build).
+Services: frontend `:4200`, backend `:3000`, worker health `:3002`, Postgres
+`:5433`, Redis `:6380`, Temporal `:7233`, and Temporal UI `:8082`. Cold backend
+and worker starts can take over a minute because the provider graph and Temporal
+workflow bundle are large.
 
-First backend boot takes 2–3 minutes (large import graph); `GET /health`
-answers once it's up.
+The credential-independent sandbox is enabled only when
+`ENABLE_TEST_PROVIDER=true`. It publishes nowhere and must remain disabled in
+production.
 
-## Tests
+## Verification
 
 ```bash
-pnpm run test:unit         # pure logic - no infrastructure needed
-pnpm run test:integration  # needs the dev stack running (DB + backend on :3000);
-                           # suites self-skip with a message when it's down
-pnpm run test               # everything + coverage
+pnpm run prisma-format
+pnpm run prisma-validate
+pnpm run prisma-migrate-status
+pnpm run test:unit
+pnpm run test:integration       # requires the local stack + backend
+pnpm run build
+docker compose --env-file .env.production -f deploy/compose.production.yaml config
 ```
 
 ## Documentation
 
-| Doc | Contents |
-| --- | --- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | system layout, pipeline semantics, data model, fork divergence from upstream |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | dev stack, production stack, build specifics, backups |
-| [docs/SECURITY.md](docs/SECURITY.md) | implemented security posture + known gaps |
-| [docs/OPERATIONS.md](docs/OPERATIONS.md) | runbooks: health, stuck posts, token errors, imports |
-| [docs/API.md](docs/API.md) | public API: keys, scopes, rate limits, endpoints |
-| [docs/platform-approval/](docs/platform-approval/README.md) | per-network app setup + review packages |
-| [docs/AUDIT.md](docs/AUDIT.md) | the upstream audit this fork started from |
+- [Architecture](docs/ARCHITECTURE.md)
+- [Environment variables](docs/ENVIRONMENT.md)
+- [Deployment](docs/DEPLOYMENT.md)
+- [Operations](docs/OPERATIONS.md)
+- [Security](docs/SECURITY.md)
+- [Backups](docs/BACKUPS.md) and [disaster recovery](docs/DISASTER_RECOVERY.md)
+- [Platform integrations](docs/PLATFORM_INTEGRATIONS.md)
+- [Public API](docs/API.md)
+- [Webhooks](docs/WEBHOOKS.md)
+- [n8n, Make, and MCP distribution](docs/DISTRIBUTION.md)
+- [Platform approval package](docs/platform-approval/README.md)
+- [Brand system and name-clearance warning](docs/BRAND.md)
+- [Upstream audit](docs/AUDIT.md)
 
 ## License
 
-AGPL-3.0. Publishly is a derivative of Postiz (© Nevo David and contributors).
-Operators must offer the corresponding source to their network users —
-[LICENSE-COMPLIANCE.md](LICENSE-COMPLIANCE.md) explains the obligations and the
-`/source` page implements the offer.
+Publishly is a modified Postiz distribution under AGPL-3.0. Commercial hosting
+and modification are permitted, but operators must preserve notices and offer
+the corresponding source of the running modified version to network users under
+AGPL section 13. See [LICENSE](LICENSE),
+[LICENSE-COMPLIANCE.md](LICENSE-COMPLIANCE.md), and the public `/source` page.

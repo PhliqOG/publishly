@@ -1,5 +1,8 @@
-import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
-import { Injectable } from '@nestjs/common';
+import {
+  PrismaRepository,
+  PrismaService,
+} from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
+import { Injectable, Logger } from '@nestjs/common';
 import { Post as PostBody } from '@gitroom/nestjs-libraries/dtos/posts/create.post.dto';
 import {
   APPROVED_SUBMIT_FOR_ORDER,
@@ -14,8 +17,9 @@ import isoWeek from 'dayjs/plugin/isoWeek';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import utc from 'dayjs/plugin/utc';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'node:crypto';
 import { CreateTagDto } from '@gitroom/nestjs-libraries/dtos/posts/create.tag.dto';
+import { cancelCalendarReservationsInTransaction } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/calendar-reservation.mutation';
 
 dayjs.extend(isoWeek);
 dayjs.extend(weekOfYear);
@@ -24,13 +28,15 @@ dayjs.extend(utc);
 
 @Injectable()
 export class PostsRepository {
+  private readonly logger = new Logger(PostsRepository.name);
   constructor(
     private _post: PrismaRepository<'post'>,
     private _popularPosts: PrismaRepository<'popularPosts'>,
     private _comments: PrismaRepository<'comments'>,
     private _tags: PrismaRepository<'tags'>,
     private _tagsPosts: PrismaRepository<'tagsPosts'>,
-    private _errors: PrismaRepository<'errors'>
+    private _errors: PrismaRepository<'errors'>,
+    private _prisma: PrismaService
   ) {}
 
   searchForMissingThreeHoursPosts() {
@@ -320,29 +326,6 @@ export class PostsRepository {
     };
   }
 
-  async deletePost(orgId: string, group: string) {
-    await this._post.model.post.updateMany({
-      where: {
-        organizationId: orgId,
-        group,
-      },
-      data: {
-        deletedAt: new Date(),
-      },
-    });
-
-    return this._post.model.post.findFirst({
-      where: {
-        organizationId: orgId,
-        group,
-        parentPostId: null,
-      },
-      select: {
-        id: true,
-      },
-    });
-  }
-
   getPostsByGroup(orgId: string, group: string) {
     return this._post.model.post.findMany({
       where: {
@@ -446,7 +429,17 @@ export class PostsRepository {
             body: typeof body === 'string' ? body : JSON.stringify(body),
           },
         });
-      } catch (err) {}
+      } catch (err) {
+        this.logger.error({
+          event: 'legacy_post_error_write_failed',
+          postId: update.id,
+          organizationId: update.organizationId,
+          reason:
+            err instanceof Error
+              ? err.message
+              : 'The legacy error mirror could not be written.',
+        });
+      }
     }
 
     return update;
@@ -461,55 +454,6 @@ export class PostsRepository {
     });
   }
 
-  async changeDate(
-    orgId: string,
-    id: string,
-    date: string,
-    isDraft: boolean,
-    action: 'schedule' | 'update' = 'schedule'
-  ) {
-    return this._post.model.post.update({
-      where: {
-        organizationId: orgId,
-        id,
-      },
-      data: {
-        publishDate: dayjs(date).toDate(),
-        // schedule: set state to QUEUE (or DRAFT if it was a draft)
-        // update: don't change the state
-        ...(action === 'schedule'
-          ? {
-              state: isDraft ? 'DRAFT' : 'QUEUE',
-              releaseId: null,
-              releaseURL: null,
-            }
-          : {}),
-      },
-    });
-  }
-
-  countPostsFromDay(orgId: string, date: Date) {
-    return this._post.model.post.count({
-      where: {
-        organizationId: orgId,
-        publishDate: {
-          gte: date,
-        },
-        OR: [
-          {
-            deletedAt: null,
-            state: {
-              in: ['QUEUE'],
-            },
-          },
-          {
-            state: 'PUBLISHED',
-          },
-        ],
-      },
-    });
-  }
-
   async createOrUpdatePost(
     state: 'draft' | 'schedule' | 'now' | 'update',
     orgId: string,
@@ -521,11 +465,20 @@ export class PostsRepository {
     // Keep the existing group instead of rotating it, so open clients
     // (calendar) holding the group stay valid. Used by out-of-band updates
     // (agent / MCP / public API); the dashboard keeps the rotate-and-sweep.
-    keepGroup = false
+    keepGroup = false,
+    idempotentCreate = false
   ) {
     const posts: Post[] = [];
     const uuid = uuidv4();
-    const group = keepGroup && body.group ? body.group : uuid;
+    const targetGroup = (body as any).__publishlyTargetGroup as
+      | string
+      | undefined;
+    const group =
+      idempotentCreate && targetGroup
+        ? targetGroup
+        : keepGroup && body.group
+        ? body.group
+        : uuid;
 
     for (const value of body.value) {
       const updateData = (type: 'create' | 'update') => ({
@@ -645,33 +598,82 @@ export class PostsRepository {
       : undefined;
 
     if (body.group && !keepGroup) {
-      await this._post.model.post.updateMany({
-        where: {
-          group: body.group,
-          deletedAt: null,
-        },
-        data: {
-          parentPostId: null,
-          deletedAt: new Date(),
-        },
+      await this._prisma.$transaction(async (tx) => {
+        const retired = await tx.post.findMany({
+          where: {
+            organizationId: orgId,
+            group: body.group,
+            deletedAt: null,
+          },
+          select: { id: true },
+        });
+        const now = new Date();
+        await cancelCalendarReservationsInTransaction(tx, {
+          organizationId: orgId,
+          postIds: retired.map((row) => row.id),
+          action: 'calendar.writer.replaced_group_cancelled',
+          subject: body.group!,
+          code: 'calendar_post_group_replaced',
+          reason:
+            'The prior post group was replaced by a newer composer revision.',
+          actor: {
+            actorType: creationMethod === 'WEB' ? 'user' : 'system',
+          },
+          now,
+        });
+        await tx.post.updateMany({
+          where: {
+            organizationId: orgId,
+            group: body.group,
+            deletedAt: null,
+          },
+          data: {
+            parentPostId: null,
+            deletedAt: now,
+          },
+        });
       });
     }
 
     // keepGroup: the updated rows still carry the old group, so sweep only the
     // rows dropped from it (removed comments) by id instead of by group.
     if (body.group && keepGroup) {
-      await this._post.model.post.updateMany({
-        where: {
-          group: body.group,
-          deletedAt: null,
-          id: {
-            notIn: posts.map((p) => p.id),
+      await this._prisma.$transaction(async (tx) => {
+        const retired = await tx.post.findMany({
+          where: {
+            organizationId: orgId,
+            group: body.group,
+            deletedAt: null,
+            id: { notIn: posts.map((p) => p.id) },
           },
-        },
-        data: {
-          parentPostId: null,
-          deletedAt: new Date(),
-        },
+          select: { id: true },
+        });
+        const now = new Date();
+        await cancelCalendarReservationsInTransaction(tx, {
+          organizationId: orgId,
+          postIds: retired.map((row) => row.id),
+          action: 'calendar.writer.removed_chain_items_cancelled',
+          subject: body.group!,
+          code: 'calendar_post_chain_item_removed',
+          reason:
+            'A composer edit removed these post-chain items from the active group.',
+          actor: {
+            actorType: creationMethod === 'WEB' ? 'user' : 'system',
+          },
+          now,
+        });
+        await tx.post.updateMany({
+          where: {
+            organizationId: orgId,
+            group: body.group,
+            deletedAt: null,
+            id: { notIn: posts.map((p) => p.id) },
+          },
+          data: {
+            parentPostId: null,
+            deletedAt: now,
+          },
+        });
       });
     }
 

@@ -3,7 +3,9 @@ import { ProductMarketingPage } from '@gitroom/frontend/components/marketing/pro
 import { ComposerReplica } from '@gitroom/frontend/components/marketing/replicas/composer-replica';
 
 export const metadata: Metadata = {
-  title: 'Publishing',
+  title: 'Reliable social media publishing across multiple accounts',
+  description:
+    'Draft once, tailor each network, and get a clear result for every selected brand, client, or location account.',
   alternates: { canonical: '/publishing' },
 };
 
@@ -11,8 +13,8 @@ export default function PublishingPage() {
   return (
     <ProductMarketingPage
       eyebrow="Publishing"
-      title="One idea. 10 native destinations."
-      lede="Draft once, tailor what differs per network, validate against each provider’s real limits & hand every destination to a durable server-side workflow."
+      title="Write once. Get proof everywhere it goes."
+      lede="Draft the idea once, tailor what each network needs, and get a separate result for every selected brand, client, or location account."
       visual={<ComposerReplica />}
       spotlight={{
         eyebrow: 'Composer',
@@ -24,7 +26,7 @@ export default function PublishingPage() {
           'First comments & platform settings',
         ],
       }}
-      statement="A post to 6 networks is 6 deliveries. One failure retries alone — the other 5 stay published & the calendar reports each destination honestly."
+      statement="A post sent to six selected brand accounts gets six results. One can fail and retry while the other five stay published."
       items={[
         {
           title: 'Every format in one draft',
@@ -44,7 +46,7 @@ export default function PublishingPage() {
         },
         {
           title: 'Each destination delivers on its own',
-          body: 'Each destination publishes as its own durable delivery. A failed network retries alone while the rest stay published.',
+          body: 'Each selected account gets its own result. A failed network retries alone while the rest stay published.',
           points: [
             'Honest failure reporting',
             'Conservative retries, never blind re-posts',

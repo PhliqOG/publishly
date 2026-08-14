@@ -4,7 +4,7 @@ import {
   PostResponse,
   SocialProvider,
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
-import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
+import { generateOAuthState } from '@gitroom/nestjs-libraries/integrations/oauth.state';
 import dayjs from 'dayjs';
 import {
   SocialAbstract,
@@ -32,14 +32,19 @@ export class InstagramStandaloneProvider
     'instagram_business_basic',
     'instagram_business_content_publish',
     'instagram_business_manage_comments',
+    'instagram_business_manage_messages',
     'instagram_business_manage_insights',
   ];
-    override maxConcurrentJob = 200; // Instagram standalone has stricter limits
+  override maxConcurrentJob = 200; // Instagram standalone has stricter limits
   dto = InstagramDto;
 
   editor = 'normal' as const;
   maxLength() {
     return 2200;
+  }
+
+  private get graphVersion() {
+    return process.env.META_GRAPH_VERSION || 'v25.0';
   }
 
   override async checkValidity(
@@ -86,7 +91,7 @@ export class InstagramStandaloneProvider
       profile_picture_url = '',
     } = await (
       await fetch(
-        `https://graph.instagram.com/v21.0/me?fields=user_id,username,name,profile_picture_url&access_token=${access_token}`
+        `https://graph.instagram.com/${this.graphVersion}/me?fields=user_id,username,name,profile_picture_url&access_token=${access_token}`
       )
     ).json();
 
@@ -102,7 +107,7 @@ export class InstagramStandaloneProvider
   }
 
   async generateAuthUrl() {
-    const state = makeId(6);
+    const state = generateOAuthState();
     return {
       url:
         `https://www.instagram.com/oauth/authorize?enable_fb_login=0&client_id=${
@@ -116,7 +121,7 @@ export class InstagramStandaloneProvider
         )}&response_type=code&scope=${encodeURIComponent(
           this.scopes.join(',')
         )}` + `&state=${state}`,
-      codeVerifier: makeId(10),
+      codeVerifier: state,
       state,
     };
   }
@@ -161,7 +166,7 @@ export class InstagramStandaloneProvider
 
     const { user_id, name, username, profile_picture_url } = await (
       await fetch(
-        `https://graph.instagram.com/v21.0/me?fields=user_id,username,name,profile_picture_url&access_token=${access_token}`
+        `https://graph.instagram.com/${this.graphVersion}/me?fields=user_id,username,name,profile_picture_url&access_token=${access_token}`
       )
     ).json();
 
@@ -224,7 +229,11 @@ export class InstagramStandaloneProvider
     pendingData: any,
     integration: Integration
   ) {
-    return instagramProvider.finalizePost(accessToken, pendingData, integration);
+    return instagramProvider.finalizePost(
+      accessToken,
+      pendingData,
+      integration
+    );
   }
 
   async comment(
@@ -266,6 +275,66 @@ export class InstagramStandaloneProvider
       accessToken,
       postId,
       date,
+      'graph.instagram.com'
+    );
+  }
+
+  async listComments(
+    token: string,
+    integration: Integration,
+    params: { page?: number; postId?: string }
+  ) {
+    return instagramProvider.listComments(
+      token,
+      integration,
+      params,
+      'graph.instagram.com'
+    );
+  }
+
+  async replyToComment(
+    token: string,
+    integration: Integration,
+    commentId: string,
+    message: string,
+    postId?: string
+  ) {
+    return instagramProvider.replyToComment(
+      token,
+      integration,
+      commentId,
+      message,
+      postId,
+      'graph.instagram.com'
+    );
+  }
+
+  async listDirectMessages(
+    token: string,
+    integration: Integration,
+    params: { page?: number }
+  ) {
+    return instagramProvider.listDirectMessages(
+      token,
+      integration,
+      params,
+      'graph.instagram.com'
+    );
+  }
+
+  async sendDirectMessage(
+    token: string,
+    integration: Integration,
+    threadId: string,
+    recipientId: string,
+    message: string
+  ) {
+    return instagramProvider.sendDirectMessage(
+      token,
+      integration,
+      threadId,
+      recipientId,
+      message,
       'graph.instagram.com'
     );
   }

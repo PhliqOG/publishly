@@ -16,7 +16,7 @@ import {
 export const metadata: Metadata = {
   title: 'Best social media posting APIs for multi-brand operators (2026)',
   description:
-    'Publishly, Ayrshare, Upload-Post, Buffer & Metricool compared from official pricing pages: cost at 100 accounts, account caps, failure webhooks & delivery receipts. Last checked 2026-08-10.',
+    'Publishly, Ayrshare, Upload-Post, Buffer & Metricool compared from official pricing pages: cost at 100 accounts, account caps, failure alerts & delivery proof. Last checked 2026-08-11.',
   keywords: [
     'best social media posting api',
     'social media posting api 2026',
@@ -27,8 +27,8 @@ export const metadata: Metadata = {
 
 // Competitor numbers: data/claim-provenance.json (ayrshare-100-profiles,
 // buffer-30-channels, metricool-tiers, upload-post-tiers, retrieved
-// 2026-08-10). Publishly numbers: data/public-product-facts.json.
-const CHECKED = '2026-08-10';
+// 2026-08-11). Publishly numbers: data/public-product-facts.json.
+const CHECKED = '2026-08-11';
 
 const ENTRIES = [
   {
@@ -45,7 +45,7 @@ const ENTRIES = [
   },
   {
     name: 'Buffer',
-    p: 'Buffer is a polished, well-known scheduler with a genuinely good free tier for a handful of channels. Its Team plan bills $10 per channel per month, which stays cheap at small scale but adds up on a growing roster — 100 channels works out to $1,000/mo at published rates.',
+    p: 'Buffer is a polished, well-known scheduler with a genuinely good free tier for a handful of channels. Its Team plan bills $12 per channel on monthly billing ($10 annually), which stays cheap at small scale but adds up as the channel count grows.',
   },
   {
     name: 'Metricool',
@@ -67,7 +67,7 @@ const ROWS: string[][] = [
     '$99/mo Growth (unlimited accounts, 15k posts)',
     '$1,228.30/mo (published rates, monthly billing)',
     'Between $147–$438 (75/225-profile tiers)',
-    '$1,000/mo at 100 channels (≈$300/mo at 30)',
+    '$1,200/mo at 100 channels ($360/mo at 30), monthly billing',
     'Not offered — plans cap at 50 brands',
   ],
   [
@@ -106,7 +106,10 @@ export default function BestSocialPostingApisPage() {
             <span className="mk-eyebrow" style={{ display: 'block' }}>
               Resources
             </span>
-            <h1 className="mk-h2-lg" style={{ marginTop: 18, maxWidth: '22ch' }}>
+            <h1
+              className="mk-h2-lg"
+              style={{ marginTop: 18, maxWidth: '22ch' }}
+            >
               Best social media posting APIs for multi-brand operators (2026).
             </h1>
             <p className="mk-section-lede">
@@ -118,12 +121,12 @@ export default function BestSocialPostingApisPage() {
             <QuickAnswer>
               At published rates, 100 connected accounts cost $99/mo on
               Publishly’s Growth plan (unlimited accounts), $1,228.30/mo on
-              Ayrshare, between $147–$438/mo on Upload-Post, $1,000/mo on
-              Buffer, and aren’t offered at all on Metricool, whose plans cap
-              at 50 brands. Which one fits depends on whether the roster is
+              Ayrshare, between $147–$438/mo on Upload-Post, $1,200/mo on
+              Buffer, and aren’t offered at all on Metricool, whose plans cap at
+              50 brands. Which one fits depends on whether the roster is
               growing, and whether you need an API-first product or a suite.
             </QuickAnswer>
-            <Byline published="2026-08-10" updated="2026-08-10" />
+            <Byline published="2026-08-10" updated="2026-08-11" />
           </div>
         </header>
 
@@ -152,16 +155,19 @@ export default function BestSocialPostingApisPage() {
           </div>
         </section>
 
-        <section className="mk-section mk-section-tint" aria-labelledby="bsp-table">
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="bsp-table"
+        >
           <div className="mk-container">
             <h2 id="bsp-table" className="mk-h2">
               Side by side.
             </h2>
             <FactLine>
-              At published rates on 2026-08-10, 100 connected accounts cost
-              $1,228.30/mo on Ayrshare and $1,000/mo on Buffer, aren’t offered
-              on Metricool’s capped plans, and land between $147–$438/mo on
-              Upload-Post — Publishly’s Growth plan is $99/mo with unlimited
+              At monthly rates checked on 2026-08-11, 100 connected accounts
+              cost $1,228.30/mo on Ayrshare and $1,200/mo on Buffer, aren’t
+              offered on Metricool’s capped plans, and land between $147–$438/mo
+              on Upload-Post — Publishly’s Growth plan is $99/mo with unlimited
               connected accounts.
             </FactLine>
             <CompareTable
@@ -188,7 +194,7 @@ export default function BestSocialPostingApisPage() {
         <section style={{ padding: '8px 0 112px' }}>
           <div className="mk-container">
             <div className="mk-cta-panel">
-              <h2 className="mk-h2">Run the numbers on your own fleet.</h2>
+              <h2 className="mk-h2">Run the numbers for your own accounts.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
                 Plans are sized by how much you post, not how many brands,
                 clients, or locations you run.

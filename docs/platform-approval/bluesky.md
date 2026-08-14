@@ -14,8 +14,9 @@ service     — PDS URL, default https://bsky.social (self-hosted PDS supported)
 identifier  — the user's handle or email
 password    — an app password (never the main account password)
 ```
-Note from code: accounts with two-factor authentication enabled can't connect
-(surfaced in the UI tooltip) — app-password login limitation.
+Keep two-factor authentication and all other account security enabled. A
+dedicated App Password is the supported third-party credential and is
+independently revocable; the user's main account password must never be used.
 
 ## Redirect URI(s)
 None — no OAuth redirect; login is credential-based against the PDS.
@@ -44,8 +45,8 @@ None. Works immediately.
   user's kill switch).
 
 ## Common failure causes (no review, but real-world issues)
-- User pastes their main password with 2FA on → login fails; UI copy must steer
-  to app passwords.
+- User pastes their main password instead of a dedicated App Password → login
+  fails; UI copy must steer to App Passwords without weakening 2FA.
 - Video posts: one video max per post (enforced in code's checkValidity);
   Bluesky's video service processes async — the pending flow handles it.
 - Custom PDS URLs that resolve to private IPs are rejected by SSRF protection.

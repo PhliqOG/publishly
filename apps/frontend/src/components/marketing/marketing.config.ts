@@ -1,3 +1,5 @@
+import { advertisedBulkSchedulerTuples } from '@gitroom/helpers/bulk-scheduler/capability.matrix';
+
 // Every marketing-facing string and brand value in one file, so a rename or
 // repositioning never requires touching components.
 //
@@ -6,7 +8,8 @@
 // (status shipping or pre_release); in_development AI items are described as
 // direction, never as shipped UI.
 // COMPLIANCE: multi-account language is always multi-brand / multi-client /
-// multi-location / multi-market. Never "autopilot accounts", never bot/farm/mass
+// multi-location / multi-market. Keep all scale language tied to legitimate
+// brands, clients, locations, and markets.
 // framing — platform app reviewers read marketing copy.
 
 export const MARKETING = {
@@ -14,14 +17,31 @@ export const MARKETING = {
   // The one canonical entity sentence — used verbatim on home, about and docs
   // so answer engines build a consistent entity. Edit here, nowhere else.
   entity:
-    'Publishly is a social publishing API and scheduler that gives every post a delivery receipt, a failure reason, and an automatic retry — built for teams running many brands, clients, and locations.',
-  tagline: 'Nothing fails silently.',
-  sub: 'You can’t watch 200 accounts. Publishly does — every post gets a delivery receipt, every failure gets a reason and a retry, and your plan price doesn’t grow with your account count.',
+    'Publishly is the reliability layer for social posting at scale: every post gets proof, every failure gets a reason and a safe retry, and every paid plan includes unlimited accounts.',
+  tagline: 'Nothing fails silently. Ever.',
+  sub: 'Know what went live, what failed, why it failed, and what Publishly did next — across every brand, client, location, and market you manage.',
   cta: { primary: 'Get started free', secondary: 'See how it works' },
   authRegister: '/auth',
   authLogin: '/auth/login',
   sourceUrl: process.env.NEXT_PUBLIC_SOURCE_URL || '/source',
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || '',
+  legal: {
+    entity:
+      process.env.NEXT_PUBLIC_LEGAL_ENTITY_NAME ||
+      'Publishly operator (local configuration)',
+    address:
+      process.env.NEXT_PUBLIC_LEGAL_ENTITY_ADDRESS ||
+      'Configure NEXT_PUBLIC_LEGAL_ENTITY_ADDRESS before deployment',
+    privacyEmail:
+      process.env.NEXT_PUBLIC_PRIVACY_EMAIL ||
+      process.env.NEXT_PUBLIC_SUPPORT_EMAIL ||
+      '',
+    effectiveDate:
+      process.env.NEXT_PUBLIC_LEGAL_EFFECTIVE_DATE || '2026-08-11',
+    governingLaw:
+      process.env.NEXT_PUBLIC_GOVERNING_LAW ||
+      'the jurisdiction configured by the service operator',
+  },
   // Server-rendered JSON-LD / sitemap origin. MAIN_URL is server-only, so client
   // bundles fall back to the public var (or localhost in dev) — harmless, since
   // every consumer of this value renders on the server.
@@ -44,6 +64,16 @@ export const MARKETING = {
     'Mastodon',
   ],
 
+  // Bulk Scheduler claims are derived from the fail-closed tuple matrix. An
+  // uncertified or killed tuple never appears here or in generated docs.
+  bulkSchedulerTuples: advertisedBulkSchedulerTuples().map((tuple) => ({
+    id: tuple.id,
+    provider: tuple.providerDisplayName,
+    accountType: tuple.accountType,
+    postType: tuple.postType,
+    mediaKind: tuple.mediaKind,
+  })),
+
   // The pain narrative, in its canonical order. Every page that tells the
   // story tells it this way: silent failures → token death → no reasons →
   // the growth tax.
@@ -54,7 +84,7 @@ export const MARKETING = {
     },
     {
       title: 'Tokens die on a timer',
-      body: 'Access tokens on the major platforms expire in roughly 60 days. One quiet expiry and an account slips into a reconnect loop while its queue keeps “posting” into nothing.',
+      body: 'Platform connections do not last forever. Some common access tokens last about 60 days; others renew more often. When that renewal breaks quietly, scheduled posts can stop with it.',
     },
     {
       title: 'Failures come with no reason',
@@ -70,23 +100,23 @@ export const MARKETING = {
   answers: [
     {
       title: 'Every post gets a delivery receipt',
-      body: 'Each destination runs as its own tracked delivery with a full state history — and a successful post stores the live URL to prove it. A post to 6 networks is 6 receipts.',
+      body: 'A post is only marked successful after Publishly confirms it is live. The receipt stores the result and the live link, separately for every account you chose.',
     },
     {
-      title: 'Every failure gets a reason — and a webhook',
-      body: 'Failed posts carry a plain-English reason and a failure code classed as recoverable, needs-your-action, or a content problem. The same moment, a signed post.failure webhook tells your systems.',
+      title: 'Every failure gets a reason and an alert',
+      body: 'You see what happened, what needs fixing, and whether Publishly will try again. Developers can send the same alert straight into their own software through a signed webhook.',
     },
     {
       title: 'Retries that never double-post',
-      body: 'Transient failures retry automatically with backoff. The publish call itself fires exactly once — a retry can never duplicate a post. Missed slots are swept back into the queue hourly.',
+      body: 'Short platform problems are retried safely. If Publishly cannot prove what happened, it stops and asks you to check instead of risking the same post appearing twice.',
     },
     {
-      title: 'Dead accounts get caught, not discovered',
-      body: 'When a token can’t refresh, the account is flagged and pulled out of delivery, and you’re alerted immediately — one dead connection never breaks the rest of the calendar.',
+      title: 'Expiring and disconnected accounts are caught early',
+      body: 'Warnings start before a known connection expiry. If a connection dies, Publishly flags it, stops sending posts to that account, and keeps the rest of your calendar moving.',
     },
     {
       title: 'Flat pricing, unlimited accounts',
-      body: 'Plans are sized by how much you post, not how many accounts you run. From 5 accounts to 500 — same API, same flat price.',
+      body: 'Plans are sized by how much you post, not how many brand, client, or location accounts you manage. From 5 to 500 — same API, same flat price.',
     },
   ],
 
@@ -97,7 +127,7 @@ export const MARKETING = {
     },
     {
       title: 'A week planned in one sitting',
-      body: 'Month, week & day views with drag-and-drop rescheduling. Move a slot & the pipeline moves with it.',
+      body: 'Month, week, and day views with drag-and-drop rescheduling. Move a post and its real schedule updates with it.',
     },
     {
       title: 'CSV imports that explain every rejection',
@@ -108,15 +138,15 @@ export const MARKETING = {
   security: [
     {
       title: 'Tokens encrypted before they’re stored',
-      body: 'Your social account credentials are sealed with authenticated AES-256-GCM encryption before they touch the database.',
+      body: 'Your social account credentials are locked with industry-standard authenticated encryption before they are stored.',
     },
     {
       title: 'Every connection through the platform’s own front door',
-      body: 'Nine of the ten featured networks connect through their official OAuth flows & permission scopes. Bluesky offers no third-party OAuth, so it uses an app password you generate & revoke in Bluesky itself — never your account password. No browser automation anywhere.',
+      body: 'Nine of the ten featured networks use the platform’s official connect and permission screens. Bluesky uses a separate app password you create and revoke inside Bluesky — never your account password. Publishly does not automate a browser login.',
     },
     {
-      title: 'API keys you scope & revoke',
-      body: 'Programmatic access uses hashed, scope-limited keys you can revoke at any time. Keys are shown once & never stored in recoverable form.',
+      title: 'API keys you can limit and revoke',
+      body: 'Give each key only the access it needs and revoke it at any time. A full key is shown once and is never stored in a form Publishly can reveal later.',
     },
     {
       title: 'An audit trail that answers questions',
@@ -152,16 +182,19 @@ export const MARKETING = {
   // Direct operator-to-operator lines, used as section leads & fact blocks.
   copyBank: {
     silent: 'Nothing fails silently. Ever.',
-    watch: 'You can’t watch 200 accounts. Publishly does.',
-    receipt: 'Every post gets a delivery receipt. Every failure gets a webhook.',
+    watch: 'You can’t watch 200 client and brand accounts. Publishly does.',
+    receipt:
+      'Every post gets a delivery receipt. Every failure gets a webhook.',
     token: 'Know a token’s dying before your post does.',
     tax: 'Stop paying a tax on your own growth.',
-    alert: 'The post failed. You already got the alert — and the retry is already scheduled.',
-    punish: 'Per-profile pricing is a punishment for winning. We don’t do that.',
+    alert:
+      'The post failed. You already got the alert — and the retry is already scheduled.',
+    punish:
+      'Per-profile pricing is a punishment for winning. We don’t do that.',
     calendar: 'One dead account shouldn’t break your whole content calendar.',
-    fleet: 'Built for the person running 50 brands, not one.',
+    scale: 'Built for the person running 50 brands, not one.',
     client: 'Find the broken connection before your client does.',
-    same: 'From 5 accounts to 500 — same API, same flat price.',
+    same: 'From 5 brand or client accounts to 500 — same API, same flat price.',
   },
 
   openSource: {
@@ -170,5 +203,5 @@ export const MARKETING = {
   },
 
   footerNote:
-    'No growth hacks, no engagement bots, no fake metrics — publishing treated like infrastructure, with receipts.',
+    'Proof for every post. A reason for every failure. No fake reliability claims.',
 } as const;

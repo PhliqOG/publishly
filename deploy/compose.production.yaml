@@ -1,0 +1,267 @@
+name: publishly
+
+x-app: &app
+  image: publishly:${PUBLISHLY_IMAGE_TAG:-local}
+  build:
+    context: ..
+    dockerfile: Dockerfile
+    args:
+      NEXT_PUBLIC_BACKEND_URL: https://${PUBLISHLY_DOMAIN}/api
+      BACKEND_INTERNAL_URL: http://backend:3000
+      NEXT_PUBLIC_BRAND_NAME: ${NEXT_PUBLIC_BRAND_NAME:-Publishly}
+      NEXT_PUBLIC_SOURCE_URL: ${NEXT_PUBLIC_SOURCE_URL}
+      NEXT_PUBLIC_SUPPORT_EMAIL: ${NEXT_PUBLIC_SUPPORT_EMAIL}
+      NEXT_PUBLIC_PRIVACY_EMAIL: ${NEXT_PUBLIC_PRIVACY_EMAIL}
+      NEXT_PUBLIC_LEGAL_ENTITY_NAME: ${NEXT_PUBLIC_LEGAL_ENTITY_NAME}
+      NEXT_PUBLIC_LEGAL_ENTITY_ADDRESS: ${NEXT_PUBLIC_LEGAL_ENTITY_ADDRESS}
+      NEXT_PUBLIC_LEGAL_EFFECTIVE_DATE: ${NEXT_PUBLIC_LEGAL_EFFECTIVE_DATE}
+      NEXT_PUBLIC_GOVERNING_LAW: ${NEXT_PUBLIC_GOVERNING_LAW}
+      NEXT_PUBLIC_UPLOAD_STATIC_DIRECTORY: /uploads
+      NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${PUBLISHLY_DOMAIN}
+      NEXT_PUBLIC_CHROME_EXTENSION_URL: ${NEXT_PUBLIC_CHROME_EXTENSION_URL:-}
+  env_file:
+    - ${PUBLISHLY_ENV_FILE:-../.env.production}
+  restart: unless-stopped
+  networks:
+    - app
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+      PUBLISHLY_DOMAIN: ${PUBLISHLY_DOMAIN}
+      PUBLISHLY_CADDY_ADDRESS: ${PUBLISHLY_CADDY_ADDRESS:-publishlyapi.com}
+      PUBLISHLY_CADDY_WWW_ADDRESS: ${PUBLISHLY_CADDY_WWW_ADDRESS:-www.publishlyapi.com}
+    ports:
+      - "${PUBLISHLY_BIND_ADDRESS:-0.0.0.0}:80:80"
+      - "${PUBLISHLY_BIND_ADDRESS:-0.0.0.0}:443:443"
+      - "${PUBLISHLY_BIND_ADDRESS:-0.0.0.0}:443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    networks:
+      - app
+    security_opt:
+      - no-new-privileges:true
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.7.2
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command:
+      [
+        "tunnel",
+        "--no-autoupdate",
+        "--config",
+        "/etc/cloudflared/config.yml",
+        "run",
+        "${CLOUDFLARE_TUNNEL_ID}",
+      ]
+    volumes:
+      - /opt/publishly/shared/cloudflared-credentials.json:/etc/cloudflared/credentials.json:ro
+      - ./cloudflared.config.yaml:/etc/cloudflared/config.yml:ro
+    depends_on:
+      caddy:
+        condition: service_started
+    networks:
+      - app
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+
+  frontend:
+    <<: *app
+    command: ["pnpm", "run", "start:prod:frontend"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4200/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+
+  backend:
+    <<: *app
+    command: ["pnpm", "run", "start:prod:backend"]
+    environment:
+      RUN_CRON: "true"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      # Provider discovery and Temporal module loading can take several minutes
+      # on a cold host. Successful checks still mark the service healthy early.
+      start_period: 15m
+
+  orchestrator:
+    <<: *app
+    command: ["pnpm", "run", "start:prod:orchestrator"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3002/health/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      # Workflow bundles and every provider queue initialize during the first
+      # worker start. Do not spend the failure budget during that cold load.
+      start_period: 15m
+
+  migrate:
+    <<: *app
+    command: ["pnpm", "run", "prisma-migrate-deploy"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: publishly
+      POSTGRES_USER: publishly
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U publishly -d publishly"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+
+  temporal-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: ${TEMPORAL_DATABASE_PASSWORD}
+    volumes:
+      - temporal-postgres-data:/var/lib/postgresql/data
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  temporal-elasticsearch:
+    image: elasticsearch:7.17.27
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    volumes:
+      - temporal-elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  temporal:
+    image: temporalio/auto-setup:1.28.1
+    restart: unless-stopped
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: ${TEMPORAL_DATABASE_PASSWORD}
+      POSTGRES_SEEDS: temporal-postgres
+      ENABLE_ES: "true"
+      ES_SEEDS: temporal-elasticsearch
+      ES_VERSION: v7
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/production.yaml
+    volumes:
+      - ./temporal.dynamicconfig.yaml:/etc/temporal/config/dynamicconfig/production.yaml:ro
+    depends_on:
+      temporal-postgres:
+        condition: service_healthy
+      temporal-elasticsearch:
+        condition: service_healthy
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD", "tctl", "--address", "localhost:7233", "cluster", "health"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  temporal-ui:
+    image: temporalio/ui:2.34.0
+    restart: unless-stopped
+    profiles: ["ops"]
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      temporal:
+        condition: service_healthy
+    networks:
+      - app
+
+volumes:
+  caddy-data:
+  caddy-config:
+  postgres-data:
+  redis-data:
+  temporal-postgres-data:
+  temporal-elasticsearch-data:
+
+networks:
+  app:
+    driver: bridge

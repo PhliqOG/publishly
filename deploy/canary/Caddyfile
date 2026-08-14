@@ -1,0 +1,25 @@
+:8080 {
+  encode zstd gzip
+
+  @api path /api/*
+  handle @api {
+    uri strip_prefix /api
+    reverse_proxy backend:3000
+  }
+
+  handle /healthz {
+    respond "healthy" 200
+  }
+
+  handle {
+    respond "not found" 404
+  }
+
+  header {
+    Cache-Control "no-store"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "no-referrer"
+    -Server
+  }
+}

@@ -8,7 +8,7 @@ import {
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
 export const metadata: Metadata = {
-  title: 'Security',
+  title: 'Publishly security for social accounts and client workspaces',
   description:
     'How your social credentials are stored, used & destroyed — stated plainly, with the source available to check.',
   alternates: { canonical: '/security' },
@@ -36,7 +36,7 @@ const DD: CSSProperties = {
 const BOUNDARIES = [
   {
     h: 'One workspace never sees another',
-    p: 'Every workspace’s data is scoped at the query layer & covered by automated cross-tenant access tests that run against the real API.',
+    p: 'Every data request checks the workspace it belongs to. Automated tests prove that one customer cannot read or change another customer’s private data.',
   },
   {
     h: 'Roles decide, the audit log records',
@@ -49,7 +49,7 @@ const BOUNDARIES = [
 ];
 
 const STATEMENT =
-  'Security here is mostly subtraction — fewer copies of each credential, narrower scopes on every key & a written record of everything that touched them.';
+  'Security here is mostly subtraction — fewer copies of each credential, less access on every key, and a written record of what changed.';
 
 export default function SecurityPage() {
   return (
@@ -69,9 +69,9 @@ export default function SecurityPage() {
                 How your keys are held.
               </h1>
               <p className="mk-section-lede">
-                A scheduler holds credentials to your audience. This page
-                states plainly how they&rsquo;re stored, how they&rsquo;re
-                used & how they&rsquo;re destroyed.
+                A scheduler holds credentials to your audience. This page states
+                plainly how they&rsquo;re stored, how they&rsquo;re used & how
+                they&rsquo;re destroyed.
               </p>
             </div>
           </div>
@@ -87,10 +87,7 @@ export default function SecurityPage() {
                 Not aspirations — descriptions of how the system works today.
               </p>
             </div>
-            <dl
-              className="mk-rows mk-reveal"
-              style={{ margin: '44px 0 0' }}
-            >
+            <dl className="mk-rows mk-reveal" style={{ margin: '44px 0 0' }}>
               {MARKETING.security.map((item) => (
                 <div className="mk-row" key={item.title}>
                   <dt style={DT}>{item.title}</dt>
@@ -118,11 +115,11 @@ export default function SecurityPage() {
             <div className="mk-split">
               <div>
                 <h2 id="sec-boundaries" className="mk-h2">
-                  Where the walls are.
+                  How client data stays separated.
                 </h2>
                 <p className="mk-section-lede">
-                  Isolation is structural — the boundaries live in the
-                  queries & the tests, not in a policy document.
+                  The separation is enforced every time data is read or changed,
+                  and tested against the real API.
                 </p>
               </div>
               <dl className="mk-rows" style={{ margin: 0 }}>

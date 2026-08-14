@@ -65,4 +65,12 @@ export class AnalyticsSnapshotRepository {
       data: JSON.parse(r.data),
     }));
   }
+
+  prune(organizationId: string, retentionDays: number) {
+    const before = new Date();
+    before.setUTCDate(before.getUTCDate() - Math.max(1, retentionDays));
+    return this._snapshot.model.analyticsSnapshot.deleteMany({
+      where: { organizationId, day: { lt: before } },
+    });
+  }
 }

@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "updated": "2026-08-14",
+  "productName": "Publishly",
+  "publicDescription": "Publishly is a social publishing and scheduling service for agencies, multi-brand and multi-location operators, and creator teams. A user explicitly connects accounts they are authorized to manage, composes or schedules content, and receives per-destination delivery receipts, classified failure reasons, and connection-health alerts.",
+  "callbackPattern": "/integrations/social/{provider}",
+  "providers": [
+    {
+      "id": "instagram",
+      "name": "Instagram",
+      "authModel": "Meta OAuth through Facebook Login for Business, with a separate Instagram Login option",
+      "reviewPath": "Meta App Review plus business verification for advanced access",
+      "callback": "/integrations/social/instagram",
+      "additionalCallbacks": ["/integrations/social/instagram-standalone"],
+      "requiredEnv": ["FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET"],
+      "optionalEnv": ["INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET"],
+      "sourceFiles": [
+        "libraries/nestjs-libraries/src/integrations/social/instagram.provider.ts",
+        "libraries/nestjs-libraries/src/integrations/social/instagram.standalone.provider.ts"
+      ],
+      "scopes": [
+        "instagram_basic",
+        "pages_show_list",
+        "pages_read_engagement",
+        "business_management",
+        "instagram_content_publish",
+        "instagram_manage_comments",
+        "instagram_manage_messages",
+        "instagram_manage_insights",
+        "pages_manage_metadata"
+      ],
+      "additionalPermissionSets": [
+        {
+          "label": "Instagram Login",
+          "scopes": [
+            "instagram_business_basic",
+            "instagram_business_content_publish",
+            "instagram_business_manage_comments",
+            "instagram_business_manage_messages",
+            "instagram_business_manage_insights"
+          ]
+        }
+      ],
+      "permissionPurpose": "Find professional Instagram accounts the user manages; publish and confirm approved media; display comments and insights; and read or reply to customer-initiated Instagram conversations through the official Conversations API.",
+      "reviewEvidence": "Connect a reviewer-owned professional Instagram account, publish one post, open its receipt/live URL, show comments and insights, then have a reviewer-owned customer account initiate a DM and demonstrate the inbox plus one reply inside Meta's response window.",
+      "limitations": "Only professional accounts are supported. Facebook Login accounts must be linked to a Page. Direct-message replies are limited to customer-initiated conversations and Meta's 24-hour response window; group messaging and unsolicited outbound DMs are unavailable.",
+      "officialDocs": [
+        "https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/content-publishing",
+        "https://developers.facebook.com/docs/app-review/"
+      ]
+    },
+    {
+      "id": "facebook",
+      "name": "Facebook",
+      "authModel": "Meta OAuth through Facebook Login",
+      "reviewPath": "Meta App Review plus business verification for advanced access",
+      "callback": "/integrations/social/facebook",
+      "requiredEnv": ["FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET"],
+      "sourceFiles": [
+        "libraries/nestjs-libraries/src/integrations/social/facebook.provider.ts"
+      ],
+      "scopes": [
+        "pages_show_list",
+        "business_management",
+        "pages_manage_posts",
+        "pages_manage_engagement",
+        "pages_read_engagement",
+        "read_insights"
+      ],
+      "permissionPurpose": "Discover Pages and business-owned/client Pages the user manages; publish Page posts and stories; confirm posts; read/reply to Page comments; display Page and post insights.",
+      "reviewEvidence": "Connect a reviewer-owned Page, select it, publish and confirm one Page post, display and reply to a comment, then open Page/post analytics. Show business/client Page selection to justify business_management.",
+      "limitations": "Publishly posts only to Pages for which the authorizing user has the required Page task; it does not post to personal profiles.",
+      "officialDocs": [
+        "https://developers.facebook.com/docs/pages-api/posts/",
+        "https://developers.facebook.com/docs/app-review/"
+      ]
+    },
+    {
+      "id": "tiktok",
+      "name": "TikTok",
+      "authModel": "TikTok Login Kit OAuth",
+      "reviewPath": "TikTok app review and Content Posting API Direct Post audit",
+      "callback": "/integrations/social/tiktok",
+      "requiredEnv": ["TIKTOK_CLIENT_ID", "TIKTOK_CLIENT_SECRET"],
+      "sourceFiles": [
+        "libraries/nestjs-libraries/src/integrations/social/tiktok.provider.ts"
+      ],
+      "scopes": [
+        "video.list",
+        "user.info.basic",
+        "video.publish",
+        "video.upload",
+        "user.info.profile",
+        "user.info.stats"
+      ],
+      "permissionPurpose": "Identify the creator and show profile/stat context; upload or directly publish user-approved media; poll processing; list the creator's posts to confirm delivery.",
+      "reviewEvidence": "Show login and consent, current creator nickname/capabilities, no-default privacy choice, preview, interaction/disclosure controls, mandatory consent, direct publish, processing state, confirmed receipt, and the same post in video list/profile analytics.",
+      "limitations": "Before Direct Post audit, TikTok forces SELF_ONLY and low user/post caps. Publishly surfaces that state and never describes a private-only post as public.",
+      "officialDocs": [
+        "https://developers.tiktok.com/doc/content-sharing-guidelines/",
+        "https://developers.tiktok.com/doc/app-review-guidelines?enter_method=left_navigation",
+        "https://developers.tiktok.com/doc/content-posting-api-media-transfer-guide",
+        "https://developers.tiktok.com/doc/content-posting-api-reference-query-creator-info",
+        "https://developers.tiktok.com/doc/content-posting-api-reference-direct-post",
+        "https://developers.tiktok.com/doc/content-posting-api-reference-upload-video",
+        "https://developers.tiktok.com/doc/content-posting-api-reference-photo-post/",
+        "https://developers.tiktok.com/doc/content-posting-api-reference-get-video-status",
+        "https://developers.tiktok.com/doc/tiktok-api-scopes",
+        "https://developers.tiktok.com/doc/oauth-user-access-token-management"
+      ]
+    },
+    {
+      "id": "youtube",
+      "name": "YouTube",
+      "authModel": "Google OAuth 2.0 web-server flow",
+      "reviewPath": "Google OAuth verification for sensitive scopes; YouTube quota/compliance audit when requesting more quota",
+      "callback": "/integrations/social/youtube",
+      "requiredEnv": ["YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET"],
+      "sourceFiles": [
+        "libraries/nestjs-libraries/src/integrations/social/youtube.provider.ts"
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "https://www.googleapis.com/auth/youtube.readonly",
+        "https://www.googleapis.com/auth/youtube.upload",
+        "https://www.googleapis.com/auth/yt-analytics.readonly"
+      ],
+      "permissionPurpose": "Name the connected channel; upload user-scheduled videos; independently read the uploaded video/channel to confirm delivery; display the user's YouTube Analytics.",
+      "reviewEvidence": "Show the English Google consent screen with every requested scope, connect a test channel, upload a video, open the confirmed receipt/live URL and analytics, then disconnect and demonstrate programmatic Google token revocation and local data removal.",
+      "limitations": "Default YouTube Data API quota is finite; higher-volume production requires a successful YouTube compliance audit and quota extension.",
+      "officialDocs": [
+        "https://support.google.com/cloud/answer/13464321?hl=en",
+        "https://support.google.com/cloud/answer/13463073?hl=en-GB",
+        "https://developers.google.com/youtube/v3/guides/quota_and_compliance_audits"
+      ]
+    },
+    {
+      "id": "x",
+      "name": "X",
+      "authModel": "OAuth 1.0a user context",
+      "reviewPath": "Self-service X developer account/project setup and funded API access",
+      "callback": "/integrations/social/x",
+      "requiredEnv": ["X_API_KEY", "X_API_SECRET"],
+      "sourceFiles": [
+        "libraries/nestjs-libraries/src/integrations/social/x.provider.ts"
+      ],
+      "scopes": [],
+      "appPermissions": ["Read and write"],
+      "permissionPurpose": "Create and read posts for the authorizing account. Direct-message access is not requested.",
+      "reviewEvidence": "Show the app configured Read and write with the exact production callback, connect the test account, publish once, and open the confirmed post URL.",
+      "limitations": "The operator must fund API credits and configure a spend limit. User access tokens may be revoked even though they have no fixed expiry.",
+      "officialDocs": [
+        "https://docs.x.com/fundamentals/developer-apps",
+        "https://docs.x.com/x-api/posts/create-post"
+      ]
+    },
+    {
+      "id": "threads",
+      "name": "Threads",
+      "authModel": "Threads OAuth",
+      "reviewPath": "Meta App Review for requested Threads permissions",
+      "callback": "/integrations/social/threads",
+      "requiredEnv": ["THREADS_APP_ID", "THREADS_APP_SECRET"],
+      "sourceFiles": [
+        "libraries/nestjs-libraries/src/integrations/social/threads.provider.ts"
+      ],
+      "scopes": [
+        "threads_basic",
+        "threads_content_publish",
+        "threads_manage_replies",
+        "threads_manage_insights"
+      ],
+      "permissionPurpose": "Identify the Threads profile; publish and confirm posts; manage replies initiated through the product; display profile/post insights.",
+      "reviewEvidence": "Connect a reviewer account, publish and confirm a thread, show reply management, and open profile/post insights.",
+      "limitations": "Only accounts and actions authorized through the official Threads flow are supported.",
+      "officialDocs": [
+        "https://developers.facebook.com/docs/threads/threads-api"
+      ]
+    },
+    {
+      "id": "linkedin",
+      "name": "LinkedIn",
+      "authModel": "LinkedIn OAuth 2.0 / OpenID Connect",
+      "reviewPath": "Self-serve Share on LinkedIn for members; Community Management Development then Standard tier for Pages",
+      "callback": "/integrations/social/linkedin",
+      "additionalCallbacks": ["/integrations/social/linkedin-page"],
+      "requiredEnv": ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"],
+      "sourceFiles": [
+        "libraries/nestjs-libraries/src/integrations/social/linkedin.provider.ts",
+        "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts"
+      ],
+      "scopes": [
+        "openid",
+        "profile",
+        "w_member_social",
+        "rw_organization_admin",
+        "w_organization_social",
+        "r_organization_social"
+      ],
+      "permissionPurpose": "Identify the member and publish member posts; for separately reviewed Page access, find Pages the user administers, publish/confirm organization posts, and show organization analytics.",
+      "reviewEvidence": "Record separate member and Page journeys. For Standard tier provide a live integrated app, test credentials, narrated high-resolution OAuth/Page-post/comment-and-analytics recording, and explicitly identify any absent Community Management features.",
+      "limitations": "Do not submit Community Management Standard access until the live Page flow and evidence are complete; a rejected application cannot simply reapply.",
+      "officialDocs": [
+        "https://learn.microsoft.com/en-us/linkedin/marketing/community-management-app-review?view=li-lms-2026-01",
+        "https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/share-on-linkedin"
+      ]
+    },
+    {
+      "id": "pinterest",
+      "name": "Pinterest",
+      "authModel": "Pinterest OAuth 2.0",
+      "reviewPath": "Trial access followed by Standard access review",
+      "callback": "/integrations/social/pinterest",
+      "requiredEnv": ["PINTEREST_CLIENT_ID", "PINTEREST_CLIENT_SECRET"],
+      "sourceFiles": [
+        "libraries/nestjs-libraries/src/integrations/social/pinterest.provider.ts"
+      ],
+      "scopes": [
+        "boards:read",
+        "pins:read",
+        "pins:write",
+        "user_accounts:read"
+      ],
+      "permissionPurpose": "Identify the business account, list its boards, create/read Pins, confirm delivery, and display Pin analytics.",
+      "reviewEvidence": "From a live HTTPS product, show exact OAuth redirect and consent, list a test board, create a Pin, open its confirmed URL, and display its analytics.",
+      "limitations": "Trial-created Pins and Boards are creator-only sandbox data; public production use needs Standard access.",
+      "officialDocs": [
+        "https://developers.pinterest.com/docs/key-concepts/access-tiers/",
+        "https://developers.pinterest.com/docs/getting-started/set-up-authentication-and-authorization/"
+      ]
+    },
+    {
+      "id": "bluesky",
+      "name": "Bluesky",
+      "authModel": "Per-user revocable Bluesky App Password",
+      "reviewPath": "No central developer app review",
+      "callback": null,
+      "requiredEnv": [],
+      "sourceFiles": [
+        "libraries/nestjs-libraries/src/integrations/social/bluesky.provider.ts"
+      ],
+      "scopes": [],
+      "permissionPurpose": "Create posts on the user's own PDS session using a dedicated app password; the account password is never requested.",
+      "reviewEvidence": "Create a dedicated App Password with account security left enabled, connect, publish a canary, then revoke that App Password in Bluesky settings.",
+      "limitations": "There is no operator app secret or approval. PDS hosts are user-selected and validated against SSRF before server requests.",
+      "officialDocs": [
+        "https://bsky.social/about/blog/5-19-2023-user-faq",
+        "https://docs.bsky.app/docs/get-started"
+      ]
+    },
+    {
+      "id": "mastodon",
+      "name": "Mastodon",
+      "authModel": "Dynamic per-instance OAuth application registration",
+      "reviewPath": "No central review; the selected Mastodon server registers the app",
+      "callback": "/integrations/social/mastodon",
+      "requiredEnv": [],
+      "sourceFiles": [
+        "libraries/nestjs-libraries/src/integrations/social/mastodon.custom.provider.ts",
+        "libraries/nestjs-libraries/src/integrations/social/mastodon.provider.ts"
+      ],
+      "scopes": ["profile", "write:statuses", "write:media"],
+      "permissionPurpose": "Verify the account and publish statuses/media on the user-selected instance. Client credentials are created per instance and encrypted with the connection.",
+      "reviewEvidence": "Enter a public test instance, dynamically register, authorize the exact granular scopes, publish and confirm a canary, then disconnect.",
+      "limitations": "Instance policies and rate limits vary; Publishly does not claim one global Mastodon application or aggregate Mastodon analytics.",
+      "officialDocs": [
+        "https://docs.joinmastodon.org/methods/apps/",
+        "https://docs.joinmastodon.org/client/authorized/"
+      ]
+    }
+  ]
+}

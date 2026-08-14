@@ -17,14 +17,18 @@ import {
 export const metadata: Metadata = {
   title: 'Ayrshare alternative — Publishly vs Ayrshare',
   description:
-    'Looking for an Ayrshare alternative? At published rates, Ayrshare works out to $1,228.30/mo at 100 profiles; Publishly’s Growth plan is $99/mo with unlimited connected accounts. The full side-by-side, from official pricing pages — last checked 2026-08-10.',
-  keywords: ['ayrshare alternative', 'ayrshare pricing', 'ayrshare vs publishly'],
+    'Looking for an Ayrshare alternative? At published monthly rates, Ayrshare works out to $1,228.30 at 100 profiles; Publishly Growth is $99 with unlimited accounts. Facts checked 2026-08-11.',
+  keywords: [
+    'ayrshare alternative',
+    'ayrshare pricing',
+    'ayrshare vs publishly',
+  ],
   alternates: { canonical: '/compare/ayrshare' },
 };
 
 // Competitor numbers: data/claim-provenance.json (ayrshare-100-profiles,
-// retrieved 2026-08-10). Publishly numbers: data/public-product-facts.json.
-const CHECKED = '2026-08-10';
+// retrieved 2026-08-11). Publishly numbers: data/public-product-facts.json.
+const CHECKED = '2026-08-11';
 
 const ROWS: string[][] = [
   [
@@ -33,7 +37,7 @@ const ROWS: string[][] = [
     'Per-profile — Business $599/mo incl. 30 profiles, then $8.99/profile/mo',
   ],
   [
-    'Cost at 100 accounts',
+    'Cost at 100 brand or client accounts',
     '$99/mo Growth (unlimited accounts, 15k posts)',
     '$1,228.30/mo (published rates, monthly billing)',
   ],
@@ -44,23 +48,23 @@ const ROWS: string[][] = [
   ],
   [
     'Failure webhooks',
-    'Yes — signed post.failure webhook with reason, class & retry status',
-    'Not published',
+    'Signed event with reason, retry decision, and attempt number',
+    'Scheduled-post webhook reports success or failure; immediate posts return the result',
   ],
   [
-    'Delivery receipts',
-    'Yes — per-destination state history + stored live post URL',
-    'Not published',
+    'Proof of delivery',
+    'Per-account history plus the confirmed live link',
+    'Per-platform result includes IDs and links; TikTok has a live-confirmation event',
   ],
   [
     'Automatic retries',
-    'Yes — backoff retries that never double-post',
-    'Not published',
+    'Temporary problems retry safely without resending successful accounts',
+    'Public error guide tells customers to retry failed platforms; no general automatic retry promise found',
   ],
   [
-    'Token-expiry alerts',
-    'Yes — alert + email the moment a token refresh fails',
-    'Not published',
+    'Connection warnings',
+    'Warnings before known expiry plus reconnect alerts',
+    'Social Action webhook reports link and unlink events; no pre-expiry warning schedule found',
   ],
   ['API-first', 'Yes — public API on every plan', 'Yes — API-first product'],
 ];
@@ -68,11 +72,11 @@ const ROWS: string[][] = [
 const FAQ = [
   {
     q: 'What is the best Ayrshare alternative?',
-    a: 'It depends on what you’re replacing. If the pain is per-profile pricing across many brands or clients, Publishly is built for that case: flat plans sized by post volume, unlimited connected accounts, a delivery receipt per destination, and a signed webhook on every failure. If you need the broadest network list or a long enterprise track record, Ayrshare itself remains a strong choice.',
+    a: 'It depends on what you’re replacing. If the pain is per-profile pricing across many brands or clients, Publishly is built for that case: flat plans sized by post volume, unlimited connected accounts, a delivery receipt per destination, and an alert on every failure. If Ayrshare has a specific network or capability your workflow needs, or you need a longer vendor track record, Ayrshare remains a strong choice.',
   },
   {
     q: 'How much does Ayrshare cost for 100 profiles?',
-    a: 'At Ayrshare’s published Business rates, 100 profiles work out to $1,228.30 per month: a $599 base that includes 30 profiles, plus 70 additional profiles at $8.99 each (monthly billing, checked 2026-08-10).',
+    a: 'At Ayrshare’s published Business rates, 100 profiles work out to $1,228.30 per month: a $599 base that includes 30 profiles, plus 70 additional profiles at $8.99 each (monthly billing, checked 2026-08-11).',
   },
   {
     q: 'Does Ayrshare charge per profile?',
@@ -90,7 +94,10 @@ export default function CompareAyrsharePage() {
             <span className="mk-eyebrow" style={{ display: 'block' }}>
               Compare
             </span>
-            <h1 className="mk-h2-lg" style={{ marginTop: 18, maxWidth: '18ch' }}>
+            <h1
+              className="mk-h2-lg"
+              style={{ marginTop: 18, maxWidth: '18ch' }}
+            >
               Publishly vs Ayrshare
             </h1>
             <p className="mk-section-lede">
@@ -102,12 +109,12 @@ export default function CompareAyrsharePage() {
             <QuickAnswer>
               Ayrshare bills per profile: at published rates, 100 profiles work
               out to $1,228.30/mo. Publishly’s plans are sized by post volume
-              with unlimited connected accounts — 100 accounts fit the $99/mo
-              Growth plan. Choose Ayrshare for its broader network list and
-              enterprise history; choose Publishly for flat pricing and
-              per-post failure visibility.
+              with unlimited connected accounts — 100 brand or client accounts
+              fit the $99/mo Growth plan. Choose Ayrshare when its exact
+              platform mix or enterprise history fits your needs; choose
+              Publishly for flat pricing and a clear result for every post.
             </QuickAnswer>
-            <Byline published="2026-08-10" updated="2026-08-10" />
+            <Byline published="2026-08-10" updated="2026-08-11" />
           </div>
         </header>
 
@@ -141,7 +148,10 @@ export default function CompareAyrsharePage() {
           </div>
         </section>
 
-        <section className="mk-section mk-section-tint" aria-labelledby="ay-table">
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="ay-table"
+        >
           <div className="mk-container">
             <h2 id="ay-table" className="mk-h2">
               Side by side.
@@ -152,7 +162,30 @@ export default function CompareAyrsharePage() {
               rows={ROWS}
             />
             <LastChecked date={CHECKED} />
-            <div style={{ marginTop: 14 }}>
+            <div
+              style={{
+                marginTop: 14,
+                display: 'flex',
+                gap: 22,
+                flexWrap: 'wrap',
+              }}
+            >
+              <a
+                href="https://www.ayrshare.com/pricing/"
+                className="mk-arrow"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Ayrshare pricing source
+              </a>
+              <a
+                href="https://www.ayrshare.com/docs/apis/webhooks/overview"
+                className="mk-arrow"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Ayrshare webhook source
+              </a>
               <Link href="/methodology/api-comparisons" className="mk-arrow">
                 How we compare
               </Link>
@@ -178,8 +211,8 @@ export default function CompareAyrsharePage() {
                     record — Publishly is new and self-served.
                   </li>
                   <li>
-                    You need networks beyond Publishly’s 10 — Ayrshare
-                    publishes a broader network list.
+                    Ayrshare lists a specific network or publishing feature your
+                    brand or client workflow requires.
                   </li>
                   <li>
                     Your rollout runs through procurement and expects a long
@@ -199,8 +232,8 @@ export default function CompareAyrsharePage() {
                     contracting rather than self-serve.
                   </li>
                   <li>
-                    Your workflow depends on networks beyond the 10 Publishly
-                    posts to.
+                    Your workflow depends on a network or format that is not in
+                    Publishly&rsquo;s verified capability pages.
                   </li>
                 </ul>
               </div>
@@ -211,12 +244,13 @@ export default function CompareAyrsharePage() {
         <section className="mk-quiet">
           <div className="mk-container">
             <h2 className="mk-h2" style={{ margin: '0 auto' }}>
-              The bill that grows with every win.
+              The honest reliability difference.
             </h2>
             <p>
-              Ayrshare is a mature, well-documented API — and per-profile
-              pricing means your bill grows with every win. Publishly’s
-              doesn’t.
+              Ayrshare does report scheduled-post failures. Publishly&rsquo;s
+              difference is the full next step: classify the problem, decide
+              whether a retry is safe, alert you, and keep one receipt through
+              the final confirmed result.
             </p>
           </div>
         </section>
@@ -226,10 +260,10 @@ export default function CompareAyrsharePage() {
         <section style={{ padding: '8px 0 112px' }}>
           <div className="mk-container">
             <div className="mk-cta-panel">
-              <h2 className="mk-h2">Add the 101st account for $0.</h2>
+              <h2 className="mk-h2">Add the next client account for $0.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                Flat plans sized by post volume, delivery receipts on every
-                post, and a signed webhook the moment one fails.
+                Flat plans based on successful posts, proof for every account,
+                and a clear next step when something fails.
               </p>
               <div className="mk-hero-ctas">
                 <Link

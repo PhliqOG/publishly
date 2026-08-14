@@ -1,0 +1,30 @@
+{
+  "name": "watchEvents",
+  "label": "Watch delivery and health events",
+  "description": "Triggers when a signed Publishly post, token, connection, or platform-truth event occurs.",
+  "type": "instant-trigger",
+  "connection": "publishly",
+  "webhook": "publishlyEvents",
+  "staticParameters": [],
+  "communication": {},
+  "interface": [
+    { "name": "specversion", "label": "Spec version", "type": "text" },
+    { "name": "id", "label": "Stable event ID", "type": "text" },
+    { "name": "type", "label": "Event type", "type": "text" },
+    { "name": "time", "label": "Occurred at", "type": "date" },
+    { "name": "data", "label": "Event data", "type": "collection" }
+  ],
+  "samples": {
+    "specversion": "1.0",
+    "id": "post.receipt:stable-id",
+    "type": "post.receipt",
+    "time": "2026-08-10T13:00:00.000Z",
+    "data": {
+      "postId": "post-id",
+      "integrationId": "connection-id",
+      "provider": "instagram",
+      "stage": "confirmed_live",
+      "attempt": 1
+    }
+  }
+}

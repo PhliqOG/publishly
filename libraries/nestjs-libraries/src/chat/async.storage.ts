@@ -4,6 +4,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 type Ctx = {
   requestId: string;
   auth: any; // replace with your org type if you have it, e.g. Organization
+  scopes?: string[];
+  authKind?: 'oauth' | 'api_key' | 'legacy';
 };
 
 const als = new AsyncLocalStorage<Ctx>();
@@ -22,4 +24,12 @@ export function getAuth<T = any>(): T | undefined {
 
 export function getRequestId(): string | undefined {
   return als.getStore()?.requestId;
+}
+
+export function getScopes(): string[] | undefined {
+  return als.getStore()?.scopes;
+}
+
+export function getAuthKind(): Ctx['authKind'] | undefined {
+  return als.getStore()?.authKind;
 }

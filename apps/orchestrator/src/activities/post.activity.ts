@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { withOpenToken } from '@gitroom/helpers/auth/crypto.v2';
 import {
   Activity,
@@ -10,21 +10,29 @@ import {
   NotificationService,
   NotificationType,
 } from '@gitroom/nestjs-libraries/database/prisma/notifications/notification.service';
-import { Integration, Post, State } from '@prisma/client';
+import { Integration, Post, PublishingJobState, State } from '@prisma/client';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { AuthTokenDetails } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
 import { timer } from '@gitroom/helpers/utils/timer';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
-import { WebhooksService } from '@gitroom/nestjs-libraries/database/prisma/webhooks/webhooks.service';
-import { getSsrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { TypedSearchAttributes } from '@temporalio/common';
 import {
   organizationId,
   postId as postIdSearchParam,
 } from '@gitroom/nestjs-libraries/temporal/temporal.search.attribute';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
+import { PublishingRetryService } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-retry.service';
+import { AccountPublishingQueueService } from '@gitroom/nestjs-libraries/database/prisma/account-queue/account-publishing-queue.service';
+import { AccountQueueReleaseOutcome } from '@gitroom/nestjs-libraries/database/prisma/account-queue/account-publishing-queue.repository';
+import {
+  PublishingAttemptService,
+  V109AttemptContext,
+} from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-attempt.service';
+import { ProviderTransient } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import { BulkCampaignExecutionService } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/bulk-campaign-execution.service';
+import { BulkUploadService } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/bulk-upload.service';
 
 // Drops fields the workflow and downstream activities never read — biggest wins are `error` (grows per retry) and `childrenPost` (Prisma side-loads it on every recursive row).
 function slimPost(post: any) {
@@ -53,18 +61,66 @@ function slimPost(post: any) {
   return rest;
 }
 
+const RECEIPT_CORRELATION_KEY = '__publishlyReceipt';
+
+function receiptCorrelation(pendingData: any): { postId: string } | undefined {
+  return pendingData && typeof pendingData === 'object'
+    ? pendingData[RECEIPT_CORRELATION_KEY]
+    : undefined;
+}
+
+function preserveReceiptCorrelation(
+  pendingData: any,
+  correlation?: { postId: string }
+) {
+  if (pendingData && typeof pendingData === 'object' && correlation?.postId) {
+    pendingData[RECEIPT_CORRELATION_KEY] = correlation;
+  }
+  return pendingData;
+}
+
+function restoreOpaquePrivateMedia(
+  value: unknown,
+  replacements: Array<{ hydrated: string; opaque: string }>,
+  depth = 0
+): any {
+  if (depth > 20) throw new Error('bulk_private_media_value_too_deep');
+  if (typeof value === 'string') {
+    return replacements.find((item) => item.hydrated === value)?.opaque || value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      restoreOpaquePrivateMedia(item, replacements, depth + 1)
+    );
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+        key,
+        restoreOpaquePrivateMedia(item, replacements, depth + 1),
+      ])
+    );
+  }
+  return value;
+}
+
 @Injectable()
 @Activity()
 export class PostActivity {
+  private readonly logger = new Logger(PostActivity.name);
   constructor(
     private _postService: PostsService,
     private _notificationService: NotificationService,
     private _integrationManager: IntegrationManager,
     private _integrationService: IntegrationService,
     private _refreshIntegrationService: RefreshIntegrationService,
-    private _webhookService: WebhooksService,
     private _temporalService: TemporalService,
-    private _subscriptionService: SubscriptionService
+    private _subscriptionService: SubscriptionService,
+    private _publishingRetryService: PublishingRetryService,
+    private _accountPublishingQueue: AccountPublishingQueueService,
+    private _publishingAttempts: PublishingAttemptService,
+    private _bulkCampaignExecution: BulkCampaignExecutionService,
+    private _bulkUploads: BulkUploadService
   ) {}
 
   @ActivityMethod()
@@ -73,12 +129,17 @@ export class PostActivity {
   }
 
   @ActivityMethod()
+  assertBulkCampaignDispatchGateV109(orgId: string, postId: string) {
+    return this._bulkCampaignExecution.assertDispatchGate(orgId, postId);
+  }
+
+  @ActivityMethod()
   async searchForMissingThreeHoursPosts() {
     const list = await this._postService.searchForMissingThreeHoursPosts();
     for (const post of list) {
       await this._temporalService.client
         .getRawClient()
-        .workflow.signalWithStart('postWorkflowV106', {
+        .workflow.signalWithStart('postWorkflowV109', {
           workflowId: `post_${post.id}`,
           taskQueue: 'main',
           signal: 'poke',
@@ -105,6 +166,21 @@ export class PostActivity {
           ]),
         });
     }
+  }
+
+  @ActivityMethod()
+  retryDuePublishingQueuesV108() {
+    return this._postService.retryDuePublishingQueuesV108();
+  }
+
+  @ActivityMethod()
+  async materializeDueBulkCampaignJobsV101() {
+    if (process.env.BULK_SCHEDULER_MATERIALIZER_ENABLED !== 'true') {
+      return { disabled: true, claimed: 0, materialized: 0, failed: 0 };
+    }
+    const uploads = await this._bulkUploads.processBatch();
+    const campaigns = await this._bulkCampaignExecution.runMaintenanceCycle();
+    return { uploads, campaigns };
   }
 
   @ActivityMethod()
@@ -180,7 +256,7 @@ export class PostActivity {
       posts
     );
 
-    return getIntegration.comment(
+    const results = await getIntegration.comment(
       integration.internalId,
       postId,
       lastPostId,
@@ -200,12 +276,17 @@ export class PostActivity {
           media: await this._postService.updateMedia(
             p.id,
             JSON.parse(p.image || '[]'),
-            getIntegration?.convertToJPEG || false
+            getIntegration?.convertToJPEG || false,
+            integration.organizationId
           ),
         }))
       ),
       openedIntegration
     );
+    for (const result of results || []) {
+      await this.recordSentReceipt(integration, result, false);
+    }
+    return results;
   }
 
   @ActivityMethod()
@@ -222,10 +303,20 @@ export class PostActivity {
     return this.postSocialInternal(integration, posts, true);
   }
 
+  @ActivityMethod()
+  async postSocialPendingV109(
+    integration: Integration,
+    posts: Post[],
+    attemptContext: V109AttemptContext
+  ) {
+    return this.postSocialInternal(integration, posts, true, attemptContext);
+  }
+
   private async postSocialInternal(
     integration: Integration,
     posts: Post[],
-    allowPending: boolean
+    allowPending: boolean,
+    attemptContext?: V109AttemptContext
   ) {
     if (process.env.STRIPE_SECRET_KEY) {
       const subscription = await this._subscriptionService.getSubscription(
@@ -248,40 +339,127 @@ export class PostActivity {
       posts
     );
 
-    const mappedPosts = await Promise.all(
-      (newPosts || []).map(async (p) => ({
-        id: p.id,
-        message: stripHtmlValidation(
-          getIntegration.editor,
-          p.content,
-          true,
-          false,
-          !/<\/?[a-z][\s\S]*>/i.test(p.content),
-          getIntegration.mentionFormat
-        ),
-        settings: JSON.parse(p.settings || '{}'),
-        media: await this._postService.updateMedia(
+    const replacements: Array<{ hydrated: string; opaque: string }> = [];
+    const preparedPosts = await Promise.all(
+      (newPosts || []).map(async (p) => {
+        const media = await this._postService.updateMedia(
           p.id,
           JSON.parse(p.image || '[]'),
-          getIntegration?.convertToJPEG || false
-        ),
-      }))
+          getIntegration?.convertToJPEG || false,
+          integration.organizationId
+        );
+        const base = {
+          id: p.id,
+          message: stripHtmlValidation(
+            getIntegration.editor,
+            p.content,
+            true,
+            false,
+            !/<\/?[a-z][\s\S]*>/i.test(p.content),
+            getIntegration.mentionFormat
+          ),
+          settings: JSON.parse(p.settings || '{}'),
+          media,
+        };
+        const hydrated = await this._postService.hydratePublishingValue(
+          integration.organizationId,
+          p.id,
+          base
+        );
+        return { base, hydrated };
+      })
+    );
+    const attemptPosts = preparedPosts.map((item) => item.base);
+    const mappedPosts = preparedPosts.map((item) => item.hydrated.value);
+    preparedPosts.forEach((item) =>
+      replacements.push(...item.hydrated.replacements)
     );
 
-    const postNow =
-      allowPending && getIntegration.postPending
-        ? await getIntegration.postPending(
-            integration.internalId,
-            openedIntegration.token,
-            mappedPosts,
-            openedIntegration
-          )
-        : await getIntegration.post(
-            integration.internalId,
-            openedIntegration.token,
-            mappedPosts,
-            openedIntegration
-          );
+    let ledger:
+      | Awaited<ReturnType<PublishingAttemptService['beginMutation']>>
+      | undefined;
+    if (attemptContext) {
+      ledger = await this._publishingAttempts.beginMutation({
+        organizationId: integration.organizationId,
+        postId: posts[0].id,
+        provider: integration.providerIdentifier,
+        posts: attemptPosts,
+        context: attemptContext,
+      });
+      if (ledger.terminalReplay) {
+        const acceptedResults =
+          ledger.attempt.state === 'ACCEPTED'
+            ? this._publishingAttempts.acceptedReplayResults(ledger.attempt)
+            : null;
+        if (acceptedResults) return acceptedResults;
+        if (
+          ledger.attempt.state === 'ACCEPTED' &&
+          ledger.attempt.providerPostId &&
+          ledger.attempt.providerUrl
+        ) {
+          return [
+            {
+              id: posts[0].id,
+              postId: ledger.attempt.providerPostId,
+              releaseURL: ledger.attempt.providerUrl,
+              status: 'success',
+            },
+          ];
+        }
+        throw new Error('publishing_mutation_attempt_requires_reconciliation');
+      }
+      await this._publishingAttempts.markMutationInvoked({
+        organizationId: integration.organizationId,
+        postId: posts[0].id,
+        attemptId: ledger.attempt.id,
+        mutationFingerprint: ledger.mutationFingerprint,
+      });
+    }
+
+    let postNow;
+    try {
+      postNow =
+        allowPending && getIntegration.postPending
+          ? await getIntegration.postPending(
+              integration.internalId,
+              openedIntegration.token,
+              mappedPosts,
+              openedIntegration
+            )
+          : await getIntegration.post(
+              integration.internalId,
+              openedIntegration.token,
+              mappedPosts,
+              openedIntegration
+            );
+      postNow = restoreOpaquePrivateMedia(postNow, replacements);
+      if (ledger) {
+        await this._publishingAttempts.accepted({
+          organizationId: integration.organizationId,
+          attemptId: ledger.attempt.id,
+          mutationFingerprint: ledger.mutationFingerprint,
+          results: postNow,
+        });
+      }
+    } catch (error) {
+      if (ledger) {
+        await this._publishingAttempts.failed({
+          organizationId: integration.organizationId,
+          attemptId: ledger.attempt.id,
+          mutationFingerprint: ledger.mutationFingerprint,
+          error,
+          safeAbsentProof: error instanceof ProviderTransient,
+        });
+      }
+      throw error;
+    }
+
+    for (const result of postNow || []) {
+      if (result.status === 'pending') {
+        preserveReceiptCorrelation(result.pendingData, { postId: result.id });
+      }
+      await this.recordSentReceipt(integration, result, allowPending);
+    }
 
     // The post is already published at this point: the streak is best-effort,
     // failing the activity here would retry it and publish again.
@@ -301,7 +479,14 @@ export class PostActivity {
           ]),
         });
     } catch (err) {
-      /**empty**/
+      this.logger.warn({
+        event: 'post.streak_workflow_start_failed',
+        organizationId: integration.organizationId,
+        reason:
+          err instanceof Error
+            ? err.message
+            : 'The streak workflow could not be started after publishing.',
+      });
     }
 
     return postNow;
@@ -314,11 +499,33 @@ export class PostActivity {
     );
 
     const openedIntegration = withOpenToken(integration);
-    return getIntegration.checkPostStatus(
+    const correlation = receiptCorrelation(pendingData);
+    const hydrated = correlation?.postId
+      ? await this._postService.hydratePublishingValue(
+          integration.organizationId,
+          correlation.postId,
+          pendingData
+        )
+      : { value: pendingData, replacements: [] };
+    const result = restoreOpaquePrivateMedia(await getIntegration.checkPostStatus(
       openedIntegration.token,
-      pendingData,
+      hydrated.value,
       openedIntegration
-    );
+    ), hydrated.replacements);
+    if (result.status === 'completed' && correlation?.postId) {
+      await this._postService.recordDeliveryReceipt({
+        organizationId: integration.organizationId,
+        postId: correlation.postId,
+        stage: 'confirmed_live',
+        providerPostId: result.postId,
+        providerUrl: result.releaseURL,
+        confirmationMethod: 'provider_status_api',
+        evidence: { providerStatus: 'completed' },
+      });
+    } else if (result.status !== 'completed') {
+      preserveReceiptCorrelation(result.pendingData, correlation);
+    }
+    return result;
   }
 
   @ActivityMethod()
@@ -328,11 +535,119 @@ export class PostActivity {
     );
 
     const openedIntegration = withOpenToken(integration);
-    return getIntegration.finalizePost(
+    const correlation = receiptCorrelation(pendingData);
+    const hydrated = correlation?.postId
+      ? await this._postService.hydratePublishingValue(
+          integration.organizationId,
+          correlation.postId,
+          pendingData
+        )
+      : { value: pendingData, replacements: [] };
+    const result = restoreOpaquePrivateMedia(await getIntegration.finalizePost(
       openedIntegration.token,
-      pendingData,
+      hydrated.value,
+      openedIntegration
+    ), hydrated.replacements);
+    if (result.status !== 'completed') {
+      preserveReceiptCorrelation(result.pendingData, correlation);
+    }
+    return result;
+  }
+
+  @ActivityMethod()
+  async reconcileAmbiguousPostV109(
+    integration: Integration,
+    postId: string,
+    attemptNumber: number
+  ) {
+    const getIntegration = this._integrationManager.getSocialIntegration(
+      integration.providerIdentifier
+    );
+    const openedIntegration = withOpenToken(integration);
+    const ledger = await this._publishingAttempts.beginReconciliation({
+      organizationId: integration.organizationId,
+      postId,
+      attemptNumber,
+    });
+    if (ledger.attempt.state !== 'STARTED') {
+      if (ledger.attempt.state === 'CONFIRMED') {
+        return {
+          status: 'confirmed' as const,
+          method: 'durable_reconciliation_replay',
+          providerPostId: ledger.attempt.providerPostId!,
+          providerUrl: ledger.attempt.providerUrl!,
+        };
+      }
+      if (ledger.attempt.state === 'ABSENT') {
+        return {
+          status: 'absent' as const,
+          method: 'durable_reconciliation_replay',
+          reason: 'A prior provider read proved the timed-out post was absent.',
+        };
+      }
+      return {
+        status: 'inconclusive' as const,
+        method: 'durable_reconciliation_replay',
+        reason:
+          ledger.attempt.failureReason ||
+          'A prior provider read could not prove whether the post exists.',
+      };
+    }
+    const result = await getIntegration.reconcileAmbiguousPost(
+      openedIntegration.token,
+      {
+        publishlyPostId: postId,
+        mutationFingerprint: ledger.mutation.mutationFingerprint,
+        mutationStartedAt: ledger.mutation.startedAt.toISOString(),
+      },
       openedIntegration
     );
+    await this._publishingAttempts.completeReconciliation({
+      organizationId: integration.organizationId,
+      postId,
+      attemptId: ledger.attempt.id,
+      mutationFingerprint: ledger.mutation.mutationFingerprint,
+      result,
+    });
+    return result;
+  }
+
+  private async recordSentReceipt(
+    integration: Integration,
+    result: {
+      id: string;
+      postId: string;
+      releaseURL: string;
+      status: string;
+    },
+    failActivity: boolean
+  ) {
+    try {
+      await this._postService.recordDeliveryReceipt({
+        organizationId: integration.organizationId,
+        postId: result.id,
+        stage: 'sent',
+        providerPostId: result.postId || null,
+        providerUrl: result.releaseURL || null,
+        evidence: { providerStatus: result.status || 'accepted' },
+      });
+    } catch (error) {
+      if (failActivity) throw error;
+      // Legacy post/comment activities are mutation-retryable in their checked-
+      // in workflow histories. Throwing after provider acceptance would replay
+      // the mutation. updatePost's confirmation step reconstructs the missing
+      // sent receipt before it can mark the post published.
+      this.logger.error({
+        event: 'post.sent_receipt_deferred',
+        organizationId: integration.organizationId,
+        postId: result.id,
+        providerPostId: result.postId || null,
+        reason:
+          error instanceof Error
+            ? error.message
+            : 'The sent receipt could not be persisted after provider acceptance.',
+      });
+    }
   }
 
   @ActivityMethod()
@@ -369,6 +684,90 @@ export class PostActivity {
   }
 
   @ActivityMethod()
+  async changePublishingJobState(
+    postId: string,
+    state: PublishingJobState,
+    error?: string,
+    failureCategory?: string,
+    retryInSeconds?: number
+  ) {
+    await this._postService.transitionPublishingJob(
+      postId,
+      state,
+      error,
+      failureCategory,
+      retryInSeconds
+    );
+  }
+
+  @ActivityMethod()
+  async ensureClassifiedPublishingOutcomeV107(
+    organizationId: string,
+    postId: string,
+    workflowError?: { message?: string; type?: string }
+  ) {
+    await this._postService.ensureClassifiedPublishingOutcomeV107(
+      organizationId,
+      postId,
+      workflowError
+    );
+  }
+
+  @ActivityMethod()
+  waitForPublishingRateLimitV108(organizationId: string, postId: string) {
+    return this._publishingRetryService.waitForConnectionGate({
+      organizationId,
+      postId,
+    });
+  }
+
+  @ActivityMethod()
+  schedulePublishingRetryV108(
+    organizationId: string,
+    postId: string,
+    error: unknown,
+    retryOrdinal: number,
+    safeBeforeMutation = false
+  ) {
+    return this._publishingRetryService.scheduleRecoverableRetry({
+      organizationId,
+      postId,
+      error,
+      retryOrdinal,
+      safeBeforeMutation,
+    });
+  }
+
+  @ActivityMethod()
+  acquireAccountPublishingQueueV109(organizationId: string, postId: string) {
+    return this._accountPublishingQueue.acquire(organizationId, postId);
+  }
+
+  @ActivityMethod()
+  releaseAccountPublishingQueueV109(
+    organizationId: string,
+    postId: string,
+    leaseToken: string,
+    outcome: AccountQueueReleaseOutcome,
+    code?: string,
+    reason?: string
+  ) {
+    return this._accountPublishingQueue.release(
+      organizationId,
+      postId,
+      leaseToken,
+      outcome,
+      code,
+      reason
+    );
+  }
+
+  @ActivityMethod()
+  reconcileAccountPublishingQueuesV109() {
+    return this._accountPublishingQueue.reconcileTerminalOrphans();
+  }
+
+  @ActivityMethod()
   async internalPlugs(integration: Integration, settings: any) {
     return this._postService.checkInternalPlug(
       integration,
@@ -379,47 +778,15 @@ export class PostActivity {
   }
 
   @ActivityMethod()
-  async sendWebhooks(postId: string, orgId: string, integrationId: string) {
-    // Webhooks are best-effort and run after the post already published, so a
-    // failure here must not fail the workflow.
-    try {
-      const webhooks = (await this._webhookService.getWebhooks(orgId)).filter(
-        (f) => {
-          return (
-            f.integrations.length === 0 ||
-            f.integrations.some((i) => i.integration.id === integrationId)
-          );
-        }
-      );
-
-      if (webhooks.length === 0) {
-        return;
-      }
-
-      const post = await this._postService.getPostByForWebhookId(postId);
-      await Promise.all(
-        webhooks.map(async (webhook) => {
-          try {
-            // webhook.url is validated at save time, but DNS can change
-            // between then and now - pin resolution like every other
-            // user-influenced outbound request.
-            await fetch(webhook.url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(post),
-              // @ts-ignore — undici option, not in lib.dom fetch types
-              dispatcher: getSsrfSafeDispatcher(),
-            });
-          } catch (e) {
-            /**empty**/
-          }
-        })
-      );
-    } catch (err) {
-      /**empty**/
-    }
+  async sendWebhooks(
+    _postId: string,
+    _orgId: string,
+    _integrationId: string
+  ) {
+    // Temporal histories through V109 call this activity after updatePost.
+    // Keep the activity name replay-compatible, but do not emit the retired
+    // non-envelope post.published event. updatePost can complete only after a
+    // durable confirmed_live receipt and its post.receipt webhook attempt.
   }
   @ActivityMethod()
   async processPlug(data: {

@@ -20,7 +20,10 @@ import { AuthService as AuthChecker } from '@gitroom/helpers/auth/auth.service';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.management';
-import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
+import {
+  pricingForTier,
+  resolveBillingTier,
+} from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { ApiTags } from '@nestjs/swagger';
 import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
 import { UserDetailDto } from '@gitroom/nestjs-libraries/dtos/users/user.details.dto';
@@ -111,14 +114,18 @@ export class UsersController {
     return {
       ...user,
       orgId: organization.id,
-      totalChannels: !process.env.STRIPE_PUBLISHABLE_KEY
-        ? 10000
-        : // @ts-ignore
-          organization?.subscription?.totalChannels || pricing.FREE.channel,
-      tier:
+      totalChannels:
+        pricingForTier(
+          !process.env.STRIPE_PUBLISHABLE_KEY
+            ? 'PRO'
+            : // @ts-ignore
+              organization?.subscription?.subscriptionTier
+        ).channel || 0,
+      tier: resolveBillingTier(
         // @ts-ignore
         organization?.subscription?.subscriptionTier ||
-        (!process.env.STRIPE_PUBLISHABLE_KEY ? 'ULTIMATE' : 'FREE'),
+          (!process.env.STRIPE_PUBLISHABLE_KEY ? 'PRO' : 'FREE')
+      ),
       // @ts-ignore
       role: organization?.users[0]?.role,
       // @ts-ignore
@@ -130,13 +137,10 @@ export class UsersController {
         : organization?.isTrailing,
       allowTrial: organization?.allowTrial,
       streakSince: organization?.streakSince || null,
-      publicApi:
-        // @ts-ignore
-        organization?.users[0]?.role === 'SUPERADMIN' ||
-        // @ts-ignore
-        organization?.users[0]?.role === 'ADMIN'
-          ? organization?.apiKey
-          : '',
+      // Legacy Organization.apiKey values are deliberately never returned to
+      // the browser. Publishly keys are independently revocable and shown once
+      // when created through /api-keys.
+      publicApi: '',
     };
   }
 
@@ -252,19 +256,30 @@ export class UsersController {
 
   @Post('/api-key/rotate')
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
-  async rotateApiKey(@GetOrgFromRequest() organization: Organization) {
-    return this._orgService.updateApiKey(organization.id);
+  async rotateApiKey() {
+    throw new HttpException(
+      'Legacy workspace keys are disabled. Create a scoped API key instead.',
+      410
+    );
   }
 
   @Get('/subscription')
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async getSubscription(@GetOrgFromRequest() organization: Organization) {
-    const subscription =
-      await this._subscriptionService.getSubscriptionByOrganizationId(
+    const [subscription, usage] = await Promise.all([
+      this._subscriptionService.getSubscriptionByOrganizationId(
         organization.id
-      );
+      ),
+      this._subscriptionService.getSuccessfulPostUsage(
+        organization.id,
+        organization.createdAt
+      ),
+    ]);
 
-    return subscription ? { subscription } : { subscription: undefined };
+    return {
+      subscription: subscription || undefined,
+      usage,
+    };
   }
 
   @Get('/subscription/tiers')

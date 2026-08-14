@@ -15,7 +15,7 @@ import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.conf
 export const metadata: Metadata = {
   title: 'Posting API for Creator Networks',
   description:
-    'One publishing pipeline for media networks & creator teams: every show, newsletter & channel brand on one calendar, CSV bulk scheduling with per-row validation, delivery receipts across the network & one flat price.',
+    'Reliable social posting for media networks and creator teams: every show, newsletter, and channel in one place, bulk scheduling with clear checks, proof for every post, and one flat price.',
   alternates: { canonical: '/for-creator-networks' },
 };
 
@@ -26,8 +26,8 @@ export const metadata: Metadata = {
 
 const SLATE = [
   {
-    h: 'One pipeline for every property',
-    p: 'Each show, newsletter or channel brand keeps its own workspace, channels & media. The publishing rail underneath is the same — one place to plan the slate, one place to check it landed.',
+    h: 'One place for every property',
+    p: 'Each show, newsletter, or channel brand keeps its own workspace, accounts, and media. Plan the full schedule in one place and check what went live in the same place.',
   },
   {
     h: 'Bulk scheduling that shows its work',
@@ -39,7 +39,7 @@ const SLATE = [
   },
   {
     h: 'Failures reach the team, not the audience',
-    p: 'A failed post carries a plain-English reason and fires a signed webhook the same moment. Transient failures retry automatically with backoff — and a retry can never double-post.',
+    p: 'A failed post carries a plain-English reason and alerts the team at once. Temporary problems are tried again after a safe delay, and Publishly never repeats the step that could create a duplicate post.',
   },
 ];
 
@@ -77,22 +77,26 @@ export default function ForCreatorNetworksPage() {
         {/* ---- hero: left editorial with mono slate index ---- */}
         <section className="mk-hero">
           <div className="mk-container">
-            <span className="mk-eyebrow">For creator networks &amp; media teams</span>
-            <h1 className="mk-h2-lg" style={{ marginTop: 18, maxWidth: '16ch' }}>
-              Every show. Every newsletter. One pipeline.
+            <span className="mk-eyebrow">
+              For creator networks &amp; media teams
+            </span>
+            <h1
+              className="mk-h2-lg"
+              style={{ marginTop: 18, maxWidth: '16ch' }}
+            >
+              Every show. Every newsletter. One reliable schedule.
             </h1>
             <p className="mk-section-lede" style={{ maxWidth: '54ch' }}>
-              You&rsquo;re publishing a slate, not a profile — shows,
+              You&rsquo;re publishing a full network, not one profile — shows,
               newsletters, channel brands, each with its own audience and its
               own channels. Publishly runs the whole network as one operation,
               with receipts.
             </p>
             <QuickAnswer>
-              Publishly gives media networks and creator teams one pipeline for
-              every show, newsletter, and channel brand they run. Schedule the
-              whole slate by CSV with per-row validation, get a delivery
-              receipt for every post on every channel, and pay one flat price
-              sized by volume — not by channel count.
+              Publishly gives media networks and creator teams one place for
+              every show, newsletter, and channel brand. Schedule a full week
+              from a CSV with every row checked first, get proof for every post,
+              and pay one flat price instead of one fee per account.
             </QuickAnswer>
             <Byline published="2026-08-10" />
             <div
@@ -104,7 +108,10 @@ export default function ForCreatorNetworksPage() {
                 marginTop: 34,
               }}
             >
-              <Link href={MARKETING.authRegister} className="mk-btn mk-btn-primary">
+              <Link
+                href={MARKETING.authRegister}
+                className="mk-btn mk-btn-primary"
+              >
                 {MARKETING.cta.primary}
               </Link>
               <Link href="/pricing" className="mk-arrow">
@@ -123,7 +130,7 @@ export default function ForCreatorNetworksPage() {
                 gap: '8px 34px',
               }}
             >
-              {['Shows', 'Newsletters', 'Channel brands', 'One pipeline'].map(
+              {['Shows', 'Newsletters', 'Channel brands', 'One place'].map(
                 (label) => (
                   <span
                     key={label}
@@ -141,7 +148,7 @@ export default function ForCreatorNetworksPage() {
         {/* ---- the slate: numbered benefits, centered column ---- */}
         <section className="mk-section mk-center">
           <div className="mk-container">
-            <h2 className="mk-h2">The whole slate, one operation.</h2>
+            <h2 className="mk-h2">The whole network, one clear view.</h2>
             <div className="mk-benefits">
               {SLATE.map((item, index) => (
                 <div className="mk-benefit" key={item.h}>
@@ -176,8 +183,8 @@ export default function ForCreatorNetworksPage() {
                     maxWidth: '46ch',
                   }}
                 >
-                  Your slate probably already lives in a spreadsheet. Bring it
-                  as-is: the import previews every row against each
+                  Your schedule probably already lives in a spreadsheet. Bring
+                  it as-is: the import previews every row against each
                   platform&rsquo;s real limits before anything commits — so a
                   bad row never quietly eats a slot.
                 </p>
@@ -221,7 +228,11 @@ export default function ForCreatorNetworksPage() {
                     >
                       <span
                         className="mk-mono"
-                        style={{ color: 'var(--mk-text-3)', width: '4.4em', flex: 'none' }}
+                        style={{
+                          color: 'var(--mk-text-3)',
+                          width: '4.4em',
+                          flex: 'none',
+                        }}
                       >
                         {row}
                       </span>
@@ -264,7 +275,7 @@ export default function ForCreatorNetworksPage() {
         <section className="mk-quiet" style={{ textAlign: 'left' }}>
           <div className="mk-container">
             <p className="mk-statement">
-              {'A network is a promise of cadence. The pipeline that keeps that promise should show its receipts — for every show, every send, every channel.'
+              {'A network makes a promise to publish on time. The tool keeping that promise should show proof — for every show, every newsletter, every channel.'
                 .split(' ')
                 .map((word, index) => (
                   <span className="mk-w" key={index}>
@@ -278,7 +289,7 @@ export default function ForCreatorNetworksPage() {
         {/* ---- flat price ---- */}
         <section className="mk-section">
           <div className="mk-container">
-            <span className="mk-eyebrow">One price for the slate</span>
+            <span className="mk-eyebrow">One price for the network</span>
             <h2 className="mk-h2" style={{ marginTop: 14 }}>
               The network grows. The bill doesn&rsquo;t follow it around.
             </h2>
@@ -300,9 +311,10 @@ export default function ForCreatorNetworksPage() {
         <section className="mk-ctaclose" style={{ background: 'none' }}>
           <div className="mk-container">
             <div className="mk-cta-panel">
-              <h2 className="mk-h2">Put the slate on rails.</h2>
+              <h2 className="mk-h2">Keep the whole network on schedule.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                Free forever plan — no credit card. 7-day trial on every paid plan.
+                Free forever plan — no credit card. 7-day trial on every paid
+                plan.
               </p>
               <div className="mk-hero-ctas">
                 <Link

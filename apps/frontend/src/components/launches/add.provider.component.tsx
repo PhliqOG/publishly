@@ -276,29 +276,33 @@ export const CustomVariables: FC<{
 const ExtensionNotFound: FC = () => {
   const modals = useModals();
   const t = useT();
+  const extensionUrl = process.env.NEXT_PUBLIC_CHROME_EXTENSION_URL;
   return (
     <div className="flex flex-col gap-[16px] pt-[8px]">
       <p className="text-[14px] text-textColor/80">
-        {t(
-          'extension_not_available',
-          `The ${BRAND_NAME} browser extension is not installed. You need to install it before connecting this channel.`
-        )}
+        {extensionUrl
+          ? t(
+              'extension_not_available',
+              `The ${BRAND_NAME} browser extension is not installed. You need to install it before connecting this channel.`
+            )
+          : t(
+              'extension_not_configured',
+              `This optional channel is unavailable because the ${BRAND_NAME} browser extension has not been configured by the administrator.`
+            )}
       </p>
       <div className="flex gap-[10px]">
-        <Button
-          type="button"
-          className="flex-1"
-          onClick={() => {
-            window.open(
-              process.env.NEXT_PUBLIC_CHROME_EXTENSION_URL ||
-                'https://chromewebstore.google.com/detail/postiz/cidhffagahknaeodkplfbcpfeielnkjl?hl=en',
-              '_blank'
-            );
-            modals.closeCurrent();
-          }}
-        >
-          {t('install_extension', 'Install Extension')}
-        </Button>
+        {extensionUrl && (
+          <Button
+            type="button"
+            className="flex-1"
+            onClick={() => {
+              window.open(extensionUrl, '_blank', 'noopener,noreferrer');
+              modals.closeCurrent();
+            }}
+          >
+            {t('install_extension', 'Install Extension')}
+          </Button>
+        )}
         <Button
           type="button"
           className="flex-1 !bg-transparent border border-tableBorder text-textColor"

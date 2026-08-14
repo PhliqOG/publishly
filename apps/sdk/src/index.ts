@@ -18,13 +18,19 @@ export default class Postiz {
     private _path = 'https://api.postiz.com'
   ) {}
 
-  async post(posts: CreatePostDto) {
+  async post(posts: CreatePostDto, idempotencyKey: string) {
+    if (!idempotencyKey) {
+      throw new Error(
+        'An idempotency key is required. Reuse the same key when retrying this post request.'
+      );
+    }
     return (
       await fetch(`${this._path}/public/v1/posts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: this._apiKey,
+          'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify(posts),
       })

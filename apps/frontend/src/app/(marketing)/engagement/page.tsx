@@ -3,7 +3,9 @@ import { ProductMarketingPage } from '@gitroom/frontend/components/marketing/pro
 import { InboxReplica } from '@gitroom/frontend/components/marketing/replicas/inbox-replica';
 
 export const metadata: Metadata = {
-  title: 'Engagement',
+  title: 'Unified social media comments for supported accounts',
+  description:
+    'Read and reply to supported Facebook and Instagram comments from one place using the account you authorized.',
   alternates: { canonical: '/engagement' },
 };
 
@@ -11,15 +13,15 @@ export default function EngagementPage() {
   return (
     <ProductMarketingPage
       eyebrow="Engagement"
-      title="Comments where the official API permits them."
-      lede="Bring supported account comments into one workspace & reply as the same authorized account — without pretending every network offers the same controls."
+      title="Reply from one place where the network allows it."
+      lede="Bring supported Facebook and Instagram comments into one place and reply as the account you authorized. Unsupported networks say so clearly."
       visual={<InboxReplica />}
       spotlight={{
         eyebrow: 'Inbox',
         heading: 'Reply as the account that was addressed.',
-        body: 'Comments from supported channels arrive in one workspace-scoped feed. Replies leave through the same authorized connection — Facebook & Instagram today, through their official Graph API permissions.',
+        body: 'Comments from supported accounts arrive in one feed. Replies leave through the same authorized Facebook or Instagram connection.',
         points: [
-          'Workspace-scoped comment feed',
+          'Comments kept inside the right workspace',
           'Replies through official permissions',
           'Unsupported networks say so',
         ],
@@ -28,7 +30,7 @@ export default function EngagementPage() {
       items={[
         {
           title: 'Every supported comment in one feed',
-          body: 'Filter supported comments by connected account & platform in one workspace-scoped inbox.',
+          body: 'Filter supported comments by connected account and platform in one inbox.',
         },
         {
           title: 'Replies leave as the authorized account',

@@ -1,6 +1,10 @@
 import * as Sentry from '@sentry/nextjs';
 
-export const initializeSentryBasic = (environment: string, dsn: string, extension: any) => {
+export const initializeSentryBasic = (
+  environment: string,
+  dsn: string,
+  extension: any
+) => {
   if (!dsn) {
     return;
   }
@@ -24,18 +28,22 @@ export const initializeSentryBasic = (environment: string, dsn: string, extensio
         },
         contexts: {
           app: {
-            name: 'Postiz Frontend',
+            name: `${
+              process.env.NEXT_PUBLIC_BRAND_NAME || 'Publishly'
+            } Frontend`,
             version: process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0',
           },
         },
       },
       integrations: [
-        Sentry.consoleLoggingIntegration({ levels: ['log', 'info', 'warn', 'error', 'debug', 'assert', 'trace'] }),
+        Sentry.consoleLoggingIntegration({
+          levels: ['warn', 'error', 'assert'],
+        }),
       ],
       environment: environment || 'development',
       spotlight: process.env.SENTRY_SPOTLIGHT === '1',
       dsn,
-      sendDefaultPii: true,
+      sendDefaultPii: false,
       ...extension,
       debug: environment === 'development',
       tracesSampleRate: 1.0,
@@ -69,7 +77,10 @@ export const initializeSentryBasic = (environment: string, dsn: string, extensio
                 })
                 .catch((importErr) => {
                   // eslint-disable-next-line no-console
-                  console.error('Failed to import @sentry/react for report dialog:', importErr);
+                  console.error(
+                    'Failed to import @sentry/react for report dialog:',
+                    importErr
+                  );
                 });
             }
           }

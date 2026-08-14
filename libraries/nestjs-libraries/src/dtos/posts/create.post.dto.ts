@@ -5,9 +5,13 @@ import {
   IsDateString,
   IsDefined,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
+  Max,
+  Min,
   Validate,
   ValidateIf,
   ValidateNested,
@@ -90,6 +94,29 @@ class Tags {
   label: string;
 }
 
+export class CalendarScheduleIntentDto {
+  @IsDefined()
+  @IsString()
+  timezone: string;
+
+  @IsDefined()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?$/)
+  localScheduledAt: string;
+
+  @IsDefined()
+  @IsInt()
+  @Min(-840)
+  @Max(840)
+  utcOffsetMinutes: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1)
+  dstFold?: number;
+}
+
 export class CreatePostDto {
   @IsDefined()
   @IsIn(['draft', 'schedule', 'now', 'update'])
@@ -116,6 +143,13 @@ export class CreatePostDto {
   @IsDefined()
   @IsDateString()
   date: string;
+
+  // Optional original local-time intent. Existing callers remain compatible;
+  // the writer records an explicit UTC intent when this object is absent.
+  @IsOptional()
+  @Type(() => CalendarScheduleIntentDto)
+  @ValidateNested()
+  scheduleIntent?: CalendarScheduleIntentDto;
 
   @IsArray()
   @IsDefined()

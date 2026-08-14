@@ -4,7 +4,11 @@ import {
   ExceptionFilter,
   HttpException,
 } from '@nestjs/common';
-import { AuthorizationActions, Sections, SubscriptionException } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
+import {
+  AuthorizationActions,
+  Sections,
+  SubscriptionException,
+} from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
 @Catch(SubscriptionException)
 export class SubscriptionExceptionFilter implements ExceptionFilter {
@@ -20,6 +24,9 @@ export class SubscriptionExceptionFilter implements ExceptionFilter {
     response.status(status).json({
       statusCode: status,
       message,
+      failureClass: 'user_action_needed',
+      code: 'subscription_required',
+      reason: message,
       url: process.env.FRONTEND_URL + '/billing',
     });
   }
@@ -33,12 +40,12 @@ const getErrorMessage = (error: {
     case Sections.POSTS_PER_MONTH:
       switch (error.action) {
         default:
-          return 'You have reached the maximum number of posts for your subscription. Please upgrade your subscription to add more posts.';
+          return 'This plan has reached its confirmed-live post allowance. Failed, cancelled, and unconfirmed posts were not counted. Upgrade the plan to publish more successful destinations in this billing window.';
       }
     case Sections.CHANNEL:
       switch (error.action) {
         default:
-          return 'You have reached the maximum number of channels for your subscription. Please upgrade your subscription to add more channels.';
+          return 'The Free plan includes five connected accounts. Upgrade to any paid plan for unlimited connected accounts.';
       }
     case Sections.WEBHOOKS:
       switch (error.action) {

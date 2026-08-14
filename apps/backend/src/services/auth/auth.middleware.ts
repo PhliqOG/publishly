@@ -8,6 +8,7 @@ import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.man
 import { HttpForbiddenException } from '@gitroom/nestjs-libraries/services/exception.filter';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { setSentryUserContext } from '@gitroom/nestjs-libraries/sentry/initialize.sentry';
+import { isTrustedCookieRequest } from './request.security';
 
 export const removeAuth = (res: Response) => {
   res.cookie('auth', '', {
@@ -32,6 +33,16 @@ export class AuthMiddleware implements NestMiddleware {
     private _userService: UsersService
   ) {}
   async use(req: Request, res: Response, next: NextFunction) {
+    if (
+      !isTrustedCookieRequest({
+        method: req.method,
+        origin: req.headers.origin,
+        hasHeaderAuth: Boolean(req.headers.auth),
+        hasCookieAuth: Boolean(req.cookies?.auth),
+      })
+    ) {
+      throw new HttpForbiddenException();
+    }
     const auth = req.headers.auth || req.cookies.auth;
     if (!auth) {
       throw new HttpForbiddenException();
@@ -47,7 +58,9 @@ export class AuthMiddleware implements NestMiddleware {
         throw new HttpForbiddenException();
       }
 
-      let user = (await this._userService.getUserById(payload.id)) as User | null;
+      let user = (await this._userService.getUserById(
+        payload.id
+      )) as User | null;
 
       if (!user) {
         throw new HttpForbiddenException();
@@ -99,12 +112,8 @@ export class AuthMiddleware implements NestMiddleware {
       const setOrg =
         organization.find((org) => org.id === orgHeader) || organization[0];
 
-      if (!organization) {
+      if (!setOrg) {
         throw new HttpForbiddenException();
-      }
-
-      if (!setOrg.apiKey) {
-        await this._organizationService.updateApiKey(setOrg.id);
       }
 
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment

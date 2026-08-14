@@ -1,5 +1,5 @@
 import { sign, verify } from 'jsonwebtoken';
-import { hashSync, compareSync } from 'bcrypt';
+import { hashSync, compareSync } from 'bcryptjs';
 import crypto from 'crypto';
 // @ts-ignore
 import EVP_BytesToKey from 'evp_bytestokey';

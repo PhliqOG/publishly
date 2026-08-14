@@ -1,32 +1,40 @@
-import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
-import { Role, ShortLinkPreference, SubscriptionTier } from '@prisma/client';
-import { Injectable } from '@nestjs/common';
+import {
+  PrismaRepository,
+  PrismaTransaction,
+} from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
+import { Role, ShortLinkPreference } from '@prisma/client';
+import { Injectable, Logger } from '@nestjs/common';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { CreateOrgUserDto } from '@gitroom/nestjs-libraries/dtos/auth/create.org.user.dto';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
+import {
+  pricing,
+  UNLIMITED_CHANNELS,
+} from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 
 @Injectable()
 export class OrganizationRepository {
+  private readonly logger = new Logger(OrganizationRepository.name);
+
   constructor(
     private _organization: PrismaRepository<'organization'>,
     private _userOrg: PrismaRepository<'userOrganization'>,
-    private _user: PrismaRepository<'user'>
+    private _user: PrismaRepository<'user'>,
+    private _transaction: PrismaTransaction
   ) {}
 
   createMaxUser(id: string, name: string, saasName: string, email: string) {
     return this._organization.model.organization.create({
       select: {
         id: true,
-        apiKey: true,
       },
       data: {
         name: name ? `${name}###${id}` : `Unnamed User###${id}`,
-        apiKey: AuthService.fixedEncryption(makeId(20)),
         isTrailing: false,
         subscription: {
           create: {
-            totalChannels: 1000000,
-            subscriptionTier: 'ULTIMATE',
+            totalChannels: UNLIMITED_CHANNELS,
+            subscriptionTier: 'PRO',
             isLifetime: true,
             period: 'YEARLY',
           },
@@ -39,7 +47,7 @@ export class OrganizationRepository {
                 activated: true,
                 email: email
                   ? email.split('@').join(`+${saasName}@`)
-                  : `${saasName}+` + makeId(10) + '@postiz.com',
+                  : `${saasName}+` + makeId(10) + '@internal.publishly.invalid',
                 name: name ? `${name}###${id}` : `Unnamed User###${id}`,
                 providerName: 'LOCAL',
                 password: AuthService.hashPassword(makeId(500)),
@@ -243,14 +251,14 @@ export class OrganizationRepository {
         },
         select: {
           subscription: true,
+          _count: { select: { users: { where: { disabled: false } } } },
         },
       });
 
-    if (
-      process.env.STRIPE_PUBLISHABLE_KEY &&
-      checkForSubscription?.subscription?.subscriptionTier ===
-        SubscriptionTier.STANDARD
-    ) {
+    const tier =
+      checkForSubscription?.subscription?.subscriptionTier ||
+      (!process.env.STRIPE_PUBLISHABLE_KEY ? 'ULTIMATE' : 'FREE');
+    if ((checkForSubscription?._count.users || 0) >= pricing[tier].seats) {
       return false;
     }
 
@@ -283,7 +291,6 @@ export class OrganizationRepository {
     return this._organization.model.organization.create({
       data: {
         name: body.company,
-        apiKey: AuthService.fixedEncryption(makeId(20)),
         allowTrial: true,
         isTrailing: true,
         users: {
@@ -341,7 +348,18 @@ export class OrganizationRepository {
           ...(type === 'start' ? { streakSince: new Date() } : {}),
         },
       });
-    } catch (err) {}
+    } catch (error) {
+      this.logger.warn({
+        event: 'organization_streak_update_failed',
+        organizationId,
+        streakAction: type,
+        code: 'organization_streak_write_failed',
+        reason:
+          error instanceof Error && error.message
+            ? error.message
+            : 'The organization streak could not be updated.',
+      });
+    }
   }
 
   async getTeam(orgId: string) {
@@ -399,6 +417,57 @@ export class OrganizationRepository {
         },
       },
     });
+  }
+
+  async transferOwnership(
+    orgId: string,
+    currentOwnerId: string,
+    targetUserId: string
+  ) {
+    const target = await this._userOrg.model.userOrganization.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: targetUserId,
+          organizationId: orgId,
+        },
+      },
+      select: { disabled: true, role: true },
+    });
+    if (!target || target.disabled) return false;
+
+    const current = await this._userOrg.model.userOrganization.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: currentOwnerId,
+          organizationId: orgId,
+        },
+      },
+      select: { role: true },
+    });
+    if (current?.role !== Role.SUPERADMIN) return false;
+    if (currentOwnerId === targetUserId) return true;
+
+    await this._transaction.model.$transaction([
+      this._userOrg.model.userOrganization.update({
+        where: {
+          userId_organizationId: {
+            userId: targetUserId,
+            organizationId: orgId,
+          },
+        },
+        data: { role: Role.SUPERADMIN },
+      }),
+      this._userOrg.model.userOrganization.update({
+        where: {
+          userId_organizationId: {
+            userId: currentOwnerId,
+            organizationId: orgId,
+          },
+        },
+        data: { role: Role.ADMIN },
+      }),
+    ]);
+    return true;
   }
 
   disableOrEnableNonSuperAdminUsers(orgId: string, disable: boolean) {

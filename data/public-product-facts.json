@@ -2,11 +2,11 @@
   "_meta": {
     "purpose": "Single source of truth for every externally stated Publishly fact. Marketing pages consume these values (or pricing.ts directly); nothing user-facing may hardcode a claim that lives here. Consistency spec: libraries/nestjs-libraries/src/database/prisma/subscriptions/public-facts.spec.ts",
     "site_status": "pre-launch — site not deployed; claims marked pre_release exist in the working tree but are not yet in a released build",
-    "updated": "2026-08-10"
+    "updated": "2026-08-11"
   },
   "entity": {
     "name": "Publishly",
-    "canonical_definition": "Publishly is a social publishing API and scheduler that gives every post a delivery receipt, a failure reason, and an automatic retry — built for teams running many brands, clients, and locations.",
+    "canonical_definition": "Publishly is the reliability layer for social posting at scale: every post gets proof, every failure gets a reason and a safe retry, and every paid plan includes unlimited accounts.",
     "category": "social media posting API / scheduling platform",
     "icp": "agencies, multi-brand and multi-location businesses, media networks, creator teams, and developers embedding posting into their SaaS",
     "engine": "Built on the open-source Postiz engine (AGPL-3.0); corresponding source offered to every user.",
@@ -14,22 +14,73 @@
   },
   "pricing": {
     "currency": "USD",
-    "model": "Plans are sized by monthly post volume. Connected social accounts are unlimited on every paid plan.",
-    "billing_language_allowed": "sized by posts, unlimited accounts; failed-post quota language may NOT be used until per-post metering ships",
+    "model": "Plans are sized by confirmed-live monthly post volume. Failed, cancelled, retrying, and unconfirmed posts use no quota. Connected social accounts are unlimited on every paid plan.",
+    "billing_language_allowed": "sized by independently confirmed-live destination posts; failed, cancelled, retrying, and unconfirmed posts consume no quota; unlimited connected accounts on paid plans",
+    "meter": "One usage unit is written only when a destination reaches confirmed_live after an independent provider read.",
     "yearly_multiplier": 10,
     "tiers": [
-      { "key": "FREE", "name": "Free", "month_price": 0, "posts_per_month": 50, "accounts": 5, "api_access": true },
-      { "key": "STANDARD", "name": "Starter", "month_price": 29, "posts_per_month": 2000, "accounts": "unlimited", "api_access": true },
-      { "key": "TEAM", "name": "Growth", "month_price": 99, "posts_per_month": 15000, "accounts": "unlimited", "api_access": true },
-      { "key": "PRO", "name": "Scale", "month_price": 299, "posts_per_month": 100000, "accounts": "unlimited", "api_access": true }
+      {
+        "key": "FREE",
+        "name": "Free",
+        "month_price": 0,
+        "posts_per_month": 50,
+        "accounts": 5,
+        "api_access": true
+      },
+      {
+        "key": "STANDARD",
+        "name": "Starter",
+        "month_price": 29,
+        "posts_per_month": 2000,
+        "accounts": "unlimited",
+        "api_access": true
+      },
+      {
+        "key": "TEAM",
+        "name": "Growth",
+        "month_price": 99,
+        "posts_per_month": 15000,
+        "accounts": "unlimited",
+        "api_access": true
+      },
+      {
+        "key": "PRO",
+        "name": "Scale",
+        "month_price": 299,
+        "posts_per_month": 100000,
+        "accounts": "unlimited",
+        "api_access": true
+      }
     ],
-    "hidden_tiers": ["ULTIMATE (Enterprise placeholder — operator finalizes with Stripe setup; never shown on marketing pages)"],
+    "hidden_tiers": [
+      "ULTIMATE (legacy database/Stripe alias resolved to Scale; never purchasable or shown)"
+    ],
     "verified_at": "2026-08-10",
     "source": "libraries/nestjs-libraries/src/database/prisma/subscriptions/pricing.ts"
   },
   "networks": {
-    "posting": ["Instagram", "Facebook", "TikTok", "YouTube", "X", "Threads", "LinkedIn", "Pinterest", "Bluesky", "Mastodon"],
-    "analytics": ["Facebook", "Instagram", "TikTok", "YouTube", "X", "Threads", "LinkedIn Pages", "Pinterest"],
+    "posting": [
+      "Instagram",
+      "Facebook",
+      "TikTok",
+      "YouTube",
+      "X",
+      "Threads",
+      "LinkedIn",
+      "Pinterest",
+      "Bluesky",
+      "Mastodon"
+    ],
+    "analytics": [
+      "Facebook",
+      "Instagram",
+      "TikTok",
+      "YouTube",
+      "X",
+      "Threads",
+      "LinkedIn Pages",
+      "Pinterest"
+    ],
     "analytics_excluded_note": "Bluesky, Mastodon and personal LinkedIn do not report analytics — never claim analytics breadth for them.",
     "total_registered_providers": 34,
     "featured_count": 10,
@@ -40,8 +91,8 @@
   },
   "reliability": {
     "delivery_receipt": {
-      "claim": "Every destination post carries a publishing job with full state history (SCHEDULED → QUEUED → PROCESSING → PUBLISHED / RETRYING / FAILED), and successful posts store the provider post ID and live URL.",
-      "status": "shipping",
+      "claim": "Every destination post carries a durable publishing job and ordered public receipts: queued → uploading → sent → confirmed_live, or failed with a classified reason. Sent is not success; confirmed_live requires an independent provider read.",
+      "status": "pre_release",
       "verified_at": "2026-08-10",
       "source": "schema.prisma PublishingJob; posts.service.ts"
     },
@@ -59,9 +110,9 @@
       "source": "libraries/nestjs-libraries/src/database/prisma/publishing-jobs/publishing-failure.service.ts"
     },
     "success_webhook": {
-      "claim": "Published posts fire a signed post.published webhook with the same delivery guarantees.",
-      "status": "shipping",
-      "source": "apps/orchestrator/src/activities/post.activity.ts"
+      "claim": "Every delivery stage, including confirmed_live, fires a signed post.receipt webhook with the same durable three-attempt delivery ledger.",
+      "status": "pre_release",
+      "source": "libraries/nestjs-libraries/src/database/prisma/publishing-jobs/publishing-receipt.service.ts"
     },
     "retries": {
       "claim": "Transient failures retry automatically with backoff (15s to 30m); publish mutations deliberately fire exactly once so a retry can never double-post; an hourly sweeper re-queues missed slots.",
@@ -69,10 +120,9 @@
       "source": "post.workflow.v1.0.6.ts; missing.post.workflow.ts"
     },
     "token_handling": {
-      "claim": "Tokens refresh automatically on schedule; the moment a refresh fails you get an in-app alert and an email, and the account is flagged before more posts are lost.",
-      "status": "shipping",
-      "advance_warning_note": "A days-ahead expiry warning is planned, not shipping — do not claim 'warned N days before' yet.",
-      "source": "refresh.token.workflow.ts; integration.service.ts informAboutRefreshError"
+      "claim": "Publishly tracks the expiry reported by each platform and uses conservative fallbacks when needed (60 days for Meta/LinkedIn, 1 day for TikTok, and 90 days for the non-expiring X OAuth 1 connection). It fires signed warnings at the 30, 14, 7, 3, and 1-day checkpoints the connection actually crosses.",
+      "status": "pre_release",
+      "source": "connection-health.service.ts; connection.health.workflow.v1.0.1.ts"
     },
     "dead_account_detection": {
       "claim": "Disconnected or revoked accounts are detected, flagged, excluded from delivery, and surfaced with a reconnect alert — one dead account never breaks the rest of the calendar.",
@@ -88,11 +138,25 @@
     "free_tier_api_note": "FREE grants API access (public_api true). The public API middleware gates on pricing[tier].public_api — a missing Stripe Subscription row resolves to FREE rather than 401 (fixed 2026-08-10 in public.auth.middleware.ts). Free orgs are still bound by the 50-post monthly quota.",
     "mcp": {
       "available": true,
-      "auth": "OAuth (pos_) tokens or the legacy organization key — the MCP endpoint does NOT accept scoped pub_ API keys and does not apply key scopes. Never claim scoped-key MCP access.",
+      "auth": "Bearer-authenticated scoped pub_ keys or OAuth pos_ tokens. Tool scopes are enforced; legacy key-in-URL routes are disabled unless ALLOW_LEGACY_API_KEYS=true for migration.",
+      "tools": [
+        "publish_post",
+        "schedule_post",
+        "get_post_receipts",
+        "get_fleet_health"
+      ],
       "source": "libraries/nestjs-libraries/src/chat/start.mcp.ts"
     },
-    "n8n": { "available": "via REST API + webhooks (no first-party node yet)" },
-    "make": { "available": "via REST API + webhooks (no first-party module yet)" },
+    "n8n": {
+      "available": "official in-tree community-node source package",
+      "source": "integrations/n8n-nodes-publishly",
+      "registry_status": "No npm or hosted n8n catalog listing is claimed until separately published."
+    },
+    "make": {
+      "available": "official in-tree Make custom-app source bundle",
+      "source": "integrations/make-publishly",
+      "catalog_status": "No public Make catalog listing is claimed until review and publication complete."
+    },
     "verified_at": "2026-08-10"
   },
   "security": {
@@ -103,7 +167,12 @@
     "verified_at": "2026-08-10"
   },
   "ai": {
-    "shipping": ["AI caption drafting", "image generation", "slides and voice generation", "chat copilot"],
+    "shipping": [
+      "AI caption drafting",
+      "image generation",
+      "slides and voice generation",
+      "chat copilot"
+    ],
     "in_development": [
       "Caption Memory — per-brand learning from each post's measured performance",
       "Brand Folders — per-brand knowledge base grounding every generated caption",

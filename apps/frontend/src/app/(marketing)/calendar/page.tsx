@@ -3,7 +3,9 @@ import { ProductMarketingPage } from '@gitroom/frontend/components/marketing/pro
 import { CalendarBoard } from '@gitroom/frontend/components/marketing/hero-cinema';
 
 export const metadata: Metadata = {
-  title: 'Calendar',
+  title: 'Social media content calendar for multi-brand teams',
+  description:
+    'Plan brands, clients, locations, and markets in month, week, or day views, then reschedule without breaking delivery.',
   alternates: { canonical: '/calendar' },
 };
 
@@ -11,25 +13,25 @@ export default function CalendarPage() {
   return (
     <ProductMarketingPage
       eyebrow="Calendar"
-      title="See the whole publishing week move."
-      lede="Month, week & day views keep drafts, queued work, failures & published content in one schedule you can rearrange directly."
+      title="See what is planned, live, or needs attention."
+      lede="Month, week, and day views keep drafts, scheduled posts, failures, and published content in one calendar you can change directly."
       visual={<CalendarBoard mini />}
       visualTone="light"
       spotlight={{
         eyebrow: 'The board',
         heading: 'Month, week & day — one schedule.',
-        body: 'Drafts, queued posts, failures & published work share one board. Drag an item to a new slot & its durable workflow moves with it — no orphaned jobs, no stale timers.',
+        body: 'Drafts, scheduled posts, failures, and published work share one board. Drag a post to a new time and its schedule changes with it.',
         points: [
           'Drag-and-drop rescheduling',
           'Filter by platform, account & state',
           'Timezone-safe slots',
         ],
       }}
-      statement="The calendar is not a picture of the plan — it is the plan. Move a slot & the publishing pipeline moves with it."
+      statement="Move a post to a new time and Publishly updates the real schedule, not just the picture on your screen."
       items={[
         {
           title: 'Drag to reschedule',
-          body: 'Move an item & its durable workflow updates with it — no old browser timer left behind to fire at the wrong moment.',
+          body: 'Move an item and its real schedule updates with it. Closing the browser does not stop the post.',
         },
         {
           title: 'Filter the noise',
@@ -37,7 +39,7 @@ export default function CalendarPage() {
         },
         {
           title: 'Bulk changes with a preview first',
-          body: 'Preview CSV validation before committing, shift selected dates or cancel a group — handled server-side, not in one long browser request.',
+          body: 'Check a CSV before importing it, shift selected dates, or cancel a group without making the browser wait through the whole job.',
         },
       ]}
     />

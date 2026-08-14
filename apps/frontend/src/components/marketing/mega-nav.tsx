@@ -1,12 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  ReactElement,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { ReactElement, useEffect, useRef, useState } from 'react';
 import { PublishlyWordmark } from './logo';
 import { MARKETING } from './marketing.config';
 
@@ -22,47 +17,116 @@ const MENUS: Menu[] = [
   {
     label: 'Products',
     items: [
-      { label: 'Reliability', href: '/reliability', sub: 'Receipts, webhooks & retries' },
+      {
+        label: 'Reliability',
+        href: '/reliability',
+        sub: 'Know what happened to every post',
+      },
       { label: 'Composer', href: '/features', sub: 'One draft, every voice' },
       { label: 'Calendar', href: '/calendar', sub: 'The week at a glance' },
-      { label: 'Publishing', href: '/publishing', sub: 'Durable delivery' },
-      { label: 'Analytics', href: '/product/analytics', sub: 'Numbers with receipts' },
+      {
+        label: 'Publishing',
+        href: '/publishing',
+        sub: 'Schedule once, keep the proof',
+      },
+      {
+        label: 'Analytics',
+        href: '/product/analytics',
+        sub: 'Numbers with receipts',
+      },
       { label: 'Engagement', href: '/engagement', sub: 'One inbox' },
-      { label: 'API', href: '/api-docs', sub: 'Scoped keys, real docs' },
+      {
+        label: 'API',
+        href: '/api-docs',
+        sub: 'Build posting into your product',
+      },
     ],
   },
   {
     label: 'Solutions',
     items: [
-      { label: 'Agencies', href: '/for-agencies', sub: 'Isolated client workspaces' },
-      { label: 'Multi-brand', href: '/for-multi-brand', sub: 'One roster, no account tax' },
-      { label: 'Creator networks', href: '/for-creator-networks', sub: 'Many creators, one calendar' },
-      { label: 'Developers', href: '/for-developers', sub: 'Posting, embedded' },
+      {
+        label: 'Agencies',
+        href: '/for-agencies',
+        sub: 'Isolated client workspaces',
+      },
+      {
+        label: 'Multi-brand',
+        href: '/for-multi-brand',
+        sub: 'One roster, no account tax',
+      },
+      {
+        label: 'Creator networks',
+        href: '/for-creator-networks',
+        sub: 'Many creators, one calendar',
+      },
+      {
+        label: 'Developers',
+        href: '/for-developers',
+        sub: 'Give users posting with proof',
+      },
     ],
   },
   {
     label: 'Developers',
     items: [
-      { label: 'API docs', href: '/api-docs', sub: 'REST, scoped keys' },
-      { label: 'Integrations', href: '/integrations', sub: 'API, webhooks, MCP & more' },
-      { label: 'MCP server', href: '/integrations/mcp', sub: 'Post from an AI assistant' },
-      { label: 'Error codes', href: '/docs/errors', sub: 'Every failure, documented' },
-      { label: 'Platforms', href: '/platforms', sub: 'What each network supports' },
-      { label: 'Security', href: '/security', sub: 'Tokens, keys & audit trail' },
+      {
+        label: 'API docs',
+        href: '/api-docs',
+        sub: 'Requests, results, and examples',
+      },
+      {
+        label: 'Integrations',
+        href: '/integrations',
+        sub: 'API, n8n, Make, and AI assistants',
+      },
+      {
+        label: 'MCP server',
+        href: '/integrations/mcp',
+        sub: 'Post from an AI assistant',
+      },
+      {
+        label: 'Error codes',
+        href: '/docs/errors',
+        sub: 'Every failure, documented',
+      },
+      {
+        label: 'Platforms',
+        href: '/platforms',
+        sub: 'What each network supports',
+      },
+      {
+        label: 'Security',
+        href: '/security',
+        sub: 'How accounts and data stay protected',
+      },
       { label: 'Source', href: '/source', sub: 'AGPL-3.0 engine' },
     ],
   },
   {
     label: 'Resources',
     items: [
-      { label: 'Resources', href: '/resources', sub: 'Guides for multi-brand teams' },
+      {
+        label: 'Resources',
+        href: '/resources',
+        sub: 'Guides for multi-brand teams',
+      },
       { label: 'Compare', href: '/compare', sub: 'Publishly vs the field' },
-      { label: 'How we compare', href: '/methodology/api-comparisons', sub: 'Our sourcing rules' },
+      {
+        label: 'How we compare',
+        href: '/methodology/api-comparisons',
+        sub: 'Our sourcing rules',
+      },
       { label: 'Changelog', href: '/changelog', sub: 'What shipped' },
       { label: 'About', href: '/about', sub: 'What Publishly is' },
       { label: 'Contact', href: '/contact', sub: 'Talk to the operator' },
       { label: 'Terms', href: '/terms', sub: 'The agreement' },
       { label: 'Privacy', href: '/privacy', sub: 'Your data' },
+      {
+        label: 'Platform review',
+        href: '/platform-review',
+        sub: 'Permissions and reviewer paths',
+      },
       { label: 'Acceptable use', href: '/acceptable-use', sub: 'The rules' },
     ],
   },

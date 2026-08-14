@@ -1,83 +1,122 @@
-import { TemporalModule } from 'nestjs-temporal-core';
+import {
+  TemporalModule,
+  TemporalOptions,
+  WorkerDefinition,
+} from 'nestjs-temporal-core';
+import {
+  bundleWorkflowCode,
+  WorkflowBundleWithSourceMap,
+} from '@temporalio/worker';
 import { socialIntegrationList } from '@gitroom/nestjs-libraries/integrations/integration.manager';
+import { temporalWorkerLimits } from '@gitroom/nestjs-libraries/temporal/temporal.worker.limits';
+
+type WorkflowBundler = typeof bundleWorkflowCode;
+
+const connectionOptions = (environment: NodeJS.ProcessEnv) => ({
+  address: environment.TEMPORAL_ADDRESS || 'localhost:7233',
+  ...(environment.TEMPORAL_TLS === 'true' ? { tls: true } : {}),
+  ...(environment.TEMPORAL_API_KEY
+    ? { apiKey: environment.TEMPORAL_API_KEY }
+    : {}),
+  namespace: environment.TEMPORAL_NAMESPACE || 'default',
+});
+
+const excludedQueues = (environment: NodeJS.ProcessEnv) =>
+  (environment.EXCLUDE_QUEUE || '')
+    .split(',')
+    .map((queue) => queue.trim())
+    .filter(Boolean);
+
+const concurrencyDivider = (environment: NodeJS.ProcessEnv) =>
+  Math.max(1, Number(environment.WORKER_CONCURRENCY_DIVIDER) || 1);
+
+export const createTemporalWorkerDefinitions = (
+  activityClasses: any[],
+  workflowBundle: WorkflowBundleWithSourceMap,
+  environment: NodeJS.ProcessEnv = process.env
+): WorkerDefinition[] => {
+  const excluded = excludedQueues(environment);
+  const divider = concurrencyDivider(environment);
+
+  return [
+    { identifier: 'main', maxConcurrentJob: undefined },
+    ...socialIntegrationList,
+  ]
+    .filter((integration) => integration.identifier.indexOf('-') === -1)
+    .map((integration) => ({
+      integration,
+      taskQueue: integration.identifier.split('-')[0],
+    }))
+    .filter(({ taskQueue }) => !excluded.includes(taskQueue))
+    .map(({ integration, taskQueue }) => {
+      // Split the per-provider cap across the servers sharing this queue.
+      // Providers whose cap is smaller than the replica count remain pinned
+      // with EXCLUDE_QUEUE, preserving the existing queue ownership model.
+      const limits = temporalWorkerLimits(
+        integration.maxConcurrentJob,
+        divider,
+        environment
+      );
+
+      return {
+        taskQueue,
+        workflowBundle: workflowBundle as unknown as Record<string, unknown>,
+        activityClasses,
+        autoStart: true,
+        workerOptions: {
+          maxConcurrentActivityTaskExecutions: limits.activityExecutions,
+          maxConcurrentWorkflowTaskExecutions: limits.workflowExecutions,
+          maxConcurrentActivityTaskPolls: limits.activityPolls,
+          maxConcurrentWorkflowTaskPolls: limits.workflowPolls,
+        },
+      };
+    });
+};
+
+export const createTemporalWorkerOptions = async (
+  workflowsPath: string | undefined,
+  activityClasses: any[] | undefined,
+  environment: NodeJS.ProcessEnv = process.env,
+  workflowBundler: WorkflowBundler = bundleWorkflowCode
+): Promise<TemporalOptions> => {
+  if (!workflowsPath) {
+    throw new Error('Temporal worker workflows path is required.');
+  }
+
+  // Every task queue executes the same workflow module. Building once and
+  // sharing the immutable result avoids one webpack compilation per provider.
+  const workflowBundle = await workflowBundler({ workflowsPath });
+
+  return {
+    isGlobal: true,
+    connection: connectionOptions(environment),
+    taskQueue: 'main',
+    logLevel: 'error',
+    workers: createTemporalWorkerDefinitions(
+      activityClasses || [],
+      workflowBundle,
+      environment
+    ),
+  };
+};
 
 export const getTemporalModule = (
   isWorkers: boolean,
-  path?: string,
+  workflowsPath?: string,
   activityClasses?: any[]
 ) => {
-  // Queues this worker server should NOT run, comma-separated
-  // (e.g. EXCLUDE_QUEUE="reddit,x,twitch"). Use it to pin a queue to a single
-  // server: exclude it on every server except the one that should own it.
-  // Meant for the providers whose concurrency is too low to split (limit 1).
-  const excludeQueues = (process.env.EXCLUDE_QUEUE || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  if (!isWorkers) {
+    return TemporalModule.register({
+      isGlobal: true,
+      connection: connectionOptions(process.env),
+      taskQueue: 'main',
+      logLevel: 'error',
+    });
+  }
 
-  // How many worker servers share each (non-excluded) queue. Per-server
-  // concurrency is divided by this so the GLOBAL concurrency stays correct.
-  // 1 server => 1 (full), 2 servers => 2 (half each), 3 servers => 3, etc.
-  const divider = Math.max(
-    1,
-    Number(process.env.WORKER_CONCURRENCY_DIVIDER) || 1
-  );
-
-  return TemporalModule.register({
+  return TemporalModule.registerAsync({
     isGlobal: true,
-    connection: {
-      address: process.env.TEMPORAL_ADDRESS || 'localhost:7233',
-      ...(process.env.TEMPORAL_TLS === 'true' ? { tls: true } : {}),
-      ...(process.env.TEMPORAL_API_KEY
-        ? { apiKey: process.env.TEMPORAL_API_KEY }
-        : {}),
-      namespace: process.env.TEMPORAL_NAMESPACE || 'default',
-    },
-    taskQueue: 'main',
-    logLevel: 'error',
-    ...(isWorkers
-      ? {
-          workers: [
-            { identifier: 'main', maxConcurrentJob: undefined },
-            ...socialIntegrationList,
-          ]
-            .filter((f) => f.identifier.indexOf('-') === -1)
-            .map((integration) => ({
-              integration,
-              taskQueue: integration.identifier.split('-')[0],
-            }))
-            .filter(({ taskQueue }) => !excludeQueues.includes(taskQueue))
-            .map(({ integration, taskQueue }) => {
-              // Split the per-provider cap across the servers sharing this
-              // queue. Floor (never below 1) so the global total never exceeds
-              // the provider's limit. Providers whose limit is smaller than the
-              // server count must be pinned via EXCLUDE_QUEUE instead.
-              const concurrency = integration.maxConcurrentJob
-                ? Math.max(
-                    1,
-                    Math.floor(integration.maxConcurrentJob / divider)
-                  )
-                : undefined;
-
-              return {
-                taskQueue,
-                workflowsPath: path!,
-                activityClasses: activityClasses!,
-                autoStart: true,
-                ...(concurrency
-                  ? {
-                      workerOptions: {
-                        maxConcurrentActivityTaskExecutions: concurrency,
-                      },
-                    }
-                  : {
-                      workerOptions: {
-                        maxConcurrentActivityTaskExecutions: 1000000,
-                      },
-                    }),
-              };
-            }),
-        }
-      : {}),
+    useFactory: () =>
+      createTemporalWorkerOptions(workflowsPath, activityClasses, process.env),
   });
 };

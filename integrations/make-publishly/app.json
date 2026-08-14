@@ -1,0 +1,20 @@
+{
+  "name": "publishly",
+  "label": "Publishly",
+  "version": "1.0.0",
+  "description": "Reliability-first social posting with idempotent creation, durable delivery receipts, fleet health, and signed events.",
+  "base": "base.json",
+  "connections": [
+    "connections/publishly.json"
+  ],
+  "webhooks": [
+    "webhooks/publishly-events.json"
+  ],
+  "modules": [
+    "modules/publish-now.json",
+    "modules/schedule-post.json",
+    "modules/get-delivery-receipts.json",
+    "modules/get-fleet-health.json",
+    "modules/watch-events.json"
+  ]
+}

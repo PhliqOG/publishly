@@ -1,62 +1,56 @@
-# Mastodon
+# Mastodon per-instance production setup
 
-**Purpose**: publish statuses (text + media) to the user's account on a
-Mastodon instance.
+Last verified: 2026-08-11. Mastodon is federated: there is no central developer
+portal, global app review, or operator-owned app secret.
 
-## App creation
-- No central developer portal — register an application **on the instance** you
-  point `MASTODON_URL` at (default in code/env: `https://mastodon.social`).
-- Registration options: instance web UI (Settings → Development → New
-  application) or the `POST /api/v1/apps` endpoint. No review process.
-- The stock provider connects users of that one configured instance. (Postiz
-  also ships a `mastodon.custom` provider variant for user-supplied instances;
-  it is currently disabled in the integration list — enabling it is a product
-  decision, not an approval matter.)
+## What Publishly does
 
-## Exact scopes (from code)
+The user enters the HTTPS origin of the Mastodon server hosting their account.
+Publishly validates that origin against SSRF, calls the server's public
+`POST /api/v1/apps` endpoint, and receives a client id/secret scoped to that
+instance. Those client credentials, the instance origin, and the user's OAuth
+token are encrypted with the connection. The authorization flow then uses:
+
+```text
+APP_ORIGIN/integrations/social/mastodon
 ```
-write:statuses
+
+No `MASTODON_URL`, `MASTODON_CLIENT_ID`, or `MASTODON_CLIENT_SECRET` production
+environment variables are used. A fallback to `mastodon.social` exists only for
+legacy rows created by the former single-instance implementation.
+
+## Exact scopes
+
+```text
 profile
+write:statuses
 write:media
 ```
-Grant these when creating the app on the instance (the app-registration form's
-scope checkboxes / scopes string).
 
-## Redirect URI(s) to register on the instance app
-```
-{FRONTEND_URL}/integrations/social/mastodon
-```
+`profile` verifies and labels the consenting account. `write:statuses` creates
+the user's scheduled status, and `write:media` uploads user-selected media. No
+read-all-accounts, follow, notification, admin, or moderation scope is requested.
 
-## Env vars to set
-```
-MASTODON_URL=            # default https://mastodon.social
-MASTODON_CLIENT_ID=
-MASTODON_CLIENT_SECRET=
-```
+## Same-day canary
 
-## Review prerequisites
-None — instance app registration is immediate. Mind the instance's local rules
-(server covenant/ToS); automation that posts user-authored content on their own
-account is normal client behavior.
+1. Leave SSRF protection enabled and deploy the final HTTPS callback.
+2. Create owner-controlled test accounts on two public Mastodon instances.
+3. Connect each by entering its own instance origin. Confirm each instance shows
+   a newly registered Publishly authorization with only the three scopes above.
+4. Publish a text status and an image with alt text on each instance. Confirm
+   each permalink independently and check the per-connection receipt.
+5. Disconnect both and revoke the app from each instance's Authorized apps page.
 
-## Truthful use-case text (for the app registration "website"/description)
-> Publishly — a scheduling client that publishes users' own posts to their own
-> account at the time they choose, via the standard Mastodon API.
+## Common failures
 
-## Data handling
-- Stored: account id/handle/avatar, OAuth token (encrypted at rest), status ids
-  for release URLs.
-- Deletion: disconnect removes tokens; users can also revoke the app under
-  Settings → Account → Authorized apps on their instance.
+- The user enters a profile URL instead of the instance origin.
+- The instance is private, resolves to an internal address, blocks dynamic app
+  registration, or imposes local automation rules.
+- The callback is not byte-identical or the deployment origin changed after
+  registration.
+- Instance media processing/rate limits differ; Publishly reports these per
+  connection and must not generalize one server's limit to the network.
 
-## Common failure causes
-- `MASTODON_URL` mismatch: tokens are instance-specific; changing the env value
-  breaks existing connections — pick the instance deliberately.
-- Redirect URI not byte-identical to the registered one.
-- Instance-level rate limits (300 req/5min typical default) — trivial for
-  scheduling volumes.
-
-## First canary (same-day, no external approval)
-1. Create a test account on the target instance; register the app; set env vars.
-2. Connect; schedule one 500-char text post → verify the permalink.
-3. One image post → verify media renders with alt text.
+Official references: [Applications API](https://docs.joinmastodon.org/methods/apps/),
+[OAuth authorization](https://docs.joinmastodon.org/client/authorized/), and
+[granular scopes](https://docs.joinmastodon.org/api/oauth-scopes/).

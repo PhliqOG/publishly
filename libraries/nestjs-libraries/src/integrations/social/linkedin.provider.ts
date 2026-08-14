@@ -65,10 +65,6 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     'openid',
     'profile',
     'w_member_social',
-    'r_basicprofile',
-    'rw_organization_admin',
-    'w_organization_social',
-    'r_organization_social',
   ];
   override maxConcurrentJob = 2;
   refreshWait = true;
@@ -145,14 +141,6 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       })
     ).json();
 
-    const { vanityName } = await (
-      await fetch('https://api.linkedin.com/v2/me', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-    ).json();
-
     const {
       name,
       sub: id,
@@ -172,7 +160,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       expiresIn: expires_in,
       name,
       picture: picture || '',
-      username: vanityName,
+      username: name,
     };
   }
 
@@ -237,14 +225,6 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       })
     ).json();
 
-    const { vanityName } = await (
-      await fetch('https://api.linkedin.com/v2/me', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-    ).json();
-
     return {
       id,
       accessToken,
@@ -252,7 +232,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       expiresIn,
       name,
       picture,
-      username: vanityName,
+      username: name,
     };
   }
 
@@ -1033,6 +1013,31 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       postId: mainPostId,
       releaseURL: `https://www.linkedin.com/feed/update/${mainPostId}`,
     };
+  }
+
+  public override async confirmPost(
+    accessToken: string,
+    postId: string,
+    releaseURL: string,
+    integration: Integration
+  ) {
+    return this.confirmJsonResource({
+      platform: 'LinkedIn',
+      method: 'linkedin_post_read',
+      url: `https://api.linkedin.com/rest/posts/${encodeURIComponent(postId)}`,
+      request: {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'LinkedIn-Version': '202601',
+          'X-Restli-Protocol-Version': '2.0.0',
+        },
+      },
+      expectedId: postId,
+      fallbackUrl: releaseURL,
+      getId: (body) => body?.id,
+      evidence: (body) => ({ lifecycleState: body?.lifecycleState || null }),
+    });
   }
 
   // Old blocking behavior, kept for workflow versions before v1.0.6 that still

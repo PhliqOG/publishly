@@ -3,8 +3,7 @@ import {
   Injectable,
   PipeTransform,
 } from '@nestjs/common';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { fromBuffer } = require('file-type');
+import { fromBuffer } from 'file-type';
 
 const ALLOWED_MIME_TYPES = new Set<string>([
   'image/jpeg',

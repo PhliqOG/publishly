@@ -23,6 +23,10 @@ import dynamic from 'next/dynamic';
 import { WalletUiProvider } from '@gitroom/frontend/components/auth/providers/placeholder/wallet.ui.provider';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import useCookie from 'react-use-cookie';
+import {
+  authNetworkFailure,
+  readAuthFailure,
+} from '@gitroom/frontend/components/auth/auth.failure';
 const WalletProvider = dynamic(
   () => import('@gitroom/frontend/components/auth/providers/wallet.provider'),
   {
@@ -72,15 +76,6 @@ export function Register() {
     <RegisterAfter token={code} provider={provider?.toUpperCase() || 'LOCAL'} />
   );
 }
-function getHelpfulReasonForRegistrationFailure(httpCode: number) {
-  switch (httpCode) {
-    case 400:
-      return 'Email already exists';
-    case 404:
-      return 'Your browser got a 404 when trying to contact the API, the most likely reasons for this are the NEXT_PUBLIC_BACKEND_URL is set incorrectly, or the backend is not running.';
-  }
-  return 'Unhandled error: ' + httpCode;
-}
 export function RegisterAfter({
   token,
   provider,
@@ -112,38 +107,50 @@ export function RegisterAfter({
   const fetchData = useFetch();
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
     setLoading(true);
-    await fetchData('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...data,
-        datafast_visitor_id,
-      }),
-    })
-      .then(async (response) => {
-        setLoading(false);
-        if (response.status === 200) {
-          fireEvents('register');
-          return track(TrackEnum.CompleteRegistration).then(() => {
-            if (response.headers.get('activate') === 'true') {
-              router.push('/auth/activate');
-            } else {
-              router.push('/auth/login');
-            }
-          });
-        } else {
-          form.setError('email', {
-            message: await response.text(),
-          });
-        }
-      })
-      .catch((e) => {
-        form.setError('email', {
-          message:
-            'General error: ' +
-            e.toString() +
-            '. Please check your browser console.',
-        });
+    form.clearErrors('email');
+
+    try {
+      const response = await fetchData('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...data,
+          datafast_visitor_id,
+        }),
       });
+
+      if (!response.ok) {
+        form.setError('email', {
+          message: await readAuthFailure(response, 'Account creation failed'),
+        });
+        return;
+      }
+
+      fireEvents('register');
+      try {
+        await track(TrackEnum.CompleteRegistration);
+      } catch (error) {
+        console.error({
+          event: 'registration_tracking_failed',
+          code: 'analytics_provider_unavailable',
+          reason:
+            error instanceof Error && error.message
+              ? error.message
+              : 'Registration tracking failed without a reason.',
+        });
+      }
+
+      if (response.headers.get('activate') === 'true') {
+        router.push('/auth/activate');
+      } else if (!response.headers.get('onboarding')) {
+        router.push('/auth/login');
+      }
+    } catch {
+      form.setError('email', {
+        message: authNetworkFailure('create your account'),
+      });
+    } finally {
+      setLoading(false);
+    }
   };
   return (
     <FormProvider {...form}>
@@ -191,13 +198,14 @@ export function RegisterAfter({
                       translationKey="label_email"
                       {...form.register('email')}
                       type="email"
+                      autoComplete="email"
                       placeholder={t('email_address', 'Email Address')}
                     />
                     <Input
                       label="Password"
                       translationKey="label_password"
                       {...form.register('password')}
-                      autoComplete="off"
+                      autoComplete="new-password"
                       type="password"
                       placeholder={t('label_password', 'Password')}
                     />
@@ -207,7 +215,7 @@ export function RegisterAfter({
                   label="Company"
                   translationKey="label_company"
                   {...form.register('company')}
-                  autoComplete="off"
+                  autoComplete="organization"
                   type="text"
                   placeholder={t('label_company', 'Company')}
                 />

@@ -173,9 +173,7 @@ export class AuthService {
       userAgent
     );
 
-    this._track('register', providerUser.email, body.datafast_visitor_id).catch(
-      (err) => {}
-    );
+    void this._track('register', providerUser.email, body.datafast_visitor_id);
 
     await NewsletterService.register(providerUser.email);
 
@@ -183,8 +181,18 @@ export class AuthService {
       if (providerInstance?.postRegistration) {
         await providerInstance.postRegistration(body.providerToken, create.id);
       }
-    } catch (err) {
-      // Don't fail registration if postRegistration fails
+    } catch (error) {
+      // This provider-specific follow-up is non-blocking, but never invisible.
+      console.error({
+        event: 'provider_post_registration_failed',
+        provider,
+        userId: create.id,
+        code: 'provider_post_registration_failed',
+        reason:
+          error instanceof Error && error.message
+            ? error.message
+            : 'The provider post-registration hook failed without a reason.',
+      });
     }
 
     return create.users[0].user;
@@ -197,7 +205,7 @@ export class AuthService {
   ) {
     if (email && datafast_visitor_id && process.env.DATAFAST_API_KEY) {
       try {
-        await fetch('https://datafa.st/api/v1/goals', {
+        const response = await fetch('https://datafa.st/api/v1/goals', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${process.env.DATAFAST_API_KEY}`,
@@ -211,7 +219,19 @@ export class AuthService {
             },
           }),
         });
-      } catch (err) {}
+        if (!response.ok) {
+          throw new Error(`DataFast returned HTTP ${response.status}.`);
+        }
+      } catch (error) {
+        console.error({
+          event: 'registration_attribution_failed',
+          code: 'analytics_provider_unavailable',
+          reason:
+            error instanceof Error && error.message
+              ? error.message
+              : 'Registration attribution failed without a reason.',
+        });
+      }
     }
   }
 
@@ -274,7 +294,7 @@ export class AuthService {
       }
       await this._userService.activateUser(user.id);
       user.activated = true;
-      this._track('register', user.email, tracking).catch((err) => {});
+      void this._track('register', user.email, tracking);
       await NewsletterService.register(user.email);
       return this.jwt(user as any);
     }

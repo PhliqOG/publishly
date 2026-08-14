@@ -1,0 +1,19 @@
+[[IgnoredVulns]]
+id = "GHSA-5p2g-fcmc-qvqq"
+ignoreUntil = 2026-09-10
+reason = "Upstream has no fixed image-size release. Publishly applies patches/image-size@1.2.1.patch and patches/image-size@2.0.2.patch to reject zero-length JXL/HEIF boxes, and upload validation does not allow JXL or HEIF media. Recheck for an upstream release before this exception expires."
+
+[[IgnoredVulns]]
+id = "GHSA-w3rx-r6r6-pgpr"
+ignoreUntil = 2026-09-10
+reason = "Upstream has no fixed image-size release. Publishly's two pinned dependency patches reject undersized ICNS entries, and ICNS is not an accepted upload format. Recheck for an upstream release before this exception expires."
+
+[[IgnoredVulns]]
+id = "GHSA-w5hq-g745-h8pq"
+ignoreUntil = 2026-09-10
+reason = "The affected UUID v3/v5/v6 output-buffer overloads are not used by Publishly or the audited transitive call sites; those call sites use UUID v4 without an output buffer. Publishly itself uses fixed uuid 14. Recheck when CopilotKit, LangChain, Jayson, and wallet dependencies advance."
+
+[[IgnoredVulns]]
+id = "GHSA-5v7r-6r5c-r473"
+ignoreUntil = 2026-09-10
+reason = "Publishly applies patches/file-type@16.5.4.patch to reject undersized ASF headers; file-type 17 is present only in the trusted SWC build CLI, and file-type 21 is overridden to the fixed 21.3.4 release. Recheck when the remaining build-tool dependency advances."

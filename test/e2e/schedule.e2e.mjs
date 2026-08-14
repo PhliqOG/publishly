@@ -9,11 +9,12 @@
 
 import { PrismaClient } from '@prisma/client';
 import { readFileSync, existsSync } from 'fs';
+import { resolve } from 'path';
 
 const BACKEND = process.env.TEST_BACKEND_URL || 'http://127.0.0.1:3000';
 const SINK =
   process.env.TEST_PROVIDER_SINK ||
-  'C:/Users/Phliq/Desktop/publishly/.building/testprovider-sink.jsonl';
+  resolve(process.cwd(), '.building/logs/testprovider-sink.jsonl');
 const prisma = new PrismaClient({
   datasources: {
     db: {
@@ -93,6 +94,7 @@ const create = await api(
   '/posts',
   {
     method: 'POST',
+    headers: { 'Idempotency-Key': `schedule-e2e:${Date.now()}` },
     body: JSON.stringify({
       type: 'schedule',
       shortLink: false,

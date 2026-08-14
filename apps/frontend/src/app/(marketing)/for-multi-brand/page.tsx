@@ -19,10 +19,8 @@ export const metadata: Metadata = {
   alternates: { canonical: '/for-multi-brand' },
 };
 
-// The multi-brand angle: the operator running a portfolio, not a profile.
-// One calendar, per-brand routing, isolation, and the in-development learning
-// loop (always labeled). Facts map to data/public-product-facts.json; the
-// learning items are ai.in_development — direction, never shipped UI.
+// The multi-brand angle: one calendar, clear routing, separate workspaces,
+// account health, and pricing that does not punish a larger brand roster.
 
 const PORTFOLIO = [
   {
@@ -43,19 +41,18 @@ const PORTFOLIO = [
   },
 ];
 
-// ai.in_development — presented as direction, labeled on every tile.
-const LEARNING = [
+const ACCOUNT_HEALTH = [
   {
-    h: 'Brand Folders',
-    p: 'Each brand gets a guided knowledge base — voice, banned words, product facts, audience, past winners. Fifty brands stay fifty distinct voices, never one blended mush.',
+    h: 'Warnings before a connection expires',
+    p: 'See which brand needs attention before a scheduled post is put at risk. The warning names the account and the next step.',
   },
   {
-    h: 'Caption Memory',
-    p: 'Every caption is joined to its measured results, per brand. New captions are written against what this brand’s audience actually rewarded — not generic viral tips.',
+    h: 'One broken account stays contained',
+    p: 'A disconnected account is held back while healthy brands and locations keep publishing. One bad connection does not stop the whole calendar.',
   },
   {
-    h: 'A schedule that tunes itself',
-    p: 'Slots drift toward the hours each brand’s audience measurably rewards — bounded, explainable & always under your control.',
+    h: 'Proof for every destination',
+    p: 'Each brand and platform gets its own result, live link, and failure reason. You can answer “did it go out?” without checking dozens of tabs.',
   },
 ];
 
@@ -84,14 +81,17 @@ export default function ForMultiBrandPage() {
           <div className="mk-container">
             <span className="mk-eyebrow">For multi-brand teams</span>
             <h1 className="mk-h1" style={{ marginTop: 18 }}>
-              {MARKETING.copyBank.fleet}
+              {MARKETING.copyBank.scale}
             </h1>
             <p className="mk-hero-sub">
               Multi-brand, multi-location, multi-market — one calendar for the
               whole portfolio, one flat price for the volume.
             </p>
             <div className="mk-hero-ctas">
-              <Link href={MARKETING.authRegister} className="mk-btn mk-btn-primary">
+              <Link
+                href={MARKETING.authRegister}
+                className="mk-btn mk-btn-primary"
+              >
                 {MARKETING.cta.primary}
               </Link>
               <Link href="/pricing" className="mk-btn mk-btn-ghost">
@@ -100,11 +100,11 @@ export default function ForMultiBrandPage() {
             </div>
             <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}>
               <QuickAnswer>
-                Publishly lets multi-brand and multi-location businesses post
-                to all of their accounts from one calendar and one API. Every
-                brand keeps its own channels, voice, and workspace, and pricing
-                is sized by posting volume — so brand number 50 costs the same
-                as brand number 5.
+                Publishly lets multi-brand and multi-location businesses post to
+                all of their accounts from one calendar and one API. Every brand
+                keeps its own channels, voice, and workspace, and pricing is
+                sized by posting volume — so brand number 50 costs the same as
+                brand number 5.
               </QuickAnswer>
               <Byline published="2026-08-10" />
             </div>
@@ -129,7 +129,10 @@ export default function ForMultiBrandPage() {
         {/* ---- the portfolio calendar: reversed split, rows lead ---- */}
         <section className="mk-section">
           <div className="mk-container">
-            <div className="mk-split mk-split-rev" style={{ alignItems: 'start' }}>
+            <div
+              className="mk-split mk-split-rev"
+              style={{ alignItems: 'start' }}
+            >
               <div className="mk-rows">
                 {PORTFOLIO.map((item) => (
                   <div className="mk-row" key={item.h}>
@@ -163,22 +166,23 @@ export default function ForMultiBrandPage() {
           </div>
         </section>
 
-        {/* ---- learning loop: bento tiles, labeled in development ---- */}
+        {/* ---- account health: one operation, isolated outcomes ---- */}
         <section className="mk-section mk-section-tint">
           <div className="mk-container">
-            <span className="mk-eyebrow">In development</span>
+            <span className="mk-eyebrow">Account health</span>
             <h2 className="mk-h2" style={{ marginTop: 14 }}>
-              50 brands. 50 voices. Kept that way.
+              50 brands. One clear health view.
             </h2>
             <p className="mk-section-lede">
-              The learning loop we&rsquo;re building keeps every brand sounding
-              like itself. This is where Publishly is going — direction, not
-              shipped UI, and we label it that way.
+              See what is healthy, what needs attention, and what happened to
+              every post without opening each account one by one.
             </p>
-            <div className="mk-bento" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-              {LEARNING.map((tile) => (
+            <div
+              className="mk-bento"
+              style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
+            >
+              {ACCOUNT_HEALTH.map((tile) => (
                 <div className="mk-tile" key={tile.h}>
-                  <span className="mk-tile-label">In development</span>
                   <h3>{tile.h}</h3>
                   <p>{tile.p}</p>
                 </div>
@@ -228,7 +232,8 @@ export default function ForMultiBrandPage() {
             <div className="mk-cta-panel">
               <h2 className="mk-h2">Bring the whole portfolio.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                Free forever plan — no credit card. 7-day trial on every paid plan.
+                Free forever plan — no credit card. 7-day trial on every paid
+                plan.
               </p>
               <div className="mk-hero-ctas">
                 <Link

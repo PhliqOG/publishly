@@ -5,6 +5,7 @@ The marketing site describes the finished product (operator decision 2026-08-10)
 against the code, not memory.
 
 ## Claimed-feature gates (from data/public-product-facts.json)
+
 - [ ] `post.failure` webhook dispatches on every failure path (status was pre_release
       2026-08-10 — concurrent build in `publishing-failure.service.ts` / workflow v1.0.7;
       verify merged + e2e green)
@@ -13,15 +14,17 @@ against the code, not memory.
       not just admin)
 - [ ] Org-scoped success-rate/fleet-health surface (planned Phase 1b/1f — build before
       any "dashboard glimpse" screenshot ships)
-- [ ] Quota semantics: ERROR posts excluded from the monthly counter before any
-      "failed posts never count" copy goes live (currently NOT claimable — copy uses
-      "sized by posts" only)
+- [ ] Quota semantics: verify only `SuccessfulPostUsage` rows written with
+      `confirmed_live` count; failed/unconfirmed posts and confirmation replays
+      consume zero.
 - [ ] AI suite (Caption Memory, Brand Folders, Video Understanding, self-tuning
       schedule): pages label these "in development" — EITHER ship them or keep labels
-- [ ] Pricing: Stripe products match pricing.ts ($0/$29/$99/$299, yearly ×10);
-      ULTIMATE 'Enterprise' placeholder finalized or hidden from app billing UI
+- [ ] Pricing: Stripe products match pricing.ts ($0/$29/$99/$299, yearly x10);
+      ULTIMATE remains a hidden legacy alias to Scale and paid accounts render
+      unlimited everywhere.
 
 ## Infrastructure gates
+
 - [ ] NEXT_PUBLIC_SITE_URL set to the real origin (JSON-LD @id, sitemap, robots depend on it)
 - [ ] robots.txt serves at the live domain; crawler policy honored (docs/seo/crawler-policy.md)
 - [ ] Cloudflare (or any WAF/CDN): OAI-SearchBot, PerplexityBot, Googlebot, GPTBot,
@@ -37,6 +40,7 @@ against the code, not memory.
 - [ ] public-facts.spec.ts green (registry ↔ pricing.ts ↔ copy)
 
 ## Post-deploy activation (docs/seo/measurement.md)
+
 - [ ] Search Console verified; AI Overviews/AI Mode reporting tracked weekly
 - [ ] utm_source=chatgpt.com referral segment + AI-referral funnel dashboard
 - [ ] Preferred Sources CTA tracking event

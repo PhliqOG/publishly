@@ -3,8 +3,8 @@ import { INestApplication } from '@nestjs/common';
 
 export const loadSwagger = (app: INestApplication) => {
   const config = new DocumentBuilder()
-    .setTitle('Postiz Swagger file')
-    .setDescription('API description')
+    .setTitle('Publishly API')
+    .setDescription('Publishly application and integration API')
     .setVersion('1.0')
     .build();
 

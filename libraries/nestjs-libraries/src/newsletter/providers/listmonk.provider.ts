@@ -19,27 +19,54 @@ export class ListmonkProvider implements NewsletterInterface {
     );
 
     try {
-      const {
-        data: { id },
-      } = await (
-        await fetch(`${process.env.LISTMONK_DOMAIN}/api/subscribers`, {
+      const subscriberResponse = await fetch(
+        `${process.env.LISTMONK_DOMAIN}/api/subscribers`,
+        {
           method: 'POST',
           headers,
           body: JSON.stringify(body),
-        })
-      ).json();
+        }
+      );
+      if (!subscriberResponse.ok) {
+        throw new Error(
+          `Listmonk subscriber creation failed (HTTP ${subscriberResponse.status}).`
+        );
+      }
+      const {
+        data: { id },
+      } = await subscriberResponse.json();
+      if (!id) {
+        throw new Error('Listmonk returned no subscriber identifier.');
+      }
 
       const welcomeEmail = {
         subscriber_id: id,
         template_id: +process.env.LISTMONK_WELCOME_TEMPLATE_ID,
-        subject: 'Welcome to Postiz 🚀',
+        subject: 'Welcome to Publishly',
       };
 
-      await fetch(`${process.env.LISTMONK_DOMAIN}/api/tx`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(welcomeEmail),
+      const welcomeResponse = await fetch(
+        `${process.env.LISTMONK_DOMAIN}/api/tx`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(welcomeEmail),
+        }
+      );
+      if (!welcomeResponse.ok) {
+        throw new Error(
+          `Listmonk welcome delivery failed (HTTP ${welcomeResponse.status}).`
+        );
+      }
+    } catch (error) {
+      console.error({
+        event: 'newsletter_registration_failed',
+        code: 'newsletter_provider_unavailable',
+        reason:
+          error instanceof Error && error.message
+            ? error.message
+            : 'The newsletter provider failed without a reason.',
       });
-    } catch (err) {}
+    }
   }
 }

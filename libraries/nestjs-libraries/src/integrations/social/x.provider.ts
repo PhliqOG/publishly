@@ -14,6 +14,7 @@ import sharp from 'sharp';
 import { readOrFetch } from '@gitroom/helpers/utils/read.or.fetch';
 import {
   BadBody,
+  ProviderTransient,
   RefreshToken,
   SocialAbstract,
 } from '@gitroom/nestjs-libraries/integrations/social.abstract';
@@ -620,20 +621,26 @@ export class XProvider extends SocialAbstract implements SocialProvider {
   }
 
   // With ten X activities running concurrently (maxConcurrentJob), a user
-  // publishing several posts at the same minute can 429 on the upload
-  // endpoints; twitter-api-v2 errors never pass through this.fetch's backoff,
-  // so retry them here instead of hard-failing the post. Nothing is published
-  // at upload time, so a retried upload can never duplicate a post.
+  // twitter-api-v2 bypasses SocialAbstract.fetch. Surface its 429 immediately
+  // so V108 persists the connection gate and performs the durable retry.
   private async uploadWithRateLimitRetry<T>(
     func: () => Promise<T>,
-    totalRetries = 0
+    _totalRetries = 0
   ): Promise<T> {
     try {
       return await func();
     } catch (err: any) {
-      if (totalRetries <= 2 && (err?.code === 429 || err?.rateLimitError)) {
-        await timer(5000 * (totalRetries + 1));
-        return this.uploadWithRateLimitRetry(func, totalRetries + 1);
+      if (err?.code === 429 || err?.rateLimitError) {
+        const reset = Number(err?.rateLimit?.reset);
+        throw new ProviderTransient(
+          'The X account reached its publishing rate limit. Publishly queued the post until the limit resets.',
+          {
+            code: 'rate_limited',
+            ...(Number.isFinite(reset) && reset > 0
+              ? { retryAt: new Date(reset * 1000).toISOString() }
+              : {}),
+          }
+        );
       }
 
       throw err;
@@ -1495,6 +1502,59 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       console.log(err);
     }
     return [];
+  }
+
+  public override async confirmPost(
+    accessToken: string,
+    postId: string,
+    releaseURL: string,
+    integration: Integration
+  ) {
+    const [accessTokenSplit, accessSecretSplit] = accessToken.split(':');
+    const client = new TwitterApi({
+      appKey: process.env.X_API_KEY!,
+      appSecret: process.env.X_API_SECRET!,
+      accessToken: accessTokenSplit,
+      accessSecret: accessSecretSplit,
+    });
+    try {
+      const tweet = await client.v2.singleTweet(postId, {
+        'tweet.fields': ['id', 'created_at'],
+      });
+      if (tweet?.data?.id === postId) {
+        return {
+          status: 'confirmed' as const,
+          method: 'x_tweet_read',
+          providerPostId: postId,
+          providerUrl: releaseURL,
+          evidence: { createdAt: tweet.data.created_at || null },
+        };
+      }
+      return {
+        status: 'not_found' as const,
+        method: 'x_tweet_read',
+        reason:
+          'X did not return the created post from its tweet lookup yet. Publishly will retry the read-only confirmation.',
+      };
+    } catch (error) {
+      const status = Number(
+        (error as any)?.code || (error as any)?.data?.status || 0
+      );
+      return {
+        status:
+          status === 404
+            ? ('not_found' as const)
+            : status === 401 || status === 403
+            ? ('unsupported' as const)
+            : ('pending' as const),
+        method: 'x_tweet_read',
+        reason:
+          error instanceof Error
+            ? `X confirmation could not complete: ${error.message}`
+            : 'X confirmation could not reach the tweet lookup API.',
+        evidence: { httpStatus: status || null },
+      };
+    }
   }
 
   async postAnalytics(

@@ -1,12 +1,16 @@
 import {
   AnalyticsData,
+  AmbiguousPostReconciliationInput,
+  AmbiguousPostReconciliationResult,
   AuthTokenDetails,
+  InboxComment,
+  InboxDirectMessage,
   PendingCheckResponse,
   PostDetails,
   PostResponse,
   SocialProvider,
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
-import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
+import { generateOAuthState } from '@gitroom/nestjs-libraries/integrations/oauth.state';
 import { timer } from '@gitroom/helpers/utils/timer';
 import dayjs from 'dayjs';
 import {
@@ -19,6 +23,10 @@ import { Integration } from '@prisma/client';
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
 import { Tool } from '@gitroom/nestjs-libraries/integrations/tool.decorator';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
+import {
+  deriveInstagramGraphPlatformTruth,
+  PlatformTruthInspectionError,
+} from '@gitroom/nestjs-libraries/reliability/platform.truth';
 
 @Rules(
   "Instagram should have at least one attachment, if it's a story, it can have only one picture"
@@ -38,13 +46,320 @@ export class InstagramProvider
     'business_management',
     'instagram_content_publish',
     'instagram_manage_comments',
+    'instagram_manage_messages',
     'instagram_manage_insights',
+    'pages_manage_metadata',
   ];
   override maxConcurrentJob = 400;
+  convertToJPEG = true;
   editor = 'normal' as const;
   dto = InstagramDto;
   maxLength() {
     return 2200;
+  }
+
+  async inspectPlatformTruth(accessToken: string, integration: Integration) {
+    const [pageAccessToken] = accessToken.split('___');
+    const version = process.env.META_GRAPH_VERSION || 'v25.0';
+    const page = await (
+      await this.fetch(
+        `https://graph.facebook.com/${version}/me?fields=id,instagram_business_account&access_token=${encodeURIComponent(
+          pageAccessToken
+        )}`,
+        undefined,
+        this.identifier,
+        0,
+        true
+      )
+    ).json();
+    const instagram = await (
+      await this.fetch(
+        `https://graph.facebook.com/${version}/${encodeURIComponent(
+          integration.internalId
+        )}?fields=id,account_type,username&access_token=${encodeURIComponent(
+          pageAccessToken
+        )}`,
+        undefined,
+        this.identifier,
+        0,
+        true
+      )
+    ).json();
+    return deriveInstagramGraphPlatformTruth({
+      expectedInstagramId: integration.internalId,
+      linkedInstagramId: page?.instagram_business_account?.id,
+      pageId: page?.id,
+      accountType: instagram?.account_type,
+    });
+  }
+
+  private get inboxGraphHost() {
+    return this.identifier === 'instagram-standalone'
+      ? 'graph.instagram.com'
+      : 'graph.facebook.com';
+  }
+
+  private get inboxGraphVersion() {
+    return process.env.META_GRAPH_VERSION || 'v25.0';
+  }
+
+  async listComments(
+    token: string,
+    integration: Integration,
+    params: { page?: number; postId?: string },
+    graphHost = this.inboxGraphHost
+  ): Promise<{ comments: InboxComment[]; nextPage?: number }> {
+    const [accessToken] = token.split('___');
+    const page = Math.max(1, Math.min(Number(params.page) || 1, 1000));
+    const limit = 25;
+    const headers = { Authorization: `Bearer ${accessToken}` };
+    const base = `https://${graphHost}/${this.inboxGraphVersion}`;
+    const mapComment = (
+      comment: any,
+      postId?: string,
+      releaseURL?: string
+    ) => ({
+      id: String(comment.id),
+      postId,
+      releaseURL,
+      author: {
+        name: comment.username || 'Instagram user',
+        username: comment.username || undefined,
+      },
+      message: String(comment.text || ''),
+      createdAt: comment.timestamp || new Date(0).toISOString(),
+    });
+
+    if (params.postId) {
+      const fields = encodeURIComponent('id,text,timestamp,username');
+      const response = await this.fetch(
+        `${base}/${encodeURIComponent(
+          params.postId
+        )}/comments?fields=${fields}&limit=${limit}&offset=${
+          (page - 1) * limit
+        }`,
+        { headers },
+        'list Instagram comments'
+      );
+      const json: any = await response.json();
+      return {
+        comments: (json.data || []).map((comment: any) =>
+          mapComment(comment, params.postId)
+        ),
+        ...(json.paging?.next ? { nextPage: page + 1 } : {}),
+      };
+    }
+
+    const fields = encodeURIComponent(
+      'id,permalink,comments.limit(25){id,text,timestamp,username}'
+    );
+    const response = await this.fetch(
+      `${base}/${encodeURIComponent(
+        integration.internalId
+      )}/media?fields=${fields}&limit=10&offset=${(page - 1) * 10}`,
+      { headers },
+      'list Instagram media comments'
+    );
+    const json: any = await response.json();
+    const comments = (json.data || []).flatMap((post: any) =>
+      (post.comments?.data || []).map((comment: any) =>
+        mapComment(comment, String(post.id), post.permalink)
+      )
+    );
+    return {
+      comments,
+      ...(json.paging?.next ? { nextPage: page + 1 } : {}),
+    };
+  }
+
+  async replyToComment(
+    token: string,
+    _integration: Integration,
+    commentId: string,
+    message: string,
+    _postId?: string,
+    graphHost = this.inboxGraphHost
+  ): Promise<{ id: string; releaseURL?: string }> {
+    const [accessToken] = token.split('___');
+    const response = await this.fetch(
+      `https://${graphHost}/${this.inboxGraphVersion}/${encodeURIComponent(
+        commentId
+      )}/replies`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({ message }).toString(),
+      },
+      'reply to Instagram comment'
+    );
+    const json: any = await response.json();
+    return { id: String(json.id) };
+  }
+
+  async listDirectMessages(
+    token: string,
+    integration: Integration,
+    params: { page?: number },
+    graphHost = this.inboxGraphHost
+  ): Promise<{ messages: InboxDirectMessage[]; nextPage?: number }> {
+    const [accessToken] = token.split('___');
+    const page = Math.max(1, Math.min(Number(params.page) || 1, 1000));
+    const limit = 10;
+    const fields = encodeURIComponent(
+      'id,updated_time,participants,messages.limit(25){id,created_time,message,from,to,is_unsupported}'
+    );
+    const response = await this.fetch(
+      `https://${graphHost}/${this.inboxGraphVersion}/${encodeURIComponent(
+        integration.internalId
+      )}/conversations?platform=instagram&fields=${fields}&limit=${limit}&offset=${
+        (page - 1) * limit
+      }`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+      'list Instagram conversations'
+    );
+    const json: any = await response.json();
+    const now = Date.now();
+    const messages = (json.data || []).flatMap((conversation: any) => {
+      const threadMessages = conversation.messages?.data || [];
+      const participants = conversation.participants?.data || [];
+      const externalParticipant = participants.find(
+        (participant: any) =>
+          String(participant?.id || '') !== String(integration.internalId)
+      );
+      const mostRecentInbound = threadMessages
+        .filter(
+          (item: any) =>
+            String(item?.from?.id || '') !== String(integration.internalId)
+        )
+        .map((item: any) => new Date(item.created_time).getTime())
+        .filter(Number.isFinite)
+        .sort((a: number, b: number) => b - a)[0];
+      const windowExpiresAt = mostRecentInbound
+        ? new Date(mostRecentInbound + 24 * 60 * 60 * 1000)
+        : undefined;
+      const replyAllowed = !!windowExpiresAt && windowExpiresAt.getTime() > now;
+
+      return threadMessages
+        .map((item: any) => {
+          const outbound =
+            String(item?.from?.id || '') === String(integration.internalId);
+          const recipientId = String(
+            externalParticipant?.id ||
+              (outbound
+                ? item?.to?.data?.find(
+                    (recipient: any) =>
+                      String(recipient?.id || '') !==
+                      String(integration.internalId)
+                  )?.id
+                : item?.from?.id) ||
+              ''
+          );
+          if (!item?.id || !recipientId) return null;
+          return {
+            id: String(item.id),
+            threadId: String(conversation.id),
+            recipientId,
+            author: {
+              id: item?.from?.id ? String(item.from.id) : undefined,
+              name:
+                item?.from?.name ||
+                (outbound ? integration.name : 'Instagram user'),
+              username: item?.from?.username || undefined,
+            },
+            message: String(
+              item?.message ||
+                (item?.is_unsupported
+                  ? 'Unsupported Instagram message type'
+                  : '')
+            ),
+            createdAt: item?.created_time || new Date(0).toISOString(),
+            direction: outbound ? ('outbound' as const) : ('inbound' as const),
+            replyAllowed,
+            ...(windowExpiresAt
+              ? { windowExpiresAt: windowExpiresAt.toISOString() }
+              : {}),
+            ...(item?.is_unsupported ? { unsupported: true } : {}),
+          };
+        })
+        .filter(Boolean) as InboxDirectMessage[];
+    });
+
+    messages.sort(
+      (a: InboxDirectMessage, b: InboxDirectMessage) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    return {
+      messages,
+      ...(json.paging?.next ? { nextPage: page + 1 } : {}),
+    };
+  }
+
+  async sendDirectMessage(
+    token: string,
+    integration: Integration,
+    threadId: string,
+    recipientId: string,
+    message: string,
+    graphHost = this.inboxGraphHost
+  ): Promise<{ id: string }> {
+    const [accessToken] = token.split('___');
+    const headers = { Authorization: `Bearer ${accessToken}` };
+    const fields = encodeURIComponent(
+      'participants,messages.limit(25){id,created_time,from}'
+    );
+    const conversationResponse = await this.fetch(
+      `https://${graphHost}/${this.inboxGraphVersion}/${encodeURIComponent(
+        threadId
+      )}?fields=${fields}`,
+      { headers },
+      'validate Instagram response window'
+    );
+    const conversation: any = await conversationResponse.json();
+    const participantIds = (conversation.participants?.data || []).map(
+      (participant: any) => String(participant?.id || '')
+    );
+    const mostRecentInbound = (conversation.messages?.data || [])
+      .filter(
+        (item: any) => String(item?.from?.id || '') === String(recipientId)
+      )
+      .map((item: any) => new Date(item.created_time).getTime())
+      .filter(Number.isFinite)
+      .sort((a: number, b: number) => b - a)[0];
+    const responseWindowOpen =
+      !!mostRecentInbound &&
+      Date.now() - mostRecentInbound <= 24 * 60 * 60 * 1000;
+
+    if (!participantIds.includes(String(recipientId)) || !responseWindowOpen) {
+      throw new BadBody(
+        this.identifier,
+        JSON.stringify({ error: 'instagram_response_window_closed' }),
+        '{}',
+        'Instagram permits this reply only to a participant who messaged the business within the last 24 hours.'
+      );
+    }
+
+    const sendResponse = await this.fetch(
+      `https://${graphHost}/${this.inboxGraphVersion}/${encodeURIComponent(
+        integration.internalId
+      )}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipient: { id: recipientId },
+          message: { text: message },
+        }),
+      },
+      'send Instagram direct-message reply'
+    );
+    const json: any = await sendResponse.json();
+    return { id: String(json.message_id || json.id) };
   }
 
   override async checkValidity(
@@ -109,7 +424,8 @@ export class InstagramProvider
     if (body.indexOf('An unknown error occurred') > -1) {
       return {
         type: 'retry' as const,
-        value: 'An unknown error occurred, please try again later',
+        value:
+          'Instagram temporarily rejected the request without a platform detail. Publishly can retry it safely.',
       };
     }
     if (body.indexOf('2207081') > -1) {
@@ -355,7 +671,7 @@ export class InstagramProvider
       return {
         type: 'retry' as const,
         value: 'Could not upload your media',
-      }
+      };
     }
 
     if (body.indexOf('2207077') > -1) {
@@ -368,8 +684,9 @@ export class InstagramProvider
     if (body.indexOf('too little or too many attachments') > -1) {
       return {
         type: 'bad-body' as const,
-        value: 'Instagram carousel should have between 2 and 10 media attachments',
-      }
+        value:
+          'Instagram carousel should have between 2 and 10 media attachments',
+      };
     }
 
     if (body.indexOf('2207027') > -1) {
@@ -414,17 +731,17 @@ export class InstagramProvider
   }
 
   async generateAuthUrl() {
-    const state = makeId(6);
+    const state = generateOAuthState();
     return {
       url:
-        'https://www.facebook.com/v20.0/dialog/oauth' +
+        `https://www.facebook.com/${this.inboxGraphVersion}/dialog/oauth` +
         `?client_id=${process.env.FACEBOOK_APP_ID}` +
         `&redirect_uri=${encodeURIComponent(
           `${process.env.FRONTEND_URL}/integrations/social/instagram`
         )}` +
         `&state=${state}` +
         `&scope=${encodeURIComponent(this.scopes.join(','))}`,
-      codeVerifier: makeId(10),
+      codeVerifier: state,
       state,
     };
   }
@@ -436,7 +753,7 @@ export class InstagramProvider
   }) {
     const getAccessToken = await (
       await fetch(
-        'https://graph.facebook.com/v20.0/oauth/access_token' +
+        `https://graph.facebook.com/${this.inboxGraphVersion}/oauth/access_token` +
           `?client_id=${process.env.FACEBOOK_APP_ID}` +
           `&redirect_uri=${encodeURIComponent(
             `${process.env.FRONTEND_URL}/integrations/social/instagram${
@@ -450,7 +767,7 @@ export class InstagramProvider
 
     const { access_token, expires_in, ...all } = await (
       await fetch(
-        'https://graph.facebook.com/v20.0/oauth/access_token' +
+        `https://graph.facebook.com/${this.inboxGraphVersion}/oauth/access_token` +
           '?grant_type=fb_exchange_token' +
           `&client_id=${process.env.FACEBOOK_APP_ID}` +
           `&client_secret=${process.env.FACEBOOK_APP_SECRET}` +
@@ -460,7 +777,7 @@ export class InstagramProvider
 
     const { data } = await (
       await fetch(
-        `https://graph.facebook.com/v20.0/me/permissions?access_token=${access_token}`
+        `https://graph.facebook.com/${this.inboxGraphVersion}/me/permissions?access_token=${access_token}`
       )
     ).json();
 
@@ -471,7 +788,7 @@ export class InstagramProvider
 
     const { id, name, picture } = await (
       await fetch(
-        `https://graph.facebook.com/v20.0/me?fields=id,name,picture&access_token=${access_token}`
+        `https://graph.facebook.com/${this.inboxGraphVersion}/me?fields=id,name,picture&access_token=${access_token}`
       )
     ).json();
 
@@ -509,7 +826,7 @@ export class InstagramProvider
 
     // Fetch pages the user explicitly shared during the OAuth dialog
     await fetchPaginated(
-      `https://graph.facebook.com/v20.0/me/accounts?fields=id,instagram_business_account,username,name,picture.type(large)&limit=100&access_token=${accessToken}`
+      `https://graph.facebook.com/${this.inboxGraphVersion}/me/accounts?fields=id,instagram_business_account,username,name,picture.type(large)&limit=100&access_token=${accessToken}`
     );
 
     // Also fetch pages via Business Manager API to discover pages
@@ -517,7 +834,7 @@ export class InstagramProvider
     try {
       let bizUrl:
         | string
-        | undefined = `https://graph.facebook.com/v20.0/me/businesses?access_token=${accessToken}`;
+        | undefined = `https://graph.facebook.com/${this.inboxGraphVersion}/me/businesses?access_token=${accessToken}`;
 
       while (bizUrl) {
         const bizResponse = await (await fetch(bizUrl)).json();
@@ -525,7 +842,7 @@ export class InstagramProvider
           for (const business of bizResponse.data) {
             try {
               await fetchPaginated(
-                `https://graph.facebook.com/v20.0/${business.id}/owned_pages?fields=id,instagram_business_account,username,name,picture.type(large)&limit=100&access_token=${accessToken}`
+                `https://graph.facebook.com/${this.inboxGraphVersion}/${business.id}/owned_pages?fields=id,instagram_business_account,username,name,picture.type(large)&limit=100&access_token=${accessToken}`
               );
             } catch {
               // Continue with other businesses
@@ -533,7 +850,7 @@ export class InstagramProvider
 
             try {
               await fetchPaginated(
-                `https://graph.facebook.com/v20.0/${business.id}/client_pages?fields=id,instagram_business_account,username,name,picture.type(large)&limit=100&access_token=${accessToken}`
+                `https://graph.facebook.com/${this.inboxGraphVersion}/${business.id}/client_pages?fields=id,instagram_business_account,username,name,picture.type(large)&limit=100&access_token=${accessToken}`
               );
             } catch {
               // Continue with other businesses
@@ -554,7 +871,7 @@ export class InstagramProvider
             pageId: p.id,
             ...(await (
               await fetch(
-                `https://graph.facebook.com/v20.0/${p.instagram_business_account.id}?fields=name,profile_picture_url&access_token=${accessToken}`
+                `https://graph.facebook.com/${this.inboxGraphVersion}/${p.instagram_business_account.id}?fields=name,profile_picture_url&access_token=${accessToken}`
               )
             ).json()),
             id: p.instagram_business_account.id,
@@ -575,24 +892,55 @@ export class InstagramProvider
     data: { pageId: string; id: string }
   ) {
     const [accessToken, userToken] = token.split('___');
-    const { access_token, ...all } = await (
-      await fetch(
-        `https://graph.facebook.com/v20.0/${data.pageId}?fields=access_token,name,picture.type(large)&access_token=${accessToken}`
+    const version = process.env.META_GRAPH_VERSION || 'v25.0';
+    const page = await (
+      await this.fetch(
+        `https://graph.facebook.com/${version}/${encodeURIComponent(
+          data.pageId
+        )}?fields=access_token,name,picture.type(large),instagram_business_account&access_token=${encodeURIComponent(
+          accessToken
+        )}`,
+        undefined,
+        this.identifier,
+        0,
+        true
       )
     ).json();
 
-    const { id, name, profile_picture_url, username } = await (
-      await fetch(
-        `https://graph.facebook.com/v20.0/${data.id}?fields=username,name,profile_picture_url&access_token=${accessToken}`
+    const instagram = await (
+      await this.fetch(
+        `https://graph.facebook.com/${version}/${encodeURIComponent(
+          data.id
+        )}?fields=id,username,name,profile_picture_url,account_type&access_token=${encodeURIComponent(
+          accessToken
+        )}`,
+        undefined,
+        this.identifier,
+        0,
+        true
       )
     ).json();
+    const platformTruth = deriveInstagramGraphPlatformTruth({
+      expectedInstagramId: data.id,
+      linkedInstagramId: page?.instagram_business_account?.id,
+      pageId: page?.id,
+      accountType: instagram?.account_type,
+    });
+    if (platformTruth.state !== 'READY') {
+      throw new PlatformTruthInspectionError(
+        'user_action_needed',
+        platformTruth.code,
+        platformTruth.reason
+      );
+    }
 
     return {
-      id,
-      name,
-      picture: profile_picture_url,
-      access_token: access_token + '___' + accessToken,
-      username,
+      id: instagram.id,
+      name: instagram.name,
+      picture: instagram.profile_picture_url,
+      access_token: page.access_token + '___' + accessToken,
+      username: instagram.username,
+      platformTruth,
     };
   }
 
@@ -605,7 +953,7 @@ export class InstagramProvider
   ): Promise<string> {
     const { status_code, status } = await (
       await this.fetch(
-        `https://${type}/v20.0/${containerId}?access_token=${checkToken}&fields=status_code,status`,
+        `https://${type}/${this.inboxGraphVersion}/${containerId}?access_token=${checkToken}&fields=status_code,status`,
         undefined,
         '',
         0,
@@ -636,13 +984,34 @@ export class InstagramProvider
     try {
       const { permalink } = await (
         await this.fetch(
-          `https://${type}/v20.0/${mediaId}?fields=permalink&access_token=${checkToken}`
+          `https://${type}/${this.inboxGraphVersion}/${mediaId}?fields=permalink&access_token=${checkToken}`
         )
       ).json();
       return permalink;
     } catch (err) {
       return `https://www.instagram.com/${integration.profile}`;
     }
+  }
+
+  public override async reconcileAmbiguousPost(
+    _accessToken: string,
+    _input: AmbiguousPostReconciliationInput,
+    _integration: Integration
+  ): Promise<AmbiguousPostReconciliationResult> {
+    // V109 invokes postPending as its mutation boundary. For this adapter that
+    // method can only create unpublished media containers; media_publish runs
+    // later with the persisted container id. A lost container response can
+    // therefore leave an orphan container, but it cannot leave a live post.
+    return {
+      status: 'absent',
+      method: 'instagram_unpublished_container_boundary',
+      reason:
+        'The ambiguous Instagram mutation could only create an unpublished container, so no live post exists and container creation can be retried safely.',
+      evidence: {
+        mutationBoundary: 'container_create',
+        livePublicationPossible: false,
+      },
+    };
   }
 
   async postPending(
@@ -723,7 +1092,7 @@ export class InstagramProvider
 
         const { id: photoId } = await (
           await this.fetch(
-            `https://${type}/v20.0/${id}/media?${mediaType}${isCarousel}${collaborators}${trialParams}${audioConfiguration}&access_token=${accessToken}${caption}`,
+            `https://${type}/${this.inboxGraphVersion}/${id}/media?${mediaType}${isCarousel}${collaborators}${trialParams}${audioConfiguration}&access_token=${accessToken}${caption}`,
             {
               method: 'POST',
             }
@@ -855,7 +1224,7 @@ export class InstagramProvider
 
         const { id: mediaId } = await (
           await this.fetch(
-            `https://${pendingData.type}/v20.0/${igId}/media_publish?creation_id=${mediaCreationId}&access_token=${accessToken}&field=id`,
+            `https://${pendingData.type}/${this.inboxGraphVersion}/${igId}/media_publish?creation_id=${mediaCreationId}&access_token=${accessToken}&field=id`,
             {
               method: 'POST',
             }
@@ -884,7 +1253,9 @@ export class InstagramProvider
       // re-running this is safe)
       const { id: containerId } = await (
         await this.fetch(
-          `https://${pendingData.type}/v20.0/${igId}/media?caption=${encodeURIComponent(
+          `https://${pendingData.type}/${
+            this.inboxGraphVersion
+          }/${igId}/media?caption=${encodeURIComponent(
             pendingData.message || ''
           )}&media_type=CAROUSEL&children=${encodeURIComponent(
             pendingData.containers.join(',')
@@ -908,7 +1279,7 @@ export class InstagramProvider
 
     const { id: mediaId } = await (
       await this.fetch(
-        `https://${pendingData.type}/v20.0/${igId}/media_publish?creation_id=${creationId}&access_token=${accessToken}&field=id`,
+        `https://${pendingData.type}/${this.inboxGraphVersion}/${igId}/media_publish?creation_id=${creationId}&access_token=${accessToken}&field=id`,
         {
           method: 'POST',
         }
@@ -1005,7 +1376,9 @@ export class InstagramProvider
 
     const { id: commentId } = await (
       await this.fetch(
-        `https://${type}/v20.0/${postId}/comments?message=${encodeURIComponent(
+        `https://${type}/${
+          this.inboxGraphVersion
+        }/${postId}/comments?message=${encodeURIComponent(
           commentPost.message
         )}&access_token=${accessToken}`,
         {
@@ -1017,9 +1390,9 @@ export class InstagramProvider
     // Get the permalink from the parent post
     const { permalink } = await (
       await this.fetch(
-        `https://${type}/v20.0/${postId}?fields=permalink&access_token=${
-          userToken || accessToken
-        }`
+        `https://${type}/${
+          this.inboxGraphVersion
+        }/${postId}?fields=permalink&access_token=${userToken || accessToken}`
       )
     ).json();
 
@@ -1087,13 +1460,13 @@ export class InstagramProvider
 
     const { data, ...all } = await (
       await fetch(
-        `https://${type}/v21.0/${id}/insights?metric=follower_count,reach&access_token=${accessToken}&period=day&since=${since}&until=${until}`
+        `https://${type}/${this.inboxGraphVersion}/${id}/insights?metric=follower_count,reach&access_token=${accessToken}&period=day&since=${since}&until=${until}`
       )
     ).json();
 
     const { data: data2, ...all2 } = await (
       await fetch(
-        `https://${type}/v21.0/${id}/insights?metric_type=total_value&metric=likes,views,comments,shares,saves,replies&access_token=${accessToken}&period=day&since=${since}&until=${until}`
+        `https://${type}/${this.inboxGraphVersion}/${id}/insights?metric_type=total_value&metric=likes,views,comments,shares,saves,replies&access_token=${accessToken}&period=day&since=${since}&until=${until}`
       )
     ).json();
     const analytics = [];
@@ -1127,7 +1500,9 @@ export class InstagramProvider
 
   music(accessToken: string, data: { q: string }) {
     return this.fetch(
-      `https://graph.facebook.com/v20.0/music/search?q=${encodeURIComponent(
+      `https://graph.facebook.com/${
+        this.inboxGraphVersion
+      }/music/search?q=${encodeURIComponent(
         data.q
       )}&access_token=${accessToken}`
     );
@@ -1162,7 +1537,9 @@ export class InstagramProvider
 
     const { audio } = await (
       await this.fetch(
-        `https://graph.facebook.com/v22.0/ig_audio?audio_type=${audioType}&user_id=${internalId}${
+        `https://graph.facebook.com/${
+          this.inboxGraphVersion
+        }/ig_audio?audio_type=${audioType}&user_id=${internalId}${
           data?.q ? `&search_query=${encodeURIComponent(data.q)}` : ''
         }&access_token=${userToken || accessToken}`
       )
@@ -1182,6 +1559,33 @@ export class InstagramProvider
     }));
   }
 
+  public override async confirmPost(
+    token: string,
+    postId: string,
+    releaseURL: string,
+    integration: Integration
+  ) {
+    const [accessToken] = token.split('___');
+    const graph =
+      this.identifier === 'instagram-standalone'
+        ? 'graph.instagram.com'
+        : 'graph.facebook.com';
+    return this.confirmJsonResource({
+      platform: 'Instagram',
+      method: 'instagram_media_read',
+      url: `https://${graph}/${this.inboxGraphVersion}/${encodeURIComponent(
+        postId
+      )}?fields=id,permalink,media_type&access_token=${encodeURIComponent(
+        accessToken
+      )}`,
+      expectedId: postId,
+      fallbackUrl: releaseURL,
+      getId: (body) => body?.id,
+      getUrl: (body) => body?.permalink,
+      evidence: (body) => ({ mediaType: body?.media_type || null }),
+    });
+  }
+
   async postAnalytics(
     integrationId: string,
     token: string,
@@ -1196,7 +1600,7 @@ export class InstagramProvider
       // Fetch media insights from Instagram Graph API
       const { data } = await (
         await fetch(
-          `https://${type}/v21.0/${postId}/insights?metric=views,reach,saved,likes,comments,shares&access_token=${accessToken}`
+          `https://${type}/${this.inboxGraphVersion}/${postId}/insights?metric=views,reach,saved,likes,comments,shares&access_token=${accessToken}`
         )
       ).json();
 

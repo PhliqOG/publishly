@@ -18,12 +18,12 @@ import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.conf
 export const metadata: Metadata = {
   title: 'Publishly pricing — flat plans, unlimited social accounts',
   description:
-    'A social media API with unlimited accounts on every paid plan: free, then $29 / $99 / $299 flat, sized by post volume. Ayrshare alternative pricing without the per-profile tax.',
+    'A social media API with unlimited accounts on every paid plan: free, then $29 / $99 / $299 flat, metered only on posts confirmed live. Failed posts use no quota.',
   alternates: { canonical: '/pricing' },
 };
 
 // Publishly numbers come from pricing.ts via PricingCards; competitor numbers
-// on this page come only from data/claim-provenance.json (verified 2026-08-10).
+// on this page come only from data/claim-provenance.json (verified 2026-08-11).
 
 const MODELS = [
   {
@@ -32,30 +32,30 @@ const MODELS = [
   },
   {
     h: 'Per-channel',
-    p: 'Buffer’s Team plan is $10 per channel per month. Fair at 5 channels; at 100 it’s $1,000/mo for scheduling. Your software bill tracks your account count instead of your workload.',
+    p: 'Buffer’s Team plan is $12 per channel on monthly billing ($10 when billed annually). Fair at 5 channels; at 30 it is $360 a month. Your software bill follows your channel count instead of your posting volume.',
   },
   {
-    h: 'Flat, sized by posts',
-    p: 'Publishly prices the work — how much you publish — and makes accounts free to add. $29, $99, or $299 flat, unlimited connected accounts on all three. Winning another brand or client changes your revenue, not your bill.',
+    h: 'Flat, sized by successful posts',
+    p: 'Publishly prices confirmed delivery — not attempts or account count. $29, $99, or $299 flat, unlimited connected accounts on all three. Failed, cancelled, and unconfirmed posts use no quota.',
   },
 ];
 
 const FAQ = [
   {
     q: 'How much does it cost to post to 100 accounts?',
-    a: 'On Publishly, the same as posting to 5: $29–$299/mo depending on how much you post, because every paid plan includes unlimited connected accounts. For comparison, Ayrshare’s published Business pricing works out to $1,228.30/mo at 100 profiles, and Buffer’s Team rate of $10/channel comes to $1,000/mo.',
+    a: 'On Publishly, the same as posting to 5: $29–$299/mo depending on how much you post, because every paid plan includes unlimited connected accounts. For comparison, Ayrshare’s published Business pricing works out to $1,228.30/mo at 100 profiles, and 30 Buffer Team channels cost $360 on monthly billing.',
   },
   {
     q: 'Is there a free social media posting API?',
-    a: 'Yes. Publishly’s Free plan is $0 and includes API access — 50 posts a month across 5 connected accounts. Paid plans start at $29/mo with unlimited connected accounts.',
+    a: 'Yes. Publishly’s Free plan is $0 and includes API access — 50 confirmed-live posts a month across 5 connected accounts. Paid plans start at $29/mo with unlimited connected accounts.',
   },
   {
     q: 'Do failed posts count against my plan?',
-    a: 'Honest answer: today your quota counts posts when they’re scheduled, so a failed post isn’t automatically credited back. A metering upgrade is in development. In the meantime, failures don’t die silently — each one carries a reason, and transient failures retry automatically without ever double-posting.',
+    a: 'No. Publishly writes one usage unit only after an independent platform read confirms that destination is live. Failed, cancelled, retrying, sent-but-unconfirmed, and ambiguous posts consume no quota; confirmation replays cannot double-count.',
   },
   {
     q: 'What happens if I exceed my monthly posts?',
-    a: 'You move up a tier — there are no per-post overage fees. Starter’s 2,000 posts step up to Growth’s 15,000, and Growth steps up to Scale’s 100,000. Your account count never factors into it: connected accounts are unlimited on every paid plan.',
+    a: 'You move up a tier — there are no per-post overage fees. Starter’s 2,000 confirmed-live posts step up to Growth’s 15,000, and Growth steps up to Scale’s 100,000. Your account count never factors into it: connected accounts are unlimited on every paid plan.',
   },
   {
     q: 'Is there a yearly discount?',
@@ -88,9 +88,9 @@ export default function PricingPage() {
                 Stop paying a tax on your own growth.
               </h1>
               <p className="mk-section-lede">
-                Plans are sized by how much you post. Connected accounts are
-                unlimited on every paid plan &mdash; your 10th brand and your
-                100th cost the same to run.
+                Plans are sized by how much you post. Connected brand, client,
+                and location accounts are unlimited on every paid plan &mdash;
+                your 10th brand and your 100th cost the same to run.
               </p>
               <QuickAnswer>
                 Publishly pricing starts free and tops out at $299/mo. Every
@@ -112,11 +112,10 @@ export default function PricingPage() {
               <PricingCards />
             </div>
             <p className="mk-free-line">
-              Prices in USD, excluding VAT or sales tax where applicable.
-              Yearly billing is 10&times; monthly &mdash; two months free.
-              These cards render from the same entitlement config the server
-              enforces, so this page can&rsquo;t drift from what billing
-              grants.
+              Prices in USD, excluding VAT or sales tax where applicable. Yearly
+              billing is 10&times; monthly &mdash; two months free. These cards
+              render from the same entitlement config the server enforces, so
+              this page can&rsquo;t drift from what billing grants.
             </p>
           </div>
         </section>
@@ -124,20 +123,20 @@ export default function PricingPage() {
         <section aria-label="Pricing facts" style={{ padding: '0 0 72px' }}>
           <div className="mk-container">
             <FactLine>
-              Publishly&rsquo;s Starter plan is $29/mo for 2,000 posts and
-              unlimited connected accounts.
+              Publishly&rsquo;s Starter plan is $29/mo for 2,000 confirmed-live
+              posts and unlimited connected accounts.
             </FactLine>
             <FactLine>
-              Publishly&rsquo;s Growth plan is $99/mo for 15,000 posts and
-              unlimited connected accounts.
+              Publishly&rsquo;s Growth plan is $99/mo for 15,000 confirmed-live
+              posts and unlimited connected accounts.
             </FactLine>
             <FactLine>
-              Publishly&rsquo;s Scale plan is $299/mo for 100,000 posts and
-              unlimited connected accounts.
+              Publishly&rsquo;s Scale plan is $299/mo for 100,000 confirmed-live
+              posts and unlimited connected accounts.
             </FactLine>
             <FactLine>
-              Publishly&rsquo;s Free plan is $0 for 50 posts a month across 5
-              connected accounts, with API access included.
+              Publishly&rsquo;s Free plan is $0 for 50 confirmed-live posts a
+              month across 5 connected accounts, with API access included.
             </FactLine>
           </div>
         </section>
@@ -155,13 +154,13 @@ export default function PricingPage() {
             </h2>
             <p className="mk-section-lede">
               Slide to your account count. Competitor totals come from their
-              published pricing pages &mdash; Publishly stays flat because
-              plans are sized by post volume.
+              published pricing pages &mdash; Publishly stays flat because plans
+              are sized by post volume.
             </p>
             <div style={{ marginTop: 36 }}>
               <GrowthTax />
             </div>
-            <LastChecked date="2026-08-10" />
+            <LastChecked date="2026-08-11" />
           </div>
         </section>
 
@@ -202,7 +201,7 @@ export default function PricingPage() {
               </p>
               <p style={honestyStyle}>
                 <strong>Choose Publishly if</strong> you&rsquo;re running a
-                growing fleet of brands or clients and want your bill to stop
+                growing roster of brands or clients and want your bill to stop
                 tracking your account count.
               </p>
             </div>
@@ -216,8 +215,8 @@ export default function PricingPage() {
             <div className="mk-cta-panel">
               <h2 className="mk-h2">Add the accounts. Keep the price.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                Start free &mdash; 50 posts a month, 5 accounts, API included.
-                Upgrade when the volume does.
+                Start free &mdash; 50 confirmed-live posts a month, 5 accounts,
+                API included. Upgrade when the volume does.
               </p>
               <div className="mk-hero-ctas">
                 <Link
@@ -231,7 +230,7 @@ export default function PricingPage() {
                 </Link>
               </div>
             </div>
-            <Byline published="2026-08-10" updated="2026-08-10" />
+            <Byline published="2026-08-10" updated="2026-08-11" />
           </div>
         </section>
       </main>

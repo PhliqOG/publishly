@@ -31,7 +31,7 @@ const CHECKED = '2026-08-10';
 
 const CRITERIA: Array<{ h: string; p: string }> = [
   {
-    h: 'Price at fleet scale',
+    h: 'Price as your account list grows',
     p: 'Not the entry price — what the bill looks like at 100 connected accounts, computed from each vendor’s own published rate card.',
   },
   {
@@ -128,7 +128,10 @@ export default function ApiComparisonsMethodologyPage() {
             <span className="mk-eyebrow" style={{ display: 'block' }}>
               Methodology
             </span>
-            <h1 className="mk-h2-lg" style={{ marginTop: 18, maxWidth: '22ch' }}>
+            <h1
+              className="mk-h2-lg"
+              style={{ marginTop: 18, maxWidth: '22ch' }}
+            >
               How we compare.
             </h1>
             <p className="mk-section-lede">
@@ -137,13 +140,12 @@ export default function ApiComparisonsMethodologyPage() {
               and an honest answer when a competitor is the better fit.
             </p>
             <QuickAnswer>
-              Publishly’s comparison pages weigh seven criteria — price at
-              fleet scale, account scalability, failure visibility, retry
-              safety, token health, API surface, and docs quality. Every
-              competitor number is pulled from that vendor’s official pricing
-              page, dated at retrieval, and re-verified every 30 days. When a
-              competitor is the better choice for a use case, the page says
-              so.
+              Publishly’s comparison pages weigh seven criteria — price at 100
+              accounts, room to grow, failure visibility, retry safety, token
+              health, API surface, and docs quality. Every competitor number is
+              pulled from that vendor’s official pricing page, dated at
+              retrieval, and re-verified every 30 days. When a competitor is the
+              better choice for a use case, the page says so.
             </QuickAnswer>
             <Byline published="2026-08-10" updated="2026-08-10" />
           </div>
@@ -169,7 +171,10 @@ export default function ApiComparisonsMethodologyPage() {
           </div>
         </section>
 
-        <section className="mk-section mk-section-tint" aria-labelledby="mth-sources">
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="mth-sources"
+        >
           <div className="mk-container">
             <h2 id="mth-sources" className="mk-h2">
               Every number, sourced and dated.
@@ -187,8 +192,8 @@ export default function ApiComparisonsMethodologyPage() {
             <div className="mk-tablewrap" style={{ marginTop: 28 }}>
               <table className="mk-table">
                 <caption className="mk-visually-hidden">
-                  Source URL, publisher and retrieval date for every
-                  competitor claim
+                  Source URL, publisher and retrieval date for every competitor
+                  claim
                 </caption>
                 <thead>
                   <tr>
@@ -219,7 +224,10 @@ export default function ApiComparisonsMethodologyPage() {
                         </a>
                       </td>
                       <td>{s.publisher}</td>
-                      <td className="mk-mono" style={{ textTransform: 'none', letterSpacing: 0 }}>
+                      <td
+                        className="mk-mono"
+                        style={{ textTransform: 'none', letterSpacing: 0 }}
+                      >
                         {s.retrieved}
                       </td>
                     </tr>
@@ -241,10 +249,10 @@ export default function ApiComparisonsMethodologyPage() {
               expiry, not just a retrieval date.
             </p>
             <FactLine>
-              Competitor pricing is re-verified every 30 days; general
-              platform facts (like token-expiry windows) are re-verified every
-              90 days. A page whose claims pass their window gets re-checked
-              before the next rebuild.
+              Competitor pricing is re-verified every 30 days; general platform
+              facts (like token-expiry windows) are re-verified every 90 days. A
+              page whose claims pass their window gets re-checked before the
+              next rebuild.
             </FactLine>
           </div>
         </section>
@@ -257,9 +265,9 @@ export default function ApiComparisonsMethodologyPage() {
             <p>
               When a competitor is the better choice for a use case, we say so
               on the page. Every comparison names what the other tool is
-              genuinely good at — enterprise governance, a broader network
-              list, a polished consumer app, a lower price at a small scale —
-              before making the case for where Publishly fits instead.
+              genuinely good at — enterprise governance, a broader network list,
+              a polished consumer app, a lower price at a small scale — before
+              making the case for where Publishly fits instead.
             </p>
           </div>
         </section>

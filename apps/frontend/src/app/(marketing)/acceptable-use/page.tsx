@@ -3,6 +3,7 @@ import {
   MarketingFooter,
   MarketingNav,
 } from '@gitroom/frontend/components/marketing/chrome';
+import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
 export const metadata: Metadata = {
   title: 'Acceptable Use',
@@ -26,15 +27,15 @@ export default function AcceptableUsePage() {
               <h1 className="mk-h2">Acceptable Use Policy</h1>
             </header>
             <div className="mk-prose">
-              <p className="mk-draft">
-                Draft template—have counsel confirm the operator identity,
-                jurisdiction, notice process, and enforcement terms before
-                launch.
+              <p>
+                Use Publishly only for accounts you are authorized to manage and
+                in compliance with each destination platform’s terms and
+                applicable law.
               </p>
               <p>
-                Use Publishly only for accounts you are authorized to manage
-                and in compliance with each destination platform’s terms and
-                applicable law.
+                This policy is effective {MARKETING.legal.effectiveDate} and
+                applies to services operated by {MARKETING.legal.entity},
+                {` ${MARKETING.legal.address}`}.
               </p>
               <h2>Not permitted</h2>
               <ul>
@@ -61,10 +62,14 @@ export default function AcceptableUsePage() {
               </ul>
               <h2>Enforcement</h2>
               <p>
-                The operator may restrict publishing, suspend access, preserve
-                legally required evidence, and cooperate with valid legal
-                process. Where safe and lawful, users should receive notice and
-                an opportunity to appeal.
+                {MARKETING.legal.entity} may restrict publishing, suspend
+                access, preserve legally required evidence, and cooperate with
+                valid legal process. Where safe and lawful, users should receive
+                notice and an opportunity to appeal. Report suspected abuse to{' '}
+                <a href={`mailto:${MARKETING.supportEmail}`}>
+                  {MARKETING.supportEmail}
+                </a>
+                .
               </p>
             </div>
           </div>

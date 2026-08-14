@@ -14,8 +14,7 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import path from 'path';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { fromBuffer } = require('file-type');
+import { fromBuffer } from 'file-type';
 
 const ALLOWED_EXT_TO_MIME: Record<string, string> = {
   '.jpg': 'image/jpeg',
@@ -35,21 +34,27 @@ function normalizeExtension(filename: string): string | null {
   return ALLOWED_EXT_TO_MIME[ext] ? ext : null;
 }
 
-const {
-  CLOUDFLARE_ACCOUNT_ID,
-  CLOUDFLARE_ACCESS_KEY,
-  CLOUDFLARE_SECRET_ACCESS_KEY,
-  CLOUDFLARE_BUCKETNAME,
-  CLOUDFLARE_BUCKET_URL,
-} = process.env;
+const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+const CLOUDFLARE_ACCESS_KEY =
+  process.env.S3_ACCESS_KEY_ID || process.env.CLOUDFLARE_ACCESS_KEY;
+const CLOUDFLARE_SECRET_ACCESS_KEY =
+  process.env.S3_SECRET_ACCESS_KEY || process.env.CLOUDFLARE_SECRET_ACCESS_KEY;
+const CLOUDFLARE_BUCKETNAME =
+  process.env.S3_BUCKET || process.env.CLOUDFLARE_BUCKETNAME;
+const CLOUDFLARE_BUCKET_URL =
+  process.env.S3_PUBLIC_URL || process.env.CLOUDFLARE_BUCKET_URL;
+const S3_ENDPOINT =
+  process.env.S3_ENDPOINT ||
+  `https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`;
 
 const R2 = new S3Client({
-  region: 'auto',
-  endpoint: `https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  region: process.env.S3_REGION || process.env.CLOUDFLARE_REGION || 'auto',
+  endpoint: S3_ENDPOINT,
   credentials: {
     accessKeyId: CLOUDFLARE_ACCESS_KEY!,
     secretAccessKey: CLOUDFLARE_SECRET_ACCESS_KEY!,
   },
+  forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
 });
 
 // Function to generate a random string
@@ -232,7 +237,7 @@ export async function completeMultipartUpload(req: Request, res: Response) {
     }
 
     response.Location =
-      process.env.CLOUDFLARE_BUCKET_URL +
+      CLOUDFLARE_BUCKET_URL +
       '/' +
       response?.Location?.split('/').at(-1);
     return response;

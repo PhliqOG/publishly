@@ -1,0 +1,31 @@
+{
+  email {$ACME_EMAIL}
+  admin off
+}
+
+{$PUBLISHLY_CADDY_ADDRESS}, {$PUBLISHLY_CADDY_WWW_ADDRESS} {
+  encode zstd gzip
+
+  @api path /api/*
+  handle @api {
+    uri strip_prefix /api
+    reverse_proxy backend:3000
+  }
+
+  handle {
+    reverse_proxy frontend:4200
+  }
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    -Server
+  }
+
+  log {
+    output stdout
+    format json
+  }
+}

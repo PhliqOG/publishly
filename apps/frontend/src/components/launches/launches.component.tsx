@@ -221,6 +221,11 @@ export const MenuComponent: FC<
       changeProfilePicture: boolean;
       changeNickName: boolean;
       refreshNeeded?: boolean;
+      tokenDaysRemaining?: number | null;
+      tokenHealthState?: string;
+      tokenHealthReason?: string | null;
+      connectionHealthState?: string;
+      connectionHealthReason?: string | null;
     };
   }
 > = (props) => {
@@ -288,6 +293,33 @@ export const MenuComponent: FC<
             <div className="bg-primary/60 w-[39px] h-[46px] start-0 top-0 absolute rounded-full z-[199]" />
           </div>
         )}
+        {!integration.inBetweenSteps &&
+          !integration.refreshNeeded &&
+          (integration.tokenHealthState === 'EXPIRING' ||
+            integration.tokenHealthState === 'EXPIRED' ||
+            integration.connectionHealthState === 'AT_RISK' ||
+            integration.connectionHealthState === 'DEAD') && (
+            <div
+              className={clsx(
+                'absolute start-[3px] top-[3px] w-[12px] h-[12px] rounded-full z-[200] border-2 border-newBgColorInner',
+                integration.connectionHealthState === 'DEAD' ||
+                  integration.tokenHealthState === 'EXPIRED'
+                  ? 'bg-red-500'
+                  : 'bg-amber-400'
+              )}
+              data-tooltip-id="tooltip"
+              data-tooltip-content={
+                integration.tokenHealthState === 'EXPIRING' ||
+                integration.tokenHealthState === 'EXPIRED'
+                  ? integration.tokenHealthReason ||
+                    integration.connectionHealthReason ||
+                    'This token needs attention.'
+                  : integration.connectionHealthReason ||
+                    integration.tokenHealthReason ||
+                    'This connection needs attention.'
+              }
+            />
+          )}
         <ImageWithFallback
           fallbackSrc={'/no-picture.jpg'}
           src={integration.picture || '/no-picture.jpg'}
@@ -331,7 +363,31 @@ export const MenuComponent: FC<
           integration.disabled && 'opacity-50'
         )}
       >
-        {integration.name}
+        <span className="overflow-hidden text-ellipsis">
+          {integration.name}
+        </span>
+        {integration.tokenHealthState === 'EXPIRING' &&
+          integration.tokenDaysRemaining !== null &&
+          integration.tokenDaysRemaining !== undefined && (
+            <span
+              className="ms-[6px] rounded-full bg-amber-500/15 px-[6px] py-[2px] text-[10px] font-[600] text-amber-400"
+              data-tooltip-id="tooltip"
+              data-tooltip-content={integration.tokenHealthReason || undefined}
+            >
+              {integration.tokenDaysRemaining}d
+            </span>
+          )}
+        {integration.connectionHealthState === 'DEAD' && (
+          <span
+            className="ms-[6px] rounded-full bg-red-500/15 px-[6px] py-[2px] text-[10px] font-[600] text-red-400"
+            data-tooltip-id="tooltip"
+            data-tooltip-content={
+              integration.connectionHealthReason || 'Dead account detected'
+            }
+          >
+            Dead
+          </span>
+        )}
       </div>
       <Menu
         canChangeProfilePicture={integration.changeProfilePicture}

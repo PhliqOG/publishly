@@ -14,6 +14,18 @@ export class WebhooksService {
     return this._webhooksRepository.getWebhooks(orgId);
   }
 
+  getWebhooksForDelivery(orgId: string) {
+    return this._webhooksRepository.getWebhooksForDelivery(orgId);
+  }
+
+  recordDelivery(input: Parameters<WebhooksRepository['recordDelivery']>[0]) {
+    return this._webhooksRepository.recordDelivery(input);
+  }
+
+  rotateSigningSecret(orgId: string, id: string) {
+    return this._webhooksRepository.rotateSigningSecret(orgId, id);
+  }
+
   createWebhook(orgId: string, body: WebhooksDto) {
     return this._webhooksRepository.createWebhook(orgId, body);
   }

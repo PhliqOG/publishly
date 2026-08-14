@@ -20,10 +20,17 @@ const SCOPE_RULES: Array<{
   { methods: ['POST'], pattern: /\/upload/, scope: 'media:write' },
   { methods: ['GET'], pattern: /\/posts|\/find-slot|\/groups/, scope: 'posts:read' },
   { methods: ['POST', 'PUT', 'DELETE'], pattern: /\/posts/, scope: 'posts:write' },
+  { methods: ['GET'], pattern: /\/webhooks/, scope: 'webhooks:read' },
+  {
+    methods: ['POST', 'PUT', 'DELETE'],
+    pattern: /\/webhooks/,
+    scope: 'webhooks:write',
+  },
   { methods: ['DELETE'], pattern: /\/integrations/, scope: 'integrations:write' },
   {
     methods: ['GET'],
-    pattern: /\/integrations|\/is-connected|\/social\/|\/integration-settings/,
+    pattern:
+      /\/integrations|\/fleet-health|\/is-connected|\/social\/|\/integration-settings/,
     scope: 'integrations:read',
   },
   { methods: ['GET'], pattern: /\/analytics\//, scope: 'analytics:read' },

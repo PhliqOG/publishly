@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import useSWR from 'swr';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
@@ -16,14 +16,18 @@ export const BillingComponent = () => {
     '/user/subscription/tiers',
     load
   );
-  const { isLoading: isLoadingSubscription, data: subscription } = useSWR(
-    '/user/subscription',
-    load
-  );
+  const { isLoading: isLoadingSubscription, data: subscription } = useSWR<{
+    subscription?: Parameters<typeof MainBillingComponent>[0]['sub'];
+    usage?: Parameters<typeof MainBillingComponent>[0]['usage'];
+  }>('/user/subscription', load);
   if (isLoadingSubscription || isLoadingTier) {
     return <LoadingComponent />;
   }
   return (
-    <MainBillingComponent sub={subscription?.subscription} tiers={tiers} />
+    <MainBillingComponent
+      sub={subscription?.subscription}
+      tiers={tiers}
+      usage={subscription?.usage}
+    />
   );
 };

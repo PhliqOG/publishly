@@ -20,6 +20,7 @@ import type {
   PostFailureClass,
   PostFailureCode,
 } from '@gitroom/nestjs-libraries/reliability/post.failure';
+import { StatusLivePanel } from '../status/status-live-panel';
 
 // The proof page for "Nothing fails silently." The failure taxonomy below is
 // rendered from the same TypeScript catalog the publishing engine imports
@@ -29,10 +30,10 @@ import type {
 export const metadata: Metadata = {
   title: {
     absolute:
-      'Reliability — delivery receipts, failure webhooks & safe retries | Publishly',
+      'Social posting reliability — receipts, alerts and safe retries | Publishly',
   },
   description:
-    'How do you know when a scheduled post fails? Publishly answers with a delivery receipt per destination, 20 documented failure codes, a signed post.failure webhook the moment it happens & retries that can never double-post.',
+    'See how Publishly confirms live posts, explains every failure, retries temporary problems safely, warns about expiring connections, and publishes real status data.',
   alternates: { canonical: '/reliability' },
 };
 
@@ -44,7 +45,7 @@ const CLASS_META: Record<PostFailureClass, { label: string; blurb: string }> = {
   recoverable: {
     label: 'Recovers on its own',
     blurb:
-      'Transient trouble — rate limits, platform blips, network errors. Publishly retries these automatically with backoff. You’re informed, never summoned.',
+      'A short platform or network problem. Publishly waits, tries again safely, and keeps you informed.',
   },
   user_action_needed: {
     label: 'Needs your action',
@@ -66,10 +67,10 @@ const TAXONOMY = POST_FAILURE_CLASSES.map((failureClass) => ({
   ),
 }));
 
-// Example receipt — field-for-field the PublishingJob columns the status
-// endpoint reports: state, providerPostId, providerUrl, attempts, completedAt.
+// Example receipt — field-for-field from the public publishing status.
 const RECEIPT_JSON = `{
   "state": "PUBLISHED",
+  "deliveryStage": "confirmed_live",
   "providerPostId": "17895695668004550",
   "providerUrl": "https://www.instagram.com/p/DM7kQx2NwXb/",
   "attempts": 1,
@@ -83,7 +84,7 @@ const FAILURE_EXAMPLE: PostFailureCode = 'rate_limited';
 const WEBHOOK_BODY = JSON.stringify(
   {
     specversion: '1.0',
-    id: '9b1f6d2e-4a53-4f1d-8c07-52d6a90f4a31',
+    id: 'post.failure:cf1f6ab2:retry:2:rate_limited',
     type: 'post.failure',
     time: '2026-08-10T14:31:44.000Z',
     data: {
@@ -106,26 +107,26 @@ const WEBHOOK_BODY = JSON.stringify(
 const WEBHOOK_HEADERS = [
   'User-Agent: Publishly-Webhooks/1.0',
   'X-Publishly-Event: post.failure',
-  'X-Publishly-Event-Id: 9b1f6d2e-4a53-4f1d-8c07-52d6a90f4a31',
+  'X-Publishly-Event-Id: post.failure:cf1f6ab2:retry:2:rate_limited',
   'X-Publishly-Timestamp: 1786372304',
   'X-Publishly-Signature: t=1786372304,v1=6e0fc19b…a41c',
 ].join('\n');
 
 const STATEMENT =
-  'Aggressive about telling you. Conservative about touching the platform twice. Every guarantee on this page is that one sentence, applied.';
+  'Tell you quickly. Retry carefully. Never risk posting the same thing twice just to make a dashboard look green.';
 
 const FAQ = [
   {
     q: 'How do I know when a scheduled post fails?',
-    a: 'You’re told the moment it happens. The post’s delivery receipt flips to RETRYING or FAILED with a plain-English reason and one of 20 documented failure codes, and a signed post.failure webhook fires to your endpoint with the class, code, reason, and whether Publishly will retry. You can also poll GET /public/v1/posts/:id/status at any time.',
+    a: 'Publishly alerts you as soon as it knows. The post shows a plain-English reason, whether it will be tried again, and what you need to do. Developers can receive the same details in their own software through a signed failure event.',
   },
   {
     q: 'What happens when a social media API token expires?',
-    a: 'Publishly refreshes tokens automatically on a schedule. The moment a refresh fails you get an in-app alert and an email, and the account is flagged and excluded from delivery — so no further posts are lost while you reconnect it.',
+    a: 'Where a platform allows renewal, Publishly refreshes the connection automatically. If that renewal fails, you get an in-app alert and an email, and that account is held back so more posts are not lost while you reconnect it.',
   },
   {
     q: 'Does Publishly retry failed posts automatically?',
-    a: 'Transient failures — rate limits, platform outages, network errors — retry automatically with backoff from 15 seconds to 30 minutes. Failures that need your action or a content change are held with an exact reason instead of being retried blindly, and an hourly sweeper re-queues missed slots.',
+    a: 'Temporary problems such as rate limits, platform outages, and network errors are tried again after a safe delay. Problems that need your action or different content are held with an exact reason instead of being repeated blindly. A regular recovery check also catches recently missed schedule times.',
   },
   {
     q: 'Can a retry cause a duplicate post?',
@@ -181,26 +182,24 @@ export default function ReliabilityPage() {
         <section className="mk-hero">
           <div className="mk-container">
             <span className="mk-eyebrow">Reliability</span>
-            <h1 className="mk-h2-lg" style={{ marginTop: 18, maxWidth: '15ch' }}>
-              {MARKETING.copyBank.silent}
+            <h1
+              className="mk-h2-lg"
+              style={{ marginTop: 18, maxWidth: '15ch' }}
+            >
+              When a post breaks, you hear about it first.
             </h1>
             <p className="mk-section-lede" style={{ maxWidth: '56ch' }}>
-              You&rsquo;re running 50 brands across a couple hundred accounts
-              &mdash; you can&rsquo;t watch them all, and you shouldn&rsquo;t
-              have to. When a post dies at 2am, you find out from a webhook
-              &mdash; not from your client. Every delivery here is receipted,
-              every failure carries a documented reason &amp; nothing is
-              retried behind your back.
+              You cannot watch every account across every brand, client, and
+              location. Publishly checks what went live, explains what did not,
+              and handles temporary problems before they become client calls.
             </p>
             <QuickAnswer>
-              Every Publishly post runs as a tracked delivery with a full state
-              history and a receipt you can query by API. When a post fails, it
-              carries one of {CODES.length} documented failure codes and fires
-              a signed post.failure webhook the moment it happens. Transient
-              failures retry automatically with backoff &mdash; and the publish
-              call fires exactly once, so a retry can never double-post.
+              A post is only called successful after Publishly confirms it is
+              live. A failure comes with a clear reason, an alert, and a safe
+              next step. Temporary problems are retried; uncertain outcomes are
+              stopped for review so Publishly never risks posting twice.
             </QuickAnswer>
-            <Byline published="2026-08-10" updated="2026-08-10" />
+            <Byline published="2026-08-10" updated="2026-08-11" />
             <div
               style={{
                 display: 'flex',
@@ -210,11 +209,14 @@ export default function ReliabilityPage() {
                 marginTop: 30,
               }}
             >
-              <Link href={MARKETING.authRegister} className="mk-btn mk-btn-primary">
+              <Link
+                href={MARKETING.authRegister}
+                className="mk-btn mk-btn-primary"
+              >
                 {MARKETING.cta.primary}
               </Link>
-              <Link href="/api-docs" className="mk-arrow">
-                Read the API docs
+              <Link href="/status" className="mk-arrow">
+                See live status
               </Link>
             </div>
             <div
@@ -229,11 +231,11 @@ export default function ReliabilityPage() {
               }}
             >
               {[
-                'The failure catalog',
-                'Delivery receipts',
-                'Failure webhooks',
+                'Why it failed',
+                'Proof it went live',
+                'Instant alerts',
                 'Safe retries',
-                'Token health',
+                'Connection warnings',
               ].map((item) => (
                 <span
                   key={item}
@@ -255,10 +257,10 @@ export default function ReliabilityPage() {
               Every failure has a name.
             </h2>
             <p className="mk-section-lede">
-              This is the actual failure catalog the engine ships &mdash; this
-              table is rendered from the same TypeScript file the publisher
-              imports, not a marketing rewrite. Every failed post carries
-              exactly one of these codes, classed by what happens next.
+              These are the actual reasons Publishly uses, pulled from the same
+              list as the posting system. Every failed post gets one reason and
+              one clear next step: Publishly tries again, you take action, or
+              the content needs to change.
             </p>
             {TAXONOMY.map((group) => (
               <div key={group.failureClass} style={{ marginTop: 48 }}>
@@ -270,7 +272,13 @@ export default function ReliabilityPage() {
                     flexWrap: 'wrap',
                   }}
                 >
-                  <h3 style={{ margin: 0, fontSize: 19, letterSpacing: '-0.015em' }}>
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: 19,
+                      letterSpacing: '-0.015em',
+                    }}
+                  >
                     {group.label}
                   </h3>
                   <span className="mk-mono" style={{ color: 'var(--mk-blue)' }}>
@@ -288,7 +296,12 @@ export default function ReliabilityPage() {
                 >
                   {group.blurb}
                 </p>
-                <div style={{ marginTop: 18, borderTop: '1px solid var(--mk-line)' }}>
+                <div
+                  style={{
+                    marginTop: 18,
+                    borderTop: '1px solid var(--mk-line)',
+                  }}
+                >
                   {group.codes.map((code) => (
                     <div
                       key={code}
@@ -304,7 +317,11 @@ export default function ReliabilityPage() {
                       <Link
                         href={`/docs/errors/${code}`}
                         className="mk-mono"
-                        style={{ color: 'var(--mk-text)', flex: 'none', width: '19em' }}
+                        style={{
+                          color: 'var(--mk-text)',
+                          flex: 'none',
+                          width: '19em',
+                        }}
                       >
                         {code}
                       </Link>
@@ -334,18 +351,26 @@ export default function ReliabilityPage() {
         </section>
 
         {/* ---- 3 · delivery receipts — split, copy beside the receipt ---- */}
-        <section className="mk-section mk-section-tint" aria-labelledby="rel-receipts">
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="rel-receipts"
+        >
           <div className="mk-container">
             <div className="mk-split" style={{ alignItems: 'start' }}>
               <div>
                 <span className="mk-eyebrow">Delivery receipts</span>
-                <h2 id="rel-receipts" className="mk-h2" style={{ marginTop: 14 }}>
+                <h2
+                  id="rel-receipts"
+                  className="mk-h2"
+                  style={{ marginTop: 14 }}
+                >
                   A receipt for every destination.
                 </h2>
                 <p style={BODY_P}>
                   Each destination runs as its own tracked delivery with a full
-                  state history. A post to 6 networks is 6 receipts &mdash; one
-                  can fail &amp; retry while the other 5 stay published.
+                  state history. A post sent to six chosen brand accounts gets
+                  six receipts &mdash; one can fail and retry while the other
+                  five stay published.
                 </p>
                 <p
                   className="mk-mono"
@@ -402,15 +427,18 @@ export default function ReliabilityPage() {
           <div className="mk-container">
             <span className="mk-eyebrow">Webhooks</span>
             <h2 id="rel-webhooks" className="mk-h2" style={{ marginTop: 14 }}>
-              The failure calls you.
+              The failure reaches you first.
             </h2>
             <p className="mk-section-lede">
-              Two events matter to an operator: post.published when the
-              platform confirms, and post.failure the moment a delivery fails
-              &mdash; carrying the class, the code, the reason &amp; whether a
-              retry is already coming. This is the actual post.failure payload:
+              A webhook is simply an alert sent straight to your own software.
+              Publishly sends one as a post moves forward and another when it
+              fails. The failure alert includes the reason and whether another
+              safe attempt is coming. This is the actual payload:
             </p>
-            <div className="mk-term mk-reveal" style={{ marginTop: 36, maxWidth: 760 }}>
+            <div
+              className="mk-term mk-reveal"
+              style={{ marginTop: 36, maxWidth: 760 }}
+            >
               <div className="mk-term-top">
                 <span className="mk-term-dot" />
                 <span className="mk-term-dot" />
@@ -437,18 +465,18 @@ export default function ReliabilityPage() {
               {[
                 {
                   tag: 'Signed',
-                  title: 'HMAC-SHA256, verifiable & replay-proof',
-                  body: 'Every delivery is signed over timestamp.body with your endpoint’s signing secret. The X-Publishly-Signature header carries t= and v1= so you can verify the payload & reject replays before trusting a byte.',
+                  title: 'Proves the alert came from Publishly',
+                  body: 'Every alert includes a secure signature and timestamp. Your software can reject a changed, fake, or stale alert before acting on it.',
                 },
                 {
                   tag: 'Retried',
-                  title: '3 delivery attempts with backoff',
-                  body: 'A receiver that’s down gets three attempts with backoff. If all three fail, the failure event still holds its delivery state — the record of what happened never depends on your endpoint being up.',
+                  title: 'Tries again if your receiver is down',
+                  body: 'If your alert receiver is temporarily unavailable, Publishly tries three times. The posting result remains recorded even when your endpoint is down.',
                 },
                 {
                   tag: 'Ledgered',
-                  title: 'Every attempt, on the record',
-                  body: 'Each attempt is written to a per-attempt delivery ledger — status code, duration & error — so “did you actually call us?” is answered with rows, not recollection.',
+                  title: 'Keeps a record of every alert attempt',
+                  body: 'You can see when Publishly called your software, what came back, how long it took, and why an attempt failed.',
                 },
               ].map((cell, index) => (
                 <div
@@ -467,20 +495,26 @@ export default function ReliabilityPage() {
               ))}
             </div>
             <FactLine>
-              Publishly signs every webhook with HMAC-SHA256, attempts delivery
-              3 times with backoff, and records every attempt in a per-attempt
-              delivery ledger.
+              Publishly signs every alert with HMAC-SHA256, tries delivery up to
+              three times, and records what happened on every attempt.
             </FactLine>
           </div>
         </section>
 
         {/* ---- 5 · retries — heading column beside the row index ---- */}
-        <section className="mk-section mk-section-tint" aria-labelledby="rel-retries">
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="rel-retries"
+        >
           <div className="mk-container">
             <div className="mk-split" style={{ alignItems: 'start' }}>
               <div>
                 <span className="mk-eyebrow">Retries</span>
-                <h2 id="rel-retries" className="mk-h2" style={{ marginTop: 14 }}>
+                <h2
+                  id="rel-retries"
+                  className="mk-h2"
+                  style={{ marginTop: 14 }}
+                >
                   Retries that can&rsquo;t double-post.
                 </h2>
                 <p className="mk-section-lede" style={{ fontSize: 16 }}>
@@ -494,19 +528,19 @@ export default function ReliabilityPage() {
                 {[
                   {
                     title: '15 seconds → 30 minutes',
-                    body: 'Transient failures — rate limits, platform outages, network errors — retry automatically with backoff from 15 seconds up to 30 minutes. Each attempt lands in the receipt’s state history.',
+                    body: 'Temporary problems are tried again after a delay that grows from 15 seconds up to 30 minutes. Every attempt appears in the receipt.',
                   },
                   {
                     title: 'The publish call fires exactly once',
-                    body: 'Queueing, token refresh & status checks retry freely. The one call that actually creates the post is never wrapped in a retry — so a retry is structurally incapable of double-posting.',
+                    body: 'Safe checks can run again. The one step that creates the public post is never repeated blindly, so a retry cannot create a duplicate.',
                   },
                   {
                     title: 'Unconfirmed is a state, not a guess',
-                    body: 'If a platform goes dark mid-publish, the outcome is marked outcome_unknown and you’re told to check the account before retrying. Ambiguity is surfaced — never silently replayed.',
+                    body: 'If a platform stops responding at the wrong moment, Publishly tells you the result is unknown and asks you to check before trying again. It never guesses and repeats the post.',
                   },
                   {
-                    title: 'An hourly sweeper catches missed slots',
-                    body: 'If a slot is missed — a deploy, a restart, a bad hour — the sweeper re-queues it within the hour, for any channel that’s still healthy and any slot from the last two days.',
+                    title: 'A regular recovery check catches missed times',
+                    body: 'If a recent schedule time is missed during a restart or service problem, Publishly finds it within the hour and queues it again when the account is healthy.',
                   },
                 ].map((row) => (
                   <div className="mk-row" key={row.title}>
@@ -519,9 +553,9 @@ export default function ReliabilityPage() {
               </div>
             </div>
             <FactLine>
-              Publishly retries transient failures automatically with backoff
-              from 15 seconds to 30 minutes, but the publish call itself fires
-              exactly once &mdash; a retry can never duplicate a post.
+              Publishly tries temporary failures again after 15 seconds to 30
+              minutes, but never repeats the step that could create a duplicate
+              post.
             </FactLine>
           </div>
         </section>
@@ -535,15 +569,17 @@ export default function ReliabilityPage() {
                 {MARKETING.copyBank.token}
               </h2>
               <p style={{ ...BODY_P, maxWidth: '58ch' }}>
-                Tokens on the major platforms die on a timer &mdash; roughly 60
-                days on several of them. Publishly refreshes every connection
-                automatically on schedule, before delivery ever needs it.
+                Platform connections do not last forever. LinkedIn access
+                tokens, for example, are commonly issued for 60 days, while
+                TikTok access tokens are much shorter and normally renew in the
+                background. Publishly records the expiry the platform reports
+                instead of pretending every network uses the same timer.
               </p>
               <p style={{ ...BODY_P, maxWidth: '58ch' }}>
                 The moment a refresh fails, you get an in-app alert &amp; an
-                email &mdash; not a red icon you discover next week. The
-                account is flagged &amp; excluded from delivery, so its queue
-                stops cleanly instead of posting into nothing.
+                email &mdash; not a red icon you discover next week. The account
+                is flagged &amp; excluded from delivery, so its queue stops
+                cleanly instead of posting into nothing.
               </p>
               <p
                 style={{
@@ -558,23 +594,34 @@ export default function ReliabilityPage() {
                 {MARKETING.copyBank.calendar}
               </p>
               <p style={{ ...BODY_P, maxWidth: '58ch' }}>
-                A dead connection is quarantined to its own account &mdash; the
-                other brands &amp; clients on the calendar keep publishing
+                A dead connection is held back on its own &mdash; the other
+                brands, clients, and locations on the calendar keep publishing
                 while you reconnect the one that broke.
               </p>
-              <p
-                className="mk-mono"
-                style={{ margin: '24px 0 0', color: 'var(--mk-text-3)' }}
-              >
-                Coming, not shipped yet: expiry warnings days ahead of token
-                death.
-              </p>
               <FactLine>
-                When a token refresh fails, Publishly alerts you in-app and by
-                email immediately, flags the account, and excludes it from
-                delivery so the rest of the calendar keeps publishing.
+                When the reported expiry is far enough away, Publishly warns at
+                the 30, 14, 7, 3, and 1-day checkpoints. Shorter connections
+                warn at the checkpoints they actually cross.
               </FactLine>
             </div>
+          </div>
+        </section>
+
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="rel-status"
+        >
+          <div className="mk-container">
+            <span className="mk-eyebrow">Public proof</span>
+            <h2 id="rel-status" className="mk-h2" style={{ marginTop: 14 }}>
+              A real status page. Real delivery data.
+            </h2>
+            <p className="mk-section-lede">
+              These numbers come from service checks and finished post
+              deliveries. If there is not enough evidence yet, Publishly says
+              that plainly instead of showing a made-up 100%.
+            </p>
+            <StatusLivePanel />
           </div>
         </section>
 
@@ -600,8 +647,8 @@ export default function ReliabilityPage() {
             <div className="mk-cta-panel">
               <h2 className="mk-h2">Stop finding out from your clients.</h2>
               <p className="mk-section-lede" style={{ margin: '18px auto 0' }}>
-                Connect a channel, schedule a post &amp; read its receipt.
-                Free forever plan — no credit card. 7-day trial on every paid plan.
+                Connect a channel, schedule a post &amp; read its receipt. Free
+                forever plan — no credit card. 7-day trial on every paid plan.
               </p>
               <div className="mk-hero-ctas">
                 <Link

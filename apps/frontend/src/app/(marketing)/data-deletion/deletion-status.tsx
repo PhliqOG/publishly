@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { publicApiUrl } from '@gitroom/frontend/components/marketing/public-api-url';
 
 type DeletionStatus = {
   confirmationCode: string;
@@ -22,14 +23,10 @@ export function DeletionStatusPanel() {
   useEffect(() => {
     if (!code) return;
     const controller = new AbortController();
-    const backend = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(
-      /\/$/,
-      ''
-    );
     fetch(
-      `${backend}/public/meta/data-deletion/status?code=${encodeURIComponent(
-        code
-      )}`,
+      publicApiUrl(
+        `/public/meta/data-deletion/status?code=${encodeURIComponent(code)}`
+      ),
       { signal: controller.signal }
     )
       .then(async (response) =>

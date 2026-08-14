@@ -3,9 +3,9 @@
 import { ReactElement, ReactNode, useEffect, useRef, useState } from 'react';
 
 // ApiTerminal — the one client component in the marketing tree (it types).
-// Plays a two-act post lifecycle on loop: the happy path (queued → published →
-// post.published webhook), then the failure path (token expired →
-// post.failure webhook → "you knew before the client did"). Types
+// Plays a two-act post lifecycle on loop: the happy path (queued → uploading →
+// sent → confirmed_live receipt), then a recoverable failure (classified →
+// alert sent → safe retry → confirmed live). Types
 // character-by-character while in the viewport, holds ~4s on the closing
 // line, then replays from the top; the interval only runs while animating
 // and is cleared when done or offscreen. Under prefers-reduced-motion the
@@ -21,56 +21,85 @@ type Segment = { text: string; cls?: string; id?: string };
 const SEGMENTS: Segment[] = [
   // — loop 1: the happy path
   { text: '$', cls: 'mk-term-prompt' },
-  { text: ' curl -X POST https://api.yourdomain.com/public/v1/posts \\\n' },
+  { text: ' curl -X POST https://your-publishly-host/public/v1/posts \\\n' },
   { text: "    -H 'Authorization: " },
   { text: 'YOUR_API_KEY', cls: 'mk-term-key' },
   { text: "' \\\n" },
   {
-    text: '    -d \'{ "content": "Launch day.", "when": "2026-08-14T18:00" }\'\n',
+    text:
+      "    -H 'Idempotency-Key: launch-day-2026-08-14' \\\n" +
+      "    -H 'Content-Type: application/json' \\\n" +
+      '    -d \'{"type":"schedule","date":"2026-08-14T18:00:00.000Z","shortLink":false,"tags":[],"posts":[{"integration":{"id":"ig_01"},"value":[{"content":"Launch day.","image":[]}],"settings":{"__type":"instagram","post_type":"post"}}]}\'\n',
     id: 'cmd1',
   },
-  { text: '\n{ "id": "post_01HZX4", "state": ' },
-  { text: '"QUEUED"', cls: 'mk-term-key' },
-  { text: ' }\n', id: 'q1' },
-  { text: '→ PROCESSING\n', cls: 'mk-term-state', id: 'proc1' },
+  { text: '\n[{ "postId": "post_01HZX4", "integration": "ig_01" }]\n' },
+  { text: '↳ receipt: queued\n', cls: 'mk-term-key', id: 'q1' },
+  { text: '↳ receipt: uploading\n', cls: 'mk-term-state', id: 'proc1' },
+  { text: '↳ receipt: sent (not success)\n', cls: 'mk-term-state' },
   {
-    text: '→ PUBLISHED ✓ live: instagram.com/p/DLm4…\n',
+    text: '↳ receipt: confirmed_live ✓ instagram.com/p/DLm4…\n',
     cls: 'mk-term-ok',
     id: 'pub1',
   },
-  { text: '↳ webhook: post.published\n', cls: 'mk-term-state' },
+  { text: '↳ webhook: post.receipt\n', cls: 'mk-term-state' },
   {
     text:
-      '  { "id": "post_01HZX4",\n' +
-      '    "type": "post.published",\n' +
-      '    "providerUrl": "instagram.com/p/DLm4…" }\n',
+      '  { "specversion": "1.0",\n' +
+      '    "id": "post.receipt:post_01HZX4:confirmed_live:1:76ab",\n' +
+      '    "type": "post.receipt",\n' +
+      '    "time": "2026-08-14T18:00:08.214Z",\n' +
+      '    "data": { "postId": "post_01HZX4",\n' +
+      '      "integrationId": "ig_01", "provider": "instagram",\n' +
+      '      "stage": "confirmed_live", "attempt": 1,\n' +
+      '      "providerPostId": "180450001",\n' +
+      '      "providerUrl": "https://instagram.com/p/DLm4…",\n' +
+      '      "confirmationMethod": "instagram_media_read",\n' +
+      '      "evidence": { "mediaType": "IMAGE" },\n' +
+      '      "failureId": null } }\n',
     id: 'wh1',
   },
-  // — loop 2: the failure path
+  // — loop 2: a recoverable failure is explained, alerted, and retried safely
   { text: '\n' },
   { text: '$', cls: 'mk-term-prompt' },
   {
-    text: ' curl -X POST …/public/v1/posts -d \'{ "content": "New drop." }\'\n',
+    text: " curl -X POST …/public/v1/posts -H 'Idempotency-Key: new-drop-2026-08-14' -d '{…}'\n",
     id: 'cmd2',
   },
-  { text: '\n{ "id": "post_01HZX5", "state": ' },
-  { text: '"QUEUED"', cls: 'mk-term-key' },
-  { text: ' }\n', id: 'q2' },
+  { text: '\n[{ "postId": "post_01HZX5", "integration": "ig_01" }]\n' },
+  { text: '↳ receipt: queued\n', cls: 'mk-term-key', id: 'q2' },
   {
-    text: '→ FAILED — token expired (reconnect_required)\n',
+    text: '↳ receipt: retrying — Instagram rate limit (rate_limited)\n',
     cls: 'mk-term-fail',
     id: 'fail',
   },
   { text: '↳ webhook: post.failure\n', cls: 'mk-term-retry' },
   {
     text:
-      '  { "id": "post_01HZX5",\n' +
+      '  { "specversion": "1.0",\n' +
+      '    "id": "post.failure:post_01HZX5:retry:1:rate_limited",\n' +
       '    "type": "post.failure",\n' +
-      '    "failure": { "class": "user_action_needed",\n' +
-      '      "code": "reconnect_required", "willRetry": false } }\n',
+      '    "time": "2026-08-14T18:01:02.110Z",\n' +
+      '    "data": { "postId": "post_01HZX5", "attempt": 1,\n' +
+      '      "integrationId": "ig_01", "provider": "instagram",\n' +
+      '      "willRetry": true,\n' +
+      '      "failure": { "class": "recoverable",\n' +
+      '        "code": "rate_limited",\n' +
+      '        "reason": "Instagram asked us to slow down." } } }\n',
     id: 'wh2',
   },
-  { text: '✓ you knew before the client did', cls: 'mk-term-ok' },
+  {
+    text: '↳ alert: sent — retry scheduled after 15 seconds\n',
+    cls: 'mk-term-retry',
+    id: 'alert2',
+  },
+  { text: '↳ retry: attempt 2 of 4\n', cls: 'mk-term-state', id: 'retry2' },
+  { text: '↳ receipt: sent (not success)\n', cls: 'mk-term-state' },
+  {
+    text: '↳ receipt: confirmed_live ✓ instagram.com/p/DLm5…\n',
+    cls: 'mk-term-ok',
+    id: 'pub2',
+  },
+  { text: '✓ explained, alerted, retried, confirmed live', cls: 'mk-term-ok' },
 ];
 
 const TOTAL = SEGMENTS.reduce((n, s) => n + s.text.length, 0);
@@ -99,6 +128,9 @@ const HOLDS: Array<[number, number]> = [
   [offsetAfter('q2'), 26],
   [offsetAfter('fail'), 24],
   [offsetAfter('wh2'), 18],
+  [offsetAfter('alert2'), 24],
+  [offsetAfter('retry2'), 24],
+  [offsetAfter('pub2'), 18],
 ];
 
 // Commands type at ~18ms/char; responses arrive in fast bursts.
@@ -135,6 +167,7 @@ function renderTyped(count: number, withCaret: boolean): ReactNode[] {
 
 export function ApiTerminal(): ReactElement {
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const replayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countRef = useRef(0);
@@ -144,6 +177,11 @@ export function ApiTerminal(): ReactElement {
   // 'static' (SSR/no-JS/reduced motion: full text visible) -> 'armed' (JS will
   // animate: full text hidden, overlay empty) -> typing fills the overlay.
   const [mode, setMode] = useState<'static' | 'armed'>('static');
+
+  useEffect(() => {
+    if (mode !== 'armed' || !bodyRef.current) return;
+    bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+  }, [count, mode]);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -241,22 +279,20 @@ export function ApiTerminal(): ReactElement {
         <span className="mk-term-dot" />
         <span className="mk-term-title">publishly api</span>
       </div>
-      <div className="mk-term-body">
-        <div style={{ position: 'relative' }}>
-          {/* Full text reserves the final height & carries the a11y text.
-              Visible by default so no-JS/SSR renders real content; hidden
-              only once JS commits to animating. */}
-          <div style={{ opacity: mode === 'static' ? 1 : 0 }}>
-            {renderTyped(TOTAL, false)}
-          </div>
-          {/* Animated layer paints on top; hidden from screen readers so
-              the 18ms churn never reaches them. */}
-          {mode === 'armed' && (
-            <div style={{ position: 'absolute', inset: 0 }} aria-hidden="true">
-              {renderTyped(count, true)}
-            </div>
-          )}
-        </div>
+      <div className="mk-term-body" ref={bodyRef}>
+        {/* SSR and no-JS show the complete transcript. Once animation starts,
+            screen readers retain one stable full transcript while the visual
+            layer types and scrolls without announcing every character. */}
+        {mode === 'static' ? (
+          <div>{renderTyped(TOTAL, false)}</div>
+        ) : (
+          <>
+            <span className="mk-visually-hidden">
+              {SEGMENTS.map((segment) => segment.text).join('')}
+            </span>
+            <div aria-hidden="true">{renderTyped(count, true)}</div>
+          </>
+        )}
       </div>
     </div>
   );

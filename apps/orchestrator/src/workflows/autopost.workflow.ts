@@ -1,4 +1,4 @@
-import { proxyActivities, sleep } from '@temporalio/workflow';
+import { log, proxyActivities, sleep } from '@temporalio/workflow';
 import { AutopostActivity } from '@gitroom/orchestrator/activities/autopost.activity';
 
 const { autoPost } = proxyActivities<AutopostActivity>({
@@ -23,7 +23,17 @@ export async function autoPostWorkflow({
       if (immediately) {
         await autoPost(id);
       }
-    } catch (err) {}
+    } catch (error) {
+      log.error('Autopost generation failed after activity retries.', {
+        code: 'autopost_generation_failed',
+        reason:
+          error instanceof Error && error.message
+            ? error.message
+            : 'The autopost activity failed without a provider reason.',
+        autopostId: id,
+        retryAt: 'next_hourly_cycle',
+      });
+    }
     immediately = true;
     await sleep(3600000);
   }

@@ -13,7 +13,8 @@ describe('pricing overrides (PRICING_OVERRIDES_JSON)', () => {
   });
 
   it('returns defaults without the env var', () => {
-    const { PAID_BILLING_TIERS, pricing, UNLIMITED_CHANNELS } = load();
+    const { PAID_BILLING_TIERS, pricing, publicPricing, UNLIMITED_CHANNELS } =
+      load();
     expect(pricing.PRO.channel).toBe(UNLIMITED_CHANNELS);
     expect(pricing.PRO.display_name).toBe('Scale');
     expect(pricing.PRO.storage_gb).toBe(500);
@@ -26,18 +27,43 @@ describe('pricing overrides (PRICING_OVERRIDES_JSON)', () => {
       'PRO',
       'ULTIMATE',
     ]);
-    expect(PAID_BILLING_TIERS).toEqual(['STANDARD', 'TEAM', 'PRO', 'ULTIMATE']);
+    expect(PAID_BILLING_TIERS).toEqual(['STANDARD', 'TEAM', 'PRO']);
+    expect(Object.keys(publicPricing)).toEqual([
+      'FREE',
+      'STANDARD',
+      'TEAM',
+      'PRO',
+    ]);
+    expect(UNLIMITED_CHANNELS).toBe(2_147_483_647);
+    expect(pricing.ULTIMATE).toMatchObject({
+      display_name: 'Scale',
+      month_price: 299,
+      posts_per_month: 100_000,
+      channel: UNLIMITED_CHANNELS,
+    });
   });
 
-  it('deep-merges partial overrides', () => {
+  it('deep-merges ancillary capability overrides', () => {
     process.env.PRICING_OVERRIDES_JSON = JSON.stringify({
-      PRO: { channel: 50, month_price: 59 },
+      PRO: { storage_gb: 750, webhooks: 250 },
     });
     const { pricing } = load();
-    expect(pricing.PRO.channel).toBe(50);
-    expect(pricing.PRO.month_price).toBe(59);
-    expect(pricing.PRO.webhooks).toBe(100);
-    expect(pricing.STANDARD.channel).toBe(10000);
+    expect(pricing.PRO.storage_gb).toBe(750);
+    expect(pricing.PRO.webhooks).toBe(250);
+    expect(pricing.PRO.month_price).toBe(299);
+    expect(pricing.STANDARD.channel).toBe(2_147_483_647);
+  });
+
+  it.each([
+    ['channel', 50],
+    ['month_price', 59],
+    ['posts_per_month', 10],
+    ['priority_retries', false],
+  ])('rejects an override of locked invariant %s', (field, value) => {
+    process.env.PRICING_OVERRIDES_JSON = JSON.stringify({
+      PRO: { [field]: value },
+    });
+    expect(load).toThrow(/locked billing invariant/);
   });
 
   it('rejects unknown tiers', () => {
@@ -54,7 +80,7 @@ describe('pricing overrides (PRICING_OVERRIDES_JSON)', () => {
 
   it('rejects type mismatches', () => {
     process.env.PRICING_OVERRIDES_JSON = JSON.stringify({
-      PRO: { channel: 'many' },
+      PRO: { storage_gb: 'many' },
     });
     expect(load).toThrow(/must be a number/);
   });
@@ -62,5 +88,14 @@ describe('pricing overrides (PRICING_OVERRIDES_JSON)', () => {
   it('rejects invalid JSON', () => {
     process.env.PRICING_OVERRIDES_JSON = '{not json';
     expect(load).toThrow(/could not be parsed/);
+  });
+
+  it('resolves historical ULTIMATE records to Scale entitlements', () => {
+    const { pricingForTier, resolveBillingTier } = load();
+    expect(resolveBillingTier('ULTIMATE')).toBe('PRO');
+    expect(pricingForTier('ULTIMATE')).toBe(pricingForTier('PRO'));
+    expect(() => resolveBillingTier('ENTERPRISE')).toThrow(
+      /unknown billing tier/i
+    );
   });
 });

@@ -8,23 +8,21 @@ import { MARKETING } from './marketing.config';
 // Rendered from the same entitlement config the server enforces - the page
 // can never drift from what billing actually grants. (Client bundles see the
 // defaults; server-side overrides only tighten or relabel entitlements.)
-// ULTIMATE exists internally (self-hosted / enterprise placeholder) and is
-// deliberately absent from ORDER - never display it.
+// Historical ULTIMATE records resolve to Scale. There are exactly four public
+// plans, and only these keys may render.
 
 const PLAN_FOR: Record<string, string> = {
-  FREE: 'Try the pipeline',
-  STANDARD: 'For your first brands',
-  TEAM: 'For growing fleets',
-  PRO: 'For agencies & networks',
+  FREE: 'Try it on five accounts',
+  STANDARD: 'For growing teams',
+  TEAM: 'For multi-brand teams',
+  PRO: 'For agencies & media networks',
 };
 
 const ORDER = ['FREE', 'STANDARD', 'TEAM', 'PRO'];
 
 // 1,000,000 is the internal "no practical cap" sentinel — say it like a human.
 const posts = (n: number) =>
-  n >= 1_000_000
-    ? 'Unlimited posts / month'
-    : `${n.toLocaleString()} posts / month`;
+  `Up to ${n.toLocaleString()} confirmed-live posts / month`;
 
 // UNLIMITED_CHANNELS is a sentinel, never a number to print.
 const accounts = (n?: number) =>
@@ -52,6 +50,13 @@ export const PricingCards = ({ compact = false }: { compact?: boolean }) => (
               <strong>{accounts(plan.channel)}</strong>
             </li>
             <li>{posts(plan.posts_per_month)}</li>
+            <li>Failed and unconfirmed posts use no quota</li>
+            {plan.full_observability && (
+              <li>Full receipts, failure reasons &amp; account health</li>
+            )}
+            {plan.dead_account_detection && <li>Disconnected-account alerts</li>}
+            {plan.priority_retries && <li>Faster retry handling</li>}
+            {plan.sla && <li>Reliability SLA</li>}
             {plan.team_members ? (
               <li>{plan.seats} team members</li>
             ) : (

@@ -68,13 +68,15 @@
   margin: 6px auto 0;
   padding: 0 28px;
 }
-.mk-ft-mark img {
+.mk-ft-mark-word {
   display: block;
-  width: 100%;
-  height: auto;
-  /* % margin resolves against width: image is 31.1% of width tall, so
-     -14% crops the lower ~45% of the letterforms off the page */
-  margin-bottom: -14%;
-  mix-blend-mode: multiply;
-  opacity: 0.4;
+  margin-bottom: -0.2em;
+  color: var(--mk-blue);
+  font-family: var(--mk-font-display), sans-serif;
+  font-size: clamp(150px, 25vw, 470px);
+  font-weight: 780;
+  letter-spacing: -0.075em;
+  line-height: 0.78;
+  opacity: 0.14;
+  white-space: nowrap;
 }

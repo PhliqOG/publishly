@@ -3,20 +3,25 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Post,
   Put,
   Query,
 } from '@nestjs/common';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
-import { open as openSealed, withOpenToken } from '@gitroom/helpers/auth/crypto.v2';
+import { safeOAuthReturnUrl } from '@gitroom/backend/services/auth/request.security';
+import {
+  open as openSealed,
+  withOpenToken,
+} from '@gitroom/helpers/auth/crypto.v2';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { Organization, User } from '@prisma/client';
 import { IntegrationFunctionDto } from '@gitroom/nestjs-libraries/dtos/integrations/integration.function.dto';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
-import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
+import { pricingForTier } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { ApiTags } from '@nestjs/swagger';
 import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
 import { AuditLogService } from '@gitroom/nestjs-libraries/database/prisma/audit-logs/audit-log.service';
@@ -34,6 +39,14 @@ import {
 } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 import { uniqBy } from 'lodash';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
+import { providerCapabilities } from '@gitroom/nestjs-libraries/integrations/provider.capabilities';
+import { tokenDaysRemaining } from '@gitroom/nestjs-libraries/reliability/connection.health.policy';
+import { ConnectionHealthService } from '@gitroom/nestjs-libraries/database/prisma/connection-health/connection-health.service';
+import { FleetHealthService } from '@gitroom/nestjs-libraries/database/prisma/fleet-health/fleet-health.service';
+import { AccountPublishingQueueService } from '@gitroom/nestjs-libraries/database/prisma/account-queue/account-publishing-queue.service';
+import { PlatformTruthService } from '@gitroom/nestjs-libraries/database/prisma/platform-truth/platform-truth.service';
+import { platformTruthResponse } from '@gitroom/nestjs-libraries/reliability/platform.truth';
+import { serializeOAuthLoginState } from '@gitroom/nestjs-libraries/integrations/oauth.state';
 
 @ApiTags('Integrations')
 @Controller('/integrations')
@@ -43,11 +56,18 @@ export class IntegrationsController {
     private _integrationService: IntegrationService,
     private _postService: PostsService,
     private _refreshIntegrationService: RefreshIntegrationService,
-    private _auditLogService: AuditLogService
+    private _auditLogService: AuditLogService,
+    private _connectionHealth: ConnectionHealthService,
+    private _fleetHealth: FleetHealthService,
+    private _accountPublishingQueue: AccountPublishingQueueService,
+    private _platformTruth: PlatformTruthService
   ) {}
 
   @Post('/provider/:id/connect')
-  @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.CHANNEL],
+    [AuthorizationActions.Create, Sections.ADMIN]
+  )
   async saveProviderPage(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -104,11 +124,27 @@ export class IntegrationsController {
             internalId: p.internalId,
             disabled: p.disabled,
             editor: findIntegration.editor,
+            capabilities: providerCapabilities(findIntegration),
             stripLinks: !!findIntegration?.stripLinks?.(),
             picture: p.picture || '/no-picture.jpg',
             identifier: p.providerIdentifier,
             inBetweenSteps: p.inBetweenSteps,
             refreshNeeded: p.refreshNeeded,
+            tokenIssuedAt: p.tokenIssuedAt,
+            tokenExpiration: p.tokenExpiration,
+            tokenLifetimeDays: p.tokenLifetimeDays,
+            tokenDaysRemaining: tokenDaysRemaining(p.tokenExpiration),
+            tokenHealthState: p.tokenHealthState,
+            tokenHealthReason: p.tokenHealthReason,
+            connectionHealthState: p.connectionHealthState,
+            connectionHealthReason: p.connectionHealthReason,
+            lastProviderContactAt: p.lastProviderContactAt,
+            lastSuccessfulPublishAt: p.lastSuccessfulPublishAt,
+            lastFailedPublishAt: p.lastFailedPublishAt,
+            consecutiveErrors: p.consecutiveErrors,
+            staleSince: p.staleSince,
+            deadAccountAt: p.deadAccountAt,
+            platformTruth: platformTruthResponse(p),
             isCustomFields: !!findIntegration.customFields,
             ...(findIntegration.customFields
               ? { customFields: await findIntegration.customFields() }
@@ -126,7 +162,209 @@ export class IntegrationsController {
     };
   }
 
+  @Post('/:id/platform-truth/refresh')
+  @CheckPolicies(
+    [AuthorizationActions.Update, Sections.CHANNEL],
+    [AuthorizationActions.Update, Sections.ADMIN]
+  )
+  async refreshPlatformTruth(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    const result = await this._platformTruth.refreshConnection(org.id, id);
+    return {
+      platformTruth: result.response,
+      failure: result.failure,
+    };
+  }
+
+  @Get('/health-events')
+  getHealthEvents(
+    @GetOrgFromRequest() org: Organization,
+    @Query('integrationId') integrationId?: string
+  ) {
+    return this._connectionHealth.listEvents(org.id, integrationId);
+  }
+
+  @Get('/fleet-health')
+  getFleetHealth(
+    @GetOrgFromRequest() org: Organization,
+    @Query('windowDays') windowDays?: string,
+    @Query('groupId') groupId?: string,
+    @Query('tagId') tagId?: string,
+    @Query('color') color?: string
+  ) {
+    return this._fleetHealth.getFleetHealth(org.id, {
+      windowDays,
+      groupId,
+      tagId,
+      color,
+    });
+  }
+
+  @Get('/fleet-health/queues/:integrationId')
+  getFleetAccountQueue(
+    @GetOrgFromRequest() org: Organization,
+    @Param('integrationId') integrationId: string
+  ) {
+    return this._accountPublishingQueue.getQueue(org.id, integrationId);
+  }
+
+  @Post('/fleet-health/reconnect-plan')
+  @CheckPolicies(
+    [AuthorizationActions.Update, Sections.CHANNEL],
+    [AuthorizationActions.Update, Sections.ADMIN]
+  )
+  async createFleetReconnectPlan(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: { integrationIds?: unknown }
+  ) {
+    const plan = await this._fleetHealth.buildReconnectPlan(
+      org.id,
+      body?.integrationIds
+    );
+    const actions: typeof plan.actions = [];
+    const rejected = [...plan.rejected];
+    for (const action of plan.actions) {
+      const provider = this._integrationManager.getSocialIntegration(
+        action.provider as string
+      );
+      if (!provider) {
+        rejected.push({
+          integrationId: action.integrationId,
+          name: action.name,
+          provider: action.provider,
+          code: 'provider_unavailable',
+          reason: 'This connection provider is not available on this server.',
+        });
+      } else if (provider.externalUrl) {
+        rejected.push({
+          integrationId: action.integrationId,
+          name: action.name,
+          provider: action.provider,
+          code: 'external_details_required',
+          reason:
+            'This provider requires instance details and must be reconnected individually.',
+        });
+      } else {
+        actions.push(action);
+      }
+    }
+    return { requested: plan.requested, actions, rejected };
+  }
+
+  @Post('/fleet-health/connect-plan')
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.CHANNEL],
+    [AuthorizationActions.Create, Sections.ADMIN]
+  )
+  async createFleetConnectPlan(@Body() body: { providers?: unknown }) {
+    const catalog = await this._integrationManager.getAllIntegrations();
+    return this._fleetHealth.buildConnectPlan(body?.providers, catalog.social);
+  }
+
+  @Post('/fleet-health/tags')
+  @CheckPolicies(
+    [AuthorizationActions.Update, Sections.CHANNEL],
+    [AuthorizationActions.Update, Sections.ADMIN]
+  )
+  createFleetTag(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: { name?: unknown; color?: unknown }
+  ) {
+    return this._fleetHealth.createTag(org.id, body || {});
+  }
+
+  @Put('/fleet-health/tags/:tagId')
+  @CheckPolicies(
+    [AuthorizationActions.Update, Sections.CHANNEL],
+    [AuthorizationActions.Update, Sections.ADMIN]
+  )
+  updateFleetTag(
+    @GetOrgFromRequest() org: Organization,
+    @Param('tagId') tagId: string,
+    @Body() body: { name?: unknown; color?: unknown }
+  ) {
+    return this._fleetHealth.updateTag(org.id, tagId, body || {});
+  }
+
+  @Delete('/fleet-health/tags/:tagId')
+  @CheckPolicies(
+    [AuthorizationActions.Update, Sections.CHANNEL],
+    [AuthorizationActions.Update, Sections.ADMIN]
+  )
+  archiveFleetTag(
+    @GetOrgFromRequest() org: Organization,
+    @Param('tagId') tagId: string
+  ) {
+    return this._fleetHealth.archiveTag(org.id, tagId);
+  }
+
+  @Put('/fleet-health/tags/:tagId/assign')
+  @CheckPolicies(
+    [AuthorizationActions.Update, Sections.CHANNEL],
+    [AuthorizationActions.Update, Sections.ADMIN]
+  )
+  assignFleetTag(
+    @GetOrgFromRequest() org: Organization,
+    @Param('tagId') tagId: string,
+    @Body() body: { integrationIds?: unknown; mode?: unknown }
+  ) {
+    return this._fleetHealth.assignTag(org.id, tagId, body || {});
+  }
+
+  @Post('/fleet-health/groups')
+  @CheckPolicies(
+    [AuthorizationActions.Update, Sections.CHANNEL],
+    [AuthorizationActions.Update, Sections.ADMIN]
+  )
+  createFleetGroup(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: { name?: unknown; color?: unknown }
+  ) {
+    return this._fleetHealth.createGroup(org.id, body || {});
+  }
+
+  @Put('/fleet-health/groups/:groupId')
+  @CheckPolicies(
+    [AuthorizationActions.Update, Sections.CHANNEL],
+    [AuthorizationActions.Update, Sections.ADMIN]
+  )
+  updateFleetGroup(
+    @GetOrgFromRequest() org: Organization,
+    @Param('groupId') groupId: string,
+    @Body() body: { name?: unknown; color?: unknown }
+  ) {
+    return this._fleetHealth.updateGroup(org.id, groupId, body || {});
+  }
+
+  @Delete('/fleet-health/groups/:groupId')
+  @CheckPolicies(
+    [AuthorizationActions.Update, Sections.CHANNEL],
+    [AuthorizationActions.Update, Sections.ADMIN]
+  )
+  archiveFleetGroup(
+    @GetOrgFromRequest() org: Organization,
+    @Param('groupId') groupId: string
+  ) {
+    return this._fleetHealth.archiveGroup(org.id, groupId);
+  }
+
+  @Put('/fleet-health/groups/:groupId/assign')
+  @CheckPolicies(
+    [AuthorizationActions.Update, Sections.CHANNEL],
+    [AuthorizationActions.Update, Sections.ADMIN]
+  )
+  assignFleetGroup(
+    @GetOrgFromRequest() org: Organization,
+    @Param('groupId') groupId: string,
+    @Body() body: { integrationIds?: unknown; mode?: unknown }
+  ) {
+    return this._fleetHealth.assignGroup(org.id, groupId, body || {});
+  }
+
   @Post('/:id/settings')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async updateProviderSettings(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -139,6 +377,7 @@ export class IntegrationsController {
     await this._integrationService.updateProviderSettings(org.id, id, body);
   }
   @Post('/:id/nickname')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async setNickname(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -194,7 +433,10 @@ export class IntegrationsController {
   }
 
   @Get('/social/:integration')
-  @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.CHANNEL],
+    [AuthorizationActions.Create, Sections.ADMIN]
+  )
   async getIntegrationUrl(
     @Param('integration') integration: string,
     @Query('refresh') refresh: string,
@@ -237,12 +479,21 @@ export class IntegrationsController {
         await ioRedis.set(`onboarding:${state}`, 'true', 'EX', 3600);
       }
 
-      if (redirectUrl) {
-        await ioRedis.set(`redirect:${state}`, redirectUrl, 'EX', 3600);
+      const safeRedirectUrl = safeOAuthReturnUrl(redirectUrl);
+      if (redirectUrl && !safeRedirectUrl) {
+        throw new Error('Invalid OAuth return URL');
+      }
+      if (safeRedirectUrl) {
+        await ioRedis.set(`redirect:${state}`, safeRedirectUrl, 'EX', 3600);
       }
 
       await ioRedis.set(`organization:${state}`, org.id, 'EX', 3600);
-      await ioRedis.set(`login:${state}`, codeVerifier, 'EX', 3600);
+      await ioRedis.set(
+        `login:${state}`,
+        serializeOAuthLoginState(integration, codeVerifier),
+        'EX',
+        3600
+      );
       await ioRedis.set(
         `external:${state}`,
         JSON.stringify(getExternalUrl),
@@ -257,6 +508,7 @@ export class IntegrationsController {
   }
 
   @Post('/:id/time')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async setTime(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -383,67 +635,110 @@ export class IntegrationsController {
   }
 
   @Post('/disable')
-  disableChannel(
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  async disableChannel(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,
     @Body('id') id: string
   ) {
-    this._auditLogService.log({
+    const disabled = await this._integrationService.disableChannel(org.id, id);
+    if (!disabled) {
+      throw new NotFoundException('Integration not found');
+    }
+    await this._auditLogService.log({
       organizationId: org.id,
       userId: user.id,
       action: 'integration.disabled',
       targetType: 'integration',
       targetId: id,
     });
-    return this._integrationService.disableChannel(org.id, id);
+    return { disabled: true };
   }
 
   @Post('/enable')
-  enableChannel(
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  async enableChannel(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,
     @Body('id') id: string
   ) {
-    this._auditLogService.log({
+    const subscriptionTier = (
+      org as Organization & {
+        subscription?: { subscriptionTier?: string } | null;
+      }
+    ).subscription?.subscriptionTier;
+    const enabled = await this._integrationService.enableChannel(
+      org.id,
+      pricingForTier(
+        !process.env.STRIPE_PUBLISHABLE_KEY ? 'PRO' : subscriptionTier
+      ).channel || 0,
+      id
+    );
+    if (!enabled) {
+      throw new NotFoundException('Integration not found');
+    }
+    await this._auditLogService.log({
       organizationId: org.id,
       userId: user.id,
       action: 'integration.enabled',
       targetType: 'integration',
       targetId: id,
     });
-    return this._integrationService.enableChannel(
-      org.id,
-      // @ts-ignore
-      org?.subscription?.totalChannels || pricing.FREE.channel,
-      id
-    );
+    return { enabled: true };
   }
 
   @Delete('/')
+  @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
   async deleteChannel(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,
     @Body('id') id: string
   ) {
+    const integration = await this._integrationService.getIntegrationById(
+      org.id,
+      id
+    );
+    if (!integration) {
+      throw new NotFoundException('Integration not found');
+    }
     const isTherePosts = await this._integrationService.getPostsForChannel(
       org.id,
       id
     );
-    if (isTherePosts.length) {
-      for (const post of isTherePosts) {
-        this._postService.deletePost(org.id, post.group).catch((err) => {});
-      }
+    const deleted = await this._integrationService.deleteChannel(org.id, id);
+    if (!deleted) {
+      throw new NotFoundException('Integration not found');
     }
-
-    this._auditLogService.log({
+    const cleanupResults = await Promise.allSettled(
+      isTherePosts.map((post) =>
+        this._postService.deletePost(org.id, post.group)
+      )
+    );
+    const cleanupFailures = cleanupResults.filter(
+      (result) => result.status === 'rejected'
+    ).length;
+    await this._auditLogService.log({
       organizationId: org.id,
       userId: user.id,
       action: 'integration.deleted',
       targetType: 'integration',
       targetId: id,
-      metadata: { removedScheduledPosts: isTherePosts.length },
+      metadata: {
+        removedScheduledPosts: isTherePosts.length - cleanupFailures,
+        scheduledPostCleanupFailures: cleanupFailures,
+      },
     });
-    return this._integrationService.deleteChannel(org.id, id);
+    return {
+      deleted: true,
+      warnings: cleanupFailures
+        ? [
+            {
+              code: 'scheduled_post_cleanup_failed',
+              reason: `${cleanupFailures} scheduled post group(s) could not be removed immediately. The deleted connection cannot publish them; cleanup will be retried by normal retention processing.`,
+            },
+          ]
+        : [],
+    };
   }
 
   @Get('/plug/list')
@@ -460,6 +755,7 @@ export class IntegrationsController {
   }
 
   @Post('/:id/plugs')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async postPlugsByIntegrationId(
     @Param('id') id: string,
     @GetOrgFromRequest() org: Organization,
@@ -469,6 +765,7 @@ export class IntegrationsController {
   }
 
   @Put('/plugs/:id/activate')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async changePlugActivation(
     @Param('id') id: string,
     @GetOrgFromRequest() org: Organization,

@@ -58,7 +58,7 @@ const ROWS: string[][] = [
   ],
   [
     'Automatic retries',
-    'Yes — backoff retries that never double-post',
+    'Yes — safe retries that never double-post',
     'Not published',
   ],
   [
@@ -72,7 +72,7 @@ const ROWS: string[][] = [
 const FAQ = [
   {
     q: 'What is the best Upload-Post alternative?',
-    a: 'It depends on how you bill your own fleet. If profile-count tiers are getting expensive as accounts grow, Publishly’s flat plans sized by post volume — with unlimited connected accounts — are built for that case. If a lean, low-cost API with a free tier for a small profile count is all you need, Upload-Post is a reasonable, API-first choice.',
+    a: 'It depends on how your account list grows. If profile-count tiers get expensive as you add brands, clients, or locations, Publishly’s flat plans sized by post volume — with unlimited connected accounts — are built for that case. If a lean, low-cost API with a free tier for a small profile count is all you need, Upload-Post is a reasonable, API-first choice.',
   },
   {
     q: 'How much does Upload-Post cost for 100 profiles?',
@@ -94,23 +94,25 @@ export default function CompareUploadPostPage() {
             <span className="mk-eyebrow" style={{ display: 'block' }}>
               Compare
             </span>
-            <h1 className="mk-h2-lg" style={{ marginTop: 18, maxWidth: '18ch' }}>
+            <h1
+              className="mk-h2-lg"
+              style={{ marginTop: 18, maxWidth: '18ch' }}
+            >
               Publishly vs Upload-Post
             </h1>
             <p className="mk-section-lede">
               Upload-Post is a simple, API-first posting product with a public
-              status page — a genuinely honest, lean tool. The comparison
-              comes down to how each bills a growing account count, and what
-              each promises when a post fails.
+              status page — a genuinely honest, lean tool. The comparison comes
+              down to how each bills a growing account count, and what each
+              promises when a post fails.
             </p>
             <QuickAnswer>
-              Upload-Post’s published plans are profile-count tiers — $0 to
-              $438 per month for 2 to 225 profiles. Publishly’s plans are
-              sized by post volume with unlimited connected accounts, so 100
-              accounts fit the $99/mo Growth plan. Choose Upload-Post for a
-              minimal API and a published status page; choose Publishly for
-              flat pricing at any account count and a delivery receipt on
-              every post.
+              Upload-Post’s published plans are profile-count tiers — $0 to $438
+              per month for 2 to 225 profiles. Publishly’s plans are sized by
+              post volume with unlimited connected accounts, so 100 accounts fit
+              the $99/mo Growth plan. Choose Upload-Post for a minimal API and a
+              published status page; choose Publishly for flat pricing at any
+              account count and a delivery receipt on every post.
             </QuickAnswer>
             <Byline published="2026-08-10" updated="2026-08-10" />
           </div>
@@ -130,22 +132,24 @@ export default function CompareUploadPostPage() {
             </FactLine>
             <div className="mk-prose" style={{ marginTop: 26 }}>
               <p>
-                Every tier is a fixed profile ceiling. Outgrow one and the
-                next tier up is the only option, even if you only needed a
-                handful more accounts — profile 76 forces the jump from
-                $147/mo straight to $438/mo.
+                Every tier is a fixed profile ceiling. Outgrow one and the next
+                tier up is the only option, even if you only needed a handful
+                more accounts — profile 76 forces the jump from $147/mo straight
+                to $438/mo.
               </p>
               <p>
-                Publishly meters the other axis — how much you post. The
-                Growth plan is $99/mo for 15,000 posts across unlimited
-                connected accounts, so account 101 changes the bill by exactly
-                nothing.
+                Publishly meters the other axis — how much you post. The Growth
+                plan is $99/mo for 15,000 posts across unlimited connected
+                accounts, so account 101 changes the bill by exactly nothing.
               </p>
             </div>
           </div>
         </section>
 
-        <section className="mk-section mk-section-tint" aria-labelledby="up-table">
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="up-table"
+        >
           <div className="mk-container">
             <h2 id="up-table" className="mk-h2">
               Side by side.
@@ -196,8 +200,8 @@ export default function CompareUploadPostPage() {
                 <h3>Publishly may not be the best choice if…</h3>
                 <ul className="mk-points">
                   <li>
-                    You want the smallest possible API surface for a handful
-                    of profiles and don’t need workspace-level isolation.
+                    You want the smallest possible API surface for a handful of
+                    profiles and don’t need workspace-level isolation.
                   </li>
                   <li>
                     Predictable profile-tier billing suits your model better

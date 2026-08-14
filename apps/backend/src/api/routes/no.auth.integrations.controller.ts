@@ -21,9 +21,18 @@ import {
   AuthorizationActions,
   Sections,
 } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
-import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
+import {
+  RefreshIntegrationService,
+  TokenRefreshWorkflowStartError,
+} from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { getSsrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
+import {
+  PlatformTruthInspectionError,
+  platformTruthResponse,
+} from '@gitroom/nestjs-libraries/reliability/platform.truth';
+import { normalizePostFailure } from '@gitroom/nestjs-libraries/reliability/post.failure';
+import { consumeOAuthLoginState } from '@gitroom/nestjs-libraries/integrations/oauth.state';
 
 @ApiTags('Integrations')
 @Controller('/integrations')
@@ -60,10 +69,9 @@ export class NoAuthIntegrationsController {
 
     const getCodeVerifier = integrationProvider.customFields
       ? 'none'
-      : await ioRedis.get(`login:${body.state}`);
-    if (!getCodeVerifier) {
-      throw new Error('Invalid state');
-    }
+      : (
+          await consumeOAuthLoginState(ioRedis, body.state, integration)
+        ).codeVerifier;
 
     const organization = await ioRedis.get(`organization:${body.state}`);
     if (!organization) {
@@ -71,10 +79,6 @@ export class NoAuthIntegrationsController {
     }
 
     const org = await this._organizationService.getOrgById(organization);
-
-    if (!integrationProvider.customFields) {
-      await ioRedis.del(`login:${body.state}`);
-    }
 
     const details = integrationProvider.externalUrl
       ? await ioRedis.get(`external:${body.state}`)
@@ -240,14 +244,44 @@ export class NoAuthIntegrationsController {
           : undefined
       );
 
-    this._refreshIntegrationService
-      .startRefreshWorkflow(org.id, createUpdate.id, integrationProvider)
-      .catch((err) => {
-        console.log(err);
+    try {
+      if (!createUpdate.inBetweenSteps) {
+        await this._refreshIntegrationService.startRefreshWorkflow(
+          createUpdate,
+          integrationProvider
+        );
+      }
+    } catch (error) {
+      const normalized = normalizePostFailure({ error, willRetry: true });
+      const response =
+        error instanceof TokenRefreshWorkflowStartError
+          ? {
+              failureClass: error.failureClass,
+              code: error.code,
+              reason: error.message,
+              retryable: error.retryable,
+            }
+          : {
+              failureClass: 'recoverable',
+              code: 'token_refresh_scheduler_unavailable',
+              reason: normalized.reason,
+              retryable: true,
+            };
+      console.error({
+        event: 'token_refresh_workflow_start_failed',
+        provider: integration,
+        organizationId: org.id,
+        integrationId: createUpdate.id,
+        ...response,
       });
+      throw new HttpException(response, 503);
+    }
 
     // Fetch pages if this is a two-step provider and not a refresh
     let pages: any[] = [];
+    let pageSelectionFailure:
+      | { failureClass: string; code: string; reason: string }
+      | undefined;
     if (integrationProvider.isBetweenSteps && !refresh) {
       try {
         // Check which method the provider uses (pages or companies)
@@ -263,7 +297,27 @@ export class NoAuthIntegrationsController {
           pages = await integrationProvider[fetchMethod](accessToken);
         }
       } catch (err) {
-        console.log('Failed to fetch pages:', err);
+        const normalized = normalizePostFailure({
+          error: err,
+        });
+        pageSelectionFailure =
+          err instanceof PlatformTruthInspectionError
+            ? {
+                failureClass: err.failureClass,
+                code: err.code,
+                reason: err.message,
+              }
+            : {
+                failureClass: 'recoverable',
+                code: `${integration}_account_list_unavailable`,
+                reason: normalized.reason,
+              };
+        console.error({
+          event: 'integration_account_list_failed',
+          provider: integration,
+          organizationId: org.id,
+          ...pageSelectionFailure,
+        });
       }
     }
 
@@ -281,7 +335,15 @@ export class NoAuthIntegrationsController {
           // @ts-ignore — undici option, not in lib.dom fetch types
           dispatcher: getSsrfSafeDispatcher(),
         });
-      } catch (err) {}
+      } catch (err) {
+        console.error({
+          event: 'integration_callback_webhook_failed',
+          provider: integration,
+          organizationId: org.id,
+          code: 'integration_callback_webhook_unavailable',
+          reason: normalizePostFailure({ error: err }).reason,
+        });
+      }
 
       await ioRedis.del(`webhookUrl:${body.state}`);
     }
@@ -307,6 +369,16 @@ export class NoAuthIntegrationsController {
       token: _token,
       refreshToken: _refreshToken,
       customInstanceDetails: _customInstanceDetails,
+      platformTruthState: _platformTruthState,
+      platformPublishingMode: _platformPublishingMode,
+      platformAuditState: _platformAuditState,
+      platformTruthCode: _platformTruthCode,
+      platformTruthReason: _platformTruthReason,
+      platformTruthCheckedAt: _platformTruthCheckedAt,
+      platformTruthChangedAt: _platformTruthChangedAt,
+      platformAccountType: _platformAccountType,
+      platformLinkedResourceId: _platformLinkedResourceId,
+      platformTruthMetadata: _platformTruthMetadata,
       ...safeIntegration
     } = createUpdate as any;
 
@@ -314,6 +386,8 @@ export class NoAuthIntegrationsController {
       ...safeIntegration,
       onboarding: onboarding === 'true',
       pages,
+      platformTruth: platformTruthResponse(createUpdate),
+      ...(pageSelectionFailure ? { pageSelectionFailure } : {}),
       ...(returnURL ? { returnURL } : {}),
       ...(extensionToken ? { extensionToken } : {}),
     };

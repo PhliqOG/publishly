@@ -15,7 +15,9 @@ import {
   BillingTier,
   PaidBillingTier,
   PricingInterface,
-  pricing,
+  publicPricing,
+  resolveBillingTier,
+  UNLIMITED_CHANNELS,
 } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { FAQComponent } from '@gitroom/frontend/components/billing/faq.component';
 import { useSWRConfig } from 'swr';
@@ -89,14 +91,27 @@ export const Features: FC<{
     const currentPricing = tiers[pack];
     const channelsOr = currentPricing.channel;
     const list = [];
-    list.push(`${channelsOr} ${channelsOr === 1 ? 'channel' : 'channels'}`);
     list.push(
-      `${
-        currentPricing.posts_per_month > 10000
-          ? 'Unlimited'
-          : currentPricing.posts_per_month
-      } posts per month`
+      (channelsOr || 0) >= UNLIMITED_CHANNELS
+        ? 'Unlimited connected accounts'
+        : `${channelsOr || 0} connected accounts`
     );
+    list.push(
+      `Up to ${currentPricing.posts_per_month.toLocaleString()} confirmed-live posts per month`
+    );
+    list.push('Failed and unconfirmed posts use no quota');
+    if (currentPricing.full_observability) {
+      list.push('Full delivery receipts, failure reasons, and fleet health');
+    }
+    if (currentPricing.dead_account_detection) {
+      list.push('Dead-account detection');
+    }
+    if (currentPricing.priority_retries) {
+      list.push('Priority retry lane');
+    }
+    if (currentPricing.sla) {
+      list.push('Reliability SLA');
+    }
     if (currentPricing.team_members) {
       list.push(`Unlimited team members`);
     }
@@ -217,8 +232,18 @@ const Info: FC<{
 export const MainBillingComponent: FC<{
   sub?: Subscription;
   tiers?: PricingInterface;
+  usage?: {
+    metric: 'confirmed_live_destinations';
+    tier: BillingTier;
+    periodStart: string | Date;
+    periodEnd: string | Date;
+    limit: number;
+    used: number;
+    remaining: number;
+    exhausted: boolean;
+  };
 }> = (props) => {
-  const { sub, tiers } = props;
+  const { sub, tiers, usage } = props;
   const { isGeneral } = useVariables();
   const { mutate } = useSWRConfig();
   const fetch = useFetch();
@@ -232,7 +257,7 @@ export const MainBillingComponent: FC<{
   const t = useT();
   const queryParams = useSearchParams();
   const planCatalog = useMemo(
-    () => (tiers && Object.keys(tiers).length ? tiers : pricing),
+    () => (tiers && Object.keys(tiers).length ? tiers : publicPricing),
     [tiers]
   );
   const [finishTrial, setFinishTrial] = useState(
@@ -249,13 +274,7 @@ export const MainBillingComponent: FC<{
   const [monthlyOrYearly, setMonthlyOrYearly] = useState<'on' | 'off'>(
     period === 'MONTHLY' ? 'off' : 'on'
   );
-  const [initialChannels, setInitialChannels] = useState(
-    sub?.totalChannels || 1
-  );
   useEffect(() => {
-    if (initialChannels !== sub?.totalChannels) {
-      setInitialChannels(sub?.totalChannels || 1);
-    }
     if (period !== sub?.period) {
       setPeriod(sub?.period || 'MONTHLY');
       setMonthlyOrYearly(
@@ -278,8 +297,8 @@ export const MainBillingComponent: FC<{
     if (period === 'MONTHLY' && monthlyOrYearly === 'on') {
       return '';
     }
-    return subscription?.subscriptionTier;
-  }, [subscription, initialChannels, monthlyOrYearly, period]);
+    return resolveBillingTier(subscription?.subscriptionTier);
+  }, [subscription, monthlyOrYearly, period]);
   const moveToCheckout = useCallback(
     (billing: BillingTier, reactivate = false) =>
       async () => {
@@ -309,7 +328,8 @@ export const MainBillingComponent: FC<{
         const messages = [];
         if (
           !planCatalog[billing].team_members &&
-          planCatalog[subscription?.subscriptionTier!]?.team_members
+          planCatalog[resolveBillingTier(subscription?.subscriptionTier)]
+            ?.team_members
         ) {
           messages.push(
             `Your team members will be removed from your organization`
@@ -462,6 +482,19 @@ export const MainBillingComponent: FC<{
   }
   return (
     <div className="flex flex-col gap-[16px]">
+      {usage && (
+        <div className="rounded-[4px] border border-customColor6 bg-sixth p-[16px]">
+          <div className="text-[16px] font-medium">
+            {usage.used.toLocaleString()} of {usage.limit.toLocaleString()}{' '}
+            successful posts used
+          </div>
+          <div className="mt-[4px] text-[13px] text-customColor18">
+            Only destinations independently confirmed live consume quota.
+            Failed, retried, cancelled, and unconfirmed posts are free. This
+            window resets {dayjs(usage.periodEnd).format('D MMM YYYY')}.
+          </div>
+        </div>
+      )}
       <div className="flex flex-row">
         <div className="flex-1 text-[20px]">{t('plans', 'Plans')}</div>
         <div className="flex items-center gap-[16px]">

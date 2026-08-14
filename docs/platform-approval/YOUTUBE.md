@@ -1,73 +1,103 @@
-# YouTube (Google)
+# YouTube / Google OAuth production runbook
 
-**Purpose**: upload scheduled videos (incl. thumbnails) to the user's own
-channel; read the user's own channel analytics.
+Last verified: 2026-08-10. `APP_ORIGIN` is the public HTTPS `FRONTEND_URL`.
+Approval and quota increases are external; this document does not claim either.
 
-## App creation
-- Portal: https://console.cloud.google.com → project → enable **YouTube Data
-  API v3** (and YouTube Analytics API for the analytics scope) → OAuth consent
-  screen (External) → OAuth client (Web application).
+## Configuration
 
-## Exact scopes (from code)
-```
-https://www.googleapis.com/auth/userinfo.profile
-https://www.googleapis.com/auth/userinfo.email
-https://www.googleapis.com/auth/youtube
-https://www.googleapis.com/auth/youtube.force-ssl
-https://www.googleapis.com/auth/youtube.readonly
-https://www.googleapis.com/auth/youtube.upload
-https://www.googleapis.com/auth/youtubepartner
-https://www.googleapis.com/auth/yt-analytics.readonly
-```
-⚠ `youtubepartner` is a *restricted partner scope* intended for YouTube content
-owners (CMS partners). It is unusual for a scheduler and may block or complicate
-Google's OAuth verification for a general app. Flagged for an operator decision:
-consider removing it from `youtube.provider.ts` before submitting for
-verification unless a concrete feature needs it. The other youtube.* scopes are
-"sensitive/restricted" and already require verification + possibly a security
-assessment — verify current policy in the Google verification docs.
+Enable **YouTube Data API v3** and **YouTube Analytics API** in a dedicated
+production Google Cloud project. Create an External OAuth consent screen and an
+OAuth 2.0 Web application client.
 
-## Redirect URI(s) to whitelist (OAuth client → Authorized redirect URIs)
-```
-{FRONTEND_URL}/integrations/social/youtube
+```dotenv
+YOUTUBE_CLIENT_ID=<OAuth web client ID>
+YOUTUBE_CLIENT_SECRET=<OAuth web client secret>
+FRONTEND_URL=https://app.example.com
 ```
 
-## Env vars to set
+Authorized redirect URI:
+
+```text
+APP_ORIGIN/integrations/social/youtube
 ```
-YOUTUBE_CLIENT_ID=
-YOUTUBE_CLIENT_SECRET=
-```
 
-## Review prerequisites
-- OAuth consent screen fully filled (app name, support email, domains, privacy
-  policy + terms URLs) and **domain verification** for the app domain.
-- OAuth verification submission for sensitive/restricted scopes: in-app demo
-  video showing each scope's use (upload flow, analytics screen).
-- Until verified: app works for up to 100 test users with an "unverified app"
-  warning — sufficient for canaries.
+Consent-screen URLs:
 
-## Truthful use-case text
-> Publishly is a social-media scheduling tool. Users connect their own YouTube
-> channel with Google OAuth and schedule videos that Publishly uploads to their
-> channel at the scheduled time, with the title, description, and thumbnail they
-> set. yt-analytics.readonly powers the user's own channel analytics dashboard.
-> Publishly accesses only channels the user explicitly connects.
+- Home: `APP_ORIGIN`
+- Privacy: `APP_ORIGIN/privacy`
+- Terms: `APP_ORIGIN/terms`
+- Contact: `APP_ORIGIN/contact`
+- Data deletion: `APP_ORIGIN/data-deletion`
 
-## Data handling
-- Stored: channel id/name/avatar, OAuth refresh+access tokens (encrypted at
-  rest), uploaded video ids, displayed analytics.
-- Google requires compliance with the Google API Services User Data Policy
-  (Limited Use) — the privacy policy must state it.
-- Deletion: disconnecting removes tokens; account deletion removes all data.
+No YouTube webhook is consumed by the current adapter; status is reconciled by
+authorized API calls. YouTube user authorization does not use a service account.
 
-## Common rejection causes
-- Requesting scopes the demo doesn't show being used (youtubepartner is the
-  likely offender here — see warning above).
-- Privacy policy not on a verified domain, or not mentioning Limited Use.
-- Consent screen branding mismatch with the app.
+## Scopes used by the adapter
 
-## Post-approval canary
-1. Add your Google account as a test user; connect the company test channel.
-2. Schedule one short unlisted video with thumbnail → verify on studio.youtube.com
-   (the pending/finalize flow sets thumbnails — confirm it completed).
-3. Load the analytics screen; confirm token refresh works the next day.
+- `https://www.googleapis.com/auth/userinfo.profile`
+- `https://www.googleapis.com/auth/youtube.readonly`
+- `https://www.googleapis.com/auth/youtube.upload`
+- `https://www.googleapis.com/auth/yt-analytics.readonly`
+
+`youtube.upload` creates the user's requested video. `youtube.readonly` confirms
+the video and reads channel context. `yt-analytics.readonly` displays
+platform-returned analytics, and `userinfo.profile` labels the consenting
+connection. Publishly does not manage YouTube comments or ratings and therefore
+does not request broad `youtube.force-ssl` or `youtubepartner` scopes.
+
+Every connected YouTube account runs the durable refresh workflow at the
+access-token expiry. If Google returns an authoritative `invalid_grant`,
+Publishly records and attempts the reconnect webhook/notification, then
+transactionally purges the revoked credentials and Google-derived profile,
+analytics, inbox, external IDs/URLs, and receipt evidence. A timeout, 429, or
+5xx is not treated as proof of revocation and never triggers erasure.
+
+## Setup and verification
+
+1. Deploy the final HTTPS domain and verify the legal/contact pages with the
+   production operator identity.
+2. Create separate Google Cloud projects for non-production testing and
+   production. Enable the two APIs in production.
+3. Configure the OAuth brand as Publishly, add the exact scopes and authorized
+   domains, and verify domain ownership in Search Console with a project
+   owner/editor account.
+4. Create the Web client, register the exact redirect URI, store the two secret
+   values, and redeploy.
+5. In Testing mode, add owner-controlled YouTube test users and prove connect,
+   upload, refresh-token use, status, analytics, and disconnect. The disconnect
+   must visibly call Google's revocation endpoint before local provider data is
+   removed; force a temporary revocation failure once and show the classified
+   retryable response rather than a false success.
+6. Publish the consent screen to Production and select **Prepare for
+   Verification**. Supply a narrow justification for every sensitive scope and
+   an unlisted screencast URL.
+7. Request quota only after measuring the canary. Explain actual daily upload
+   volume; do not invent customer counts.
+
+Suggested description:
+
+> Publishly lets an authorized YouTube channel owner upload and schedule their
+> own videos, then view status and YouTube-reported performance in a private
+> workspace. Publishing runs server-side at the time the user selected. Users
+> can disconnect the channel and delete stored authorization data. Publishly
+> does not use service accounts, scrape YouTube, or access channels that did not
+> grant OAuth consent.
+
+The screencast should show the English consent screen with all scopes, connect,
+channel identity, a compliant upload with title/privacy settings, the final
+YouTube result, analytics, token revocation/disconnect, and privacy/deletion
+pages. Use a dedicated reviewer workspace and an owner-controlled YouTube test
+channel; never provide a customer account.
+
+Common rejection causes: scope mismatch between code and consent screen,
+unverified domains, inaccessible legal/support URLs, a video that omits the
+OAuth grant or broad-scope feature, requesting partner scopes, using a test
+project for production verification, or describing analytics the API does not
+return.
+
+Sources:
+
+- [YouTube OAuth 2.0 authorization](https://developers.google.com/youtube/v3/guides/authentication)
+- [OAuth for server-side web apps and YouTube scopes](https://developers.google.com/youtube/v3/guides/auth/server-side-web-apps)
+- [Google OAuth verification requirements](https://support.google.com/cloud/answer/13464321)
+- [Submit an OAuth app for verification](https://support.google.com/cloud/answer/13461325)

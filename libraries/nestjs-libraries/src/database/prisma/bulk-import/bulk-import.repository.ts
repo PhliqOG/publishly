@@ -41,4 +41,11 @@ export class BulkImportRepository {
       data,
     });
   }
+
+  claim(organizationId: string, id: string) {
+    return this._bulkImport.model.bulkImport.updateMany({
+      where: { id, organizationId, status: 'preview' },
+      data: { status: 'processing' },
+    });
+  }
 }

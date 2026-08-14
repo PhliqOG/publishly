@@ -4,6 +4,7 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  Logger,
 } from '@nestjs/common';
 import { IntegrationRepository } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.repository';
 import { open as openSealed } from '@gitroom/helpers/auth/crypto.v2';
@@ -27,12 +28,16 @@ import utc from 'dayjs/plugin/utc';
 import { AutopostRepository } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.repository';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
 import { TemporalService } from 'nestjs-temporal-core';
+import { PlatformTruthService } from '@gitroom/nestjs-libraries/database/prisma/platform-truth/platform-truth.service';
+import { revokeProviderConnection } from '@gitroom/nestjs-libraries/integrations/provider.connection.revocation';
+import { normalizePostFailure } from '@gitroom/nestjs-libraries/reliability/post.failure';
 
 dayjs.extend(utc);
 
 @Injectable()
 export class IntegrationService {
   private storage = UploadFactory.createStorage();
+  private readonly logger = new Logger(IntegrationService.name);
   constructor(
     private _integrationRepository: IntegrationRepository,
     private _autopostsRepository: AutopostRepository,
@@ -41,7 +46,8 @@ export class IntegrationService {
     @Inject(forwardRef(() => RefreshIntegrationService))
     private _refreshIntegrationService: RefreshIntegrationService,
     private _temporalService: TemporalService,
-    private _analyticsSnapshotRepository: AnalyticsSnapshotRepository
+    private _analyticsSnapshotRepository: AnalyticsSnapshotRepository,
+    private _platformTruth: PlatformTruthService
   ) {}
 
   async changeActiveCron(orgId: string) {
@@ -50,7 +56,15 @@ export class IntegrationService {
     for (const item of data.filter((f) => f.active)) {
       try {
         await this._temporalService.terminateWorkflow(`autopost-${item.id}`);
-      } catch (err) {}
+      } catch (error) {
+        this.logger.warn({
+          event: 'autopost_workflow_termination_failed',
+          organizationId: orgId,
+          autopostId: item.id,
+          code: 'autopost_termination_unavailable',
+          reason: normalizePostFailure({ error }).reason,
+        });
+      }
     }
 
     return true;
@@ -117,29 +131,64 @@ export class IntegrationService {
       ? picture?.indexOf('imagedelivery.net') > -1
         ? picture
         : await this.storage.uploadSimple(picture).catch((err) => {
-            console.log('Failed to upload profile picture:', picture, err);
+            this.logger.warn({
+              event: 'integration_profile_picture_copy_failed',
+              organizationId: org,
+              provider,
+              code: 'profile_picture_copy_failed',
+              reason: normalizePostFailure({ error: err }).reason,
+            });
             return undefined;
           })
       : undefined;
 
-    return this._integrationRepository.createOrUpdateIntegration(
-      additionalSettings,
-      oneTimeToken,
-      org,
-      name,
-      uploadedPicture,
-      type,
-      internalId,
-      provider,
-      token,
-      refreshToken,
-      expiresIn,
-      username,
-      isBetweenSteps,
-      refresh,
-      timezone,
-      customInstanceDetails
-    );
+    const integration =
+      await this._integrationRepository.createOrUpdateIntegration(
+        additionalSettings,
+        oneTimeToken,
+        org,
+        name,
+        uploadedPicture,
+        type,
+        internalId,
+        provider,
+        token,
+        refreshToken,
+        expiresIn,
+        username,
+        isBetweenSteps,
+        refresh,
+        timezone,
+        customInstanceDetails
+      );
+
+    const providerImplementation =
+      this._integrationManager.getSocialIntegration(
+        integration.providerIdentifier
+      );
+    if (providerImplementation.inspectPlatformTruth) {
+      if (isBetweenSteps) {
+        await this._platformTruth.recordSnapshot(integration, {
+          state: 'UNKNOWN',
+          publishingMode: 'UNKNOWN',
+          auditState: 'NOT_APPLICABLE',
+          code: `${integration.providerIdentifier}_page_selection_required`,
+          reason:
+            'Select and verify the matching platform account before Publishly can confirm publishing capability.',
+          checkedAt: new Date(),
+        });
+      } else {
+        await this._platformTruth.refreshIntegration(integration);
+      }
+      return (
+        (await this._integrationRepository.getIntegrationById(
+          org,
+          integration.id
+        )) || integration
+      );
+    }
+
+    return integration;
   }
 
   updateIntegrationGroup(org: string, id: string, group: string) {
@@ -276,6 +325,46 @@ export class IntegrationService {
   }
 
   async deleteChannel(org: string, id: string) {
+    const integration = await this._integrationRepository.getIntegrationById(
+      org,
+      id
+    );
+    if (!integration || integration.deletedAt) return false;
+
+    const provider = this._integrationManager.getSocialIntegration(
+      integration.providerIdentifier
+    );
+    if (provider.revokeConnection) {
+      try {
+        await revokeProviderConnection(
+          provider,
+          openSealed(integration.token),
+          integration.refreshToken
+            ? openSealed(integration.refreshToken)
+            : undefined
+        );
+      } catch (error) {
+        const providerReason = error instanceof Error ? error.message : '';
+        throw new HttpException(
+          {
+            code: 'provider_revocation_failed',
+            reason:
+              providerReason ||
+              'The provider did not confirm authorization revocation. The connection was not reported as deleted; retry disconnect.',
+            retryable: true,
+          },
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+    }
+    return this._integrationRepository.deleteChannel(org, id);
+  }
+
+  /**
+   * Local-only purge for an authorization the provider has already revoked.
+   * This intentionally skips a second remote revocation dependency.
+   */
+  purgeExternallyRevokedChannel(org: string, id: string) {
     return this._integrationRepository.deleteChannel(org, id);
   }
 
@@ -319,7 +408,7 @@ export class IntegrationService {
       org,
       String(getIntegrationInformation.id)
     );
-    await this._integrationRepository.updateIntegration(id, {
+    const updated = await this._integrationRepository.updateIntegration(id, {
       picture: getIntegrationInformation.picture,
       internalId: String(getIntegrationInformation.id),
       organizationId: org,
@@ -329,7 +418,42 @@ export class IntegrationService {
       profile: getIntegrationInformation.username,
     });
 
-    return { success: true };
+    try {
+      await this._refreshIntegrationService.startRefreshWorkflow(
+        updated,
+        provider
+      );
+    } catch (error) {
+      const schedulerError = error as {
+        code?: string;
+        failureClass?: string;
+        message?: string;
+        retryable?: boolean;
+      };
+      if (schedulerError?.code === 'token_refresh_scheduler_unavailable') {
+        throw new HttpException(
+          {
+            failureClass: schedulerError.failureClass || 'recoverable',
+            code: schedulerError.code,
+            reason:
+              schedulerError.message ||
+              'Publishly could not start durable token monitoring.',
+            retryable: schedulerError.retryable !== false,
+          },
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+      throw error;
+    }
+
+    const truth = getIntegrationInformation.platformTruth
+      ? await this._platformTruth.recordSnapshot(
+          updated,
+          getIntegrationInformation.platformTruth
+        )
+      : (await this._platformTruth.refreshIntegration(updated)).response;
+
+    return { success: true, platformTruth: truth };
   }
 
   async checkAnalytics(
@@ -403,12 +527,41 @@ export class IntegrationService {
         // best-effort - analytics reads must not fail on snapshot writes.
         this._analyticsSnapshotRepository
           .saveSeries(org.id, getIntegration.id, loadAnalytics)
-          .catch(() => {});
+          .catch((error) => {
+            this.logger.error({
+              event: 'analytics_snapshot_write_failed',
+              organizationId: org.id,
+              integrationId: getIntegration.id,
+              provider: getIntegration.providerIdentifier,
+              code: 'analytics_snapshot_unavailable',
+              reason: normalizePostFailure({ error }).reason,
+            });
+          });
         return loadAnalytics;
-      } catch (e) {
-        if (e instanceof RefreshToken) {
+      } catch (error) {
+        if (error instanceof RefreshToken) {
           return this.checkAnalytics(org, integration, date, true);
         }
+        const failure = normalizePostFailure({ error, willRetry: true });
+        this.logger.error({
+          event: 'provider_analytics_failed',
+          organizationId: org.id,
+          integrationId: getIntegration.id,
+          provider: getIntegration.providerIdentifier,
+          failureClass: failure.failureClass,
+          code: `${getIntegration.providerIdentifier}_analytics_unavailable`,
+          reason: failure.reason,
+          retryable: true,
+        });
+        throw new HttpException(
+          {
+            failureClass: failure.failureClass,
+            code: `${getIntegration.providerIdentifier}_analytics_unavailable`,
+            reason: failure.reason,
+            retryable: true,
+          },
+          HttpStatus.BAD_GATEWAY
+        );
       }
     }
 

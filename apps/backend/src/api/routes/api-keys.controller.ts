@@ -30,13 +30,19 @@ export class ApiKeysController {
   ) {}
 
   @Get('/')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.ADMIN],
+    [AuthorizationActions.Create, Sections.PUBLIC_API]
+  )
   list(@GetOrgFromRequest() org: Organization) {
     return this._apiKeysService.getKeys(org.id);
   }
 
   @Post('/')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.ADMIN],
+    [AuthorizationActions.Create, Sections.PUBLIC_API]
+  )
   async create(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,
@@ -62,7 +68,10 @@ export class ApiKeysController {
   }
 
   @Delete('/:id')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.ADMIN],
+    [AuthorizationActions.Create, Sections.PUBLIC_API]
+  )
   async revoke(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,

@@ -13,8 +13,10 @@ import NotificationComponent from '@gitroom/frontend/components/notifications/no
 import dynamic from 'next/dynamic';
 import { LogoTextComponent } from '@gitroom/frontend/components/ui/logo-text.component';
 import {
+  BillingTier,
   PricingInterface,
-  pricing,
+  publicPricing,
+  UNLIMITED_CHANNELS,
 } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { capitalize } from 'lodash';
 import clsx from 'clsx';
@@ -55,7 +57,7 @@ export const FirstBillingComponent = () => {
   const user = useUser();
   const dub = useDubClickId();
   const [stripe, setStripe] = useState<null | Promise<Stripe>>(null);
-  const [tier, setTier] = useState('STANDARD');
+  const [tier, setTier] = useState<BillingTier>('STANDARD');
   const [period, setPeriod] = useState('MONTHLY');
   const fetch = useFetch();
   const modals = useModals();
@@ -72,7 +74,7 @@ export const FirstBillingComponent = () => {
     () =>
       serverPricing && Object.keys(serverPricing).length
         ? serverPricing
-        : pricing,
+        : publicPricing,
     [serverPricing]
   );
 
@@ -258,7 +260,7 @@ export const FirstBillingComponent = () => {
                 >
                   <div>{t('billing_yearly', 'Yearly')}</div>
                   <div className="bg-[#AA0FA4] text-[white] px-[8px] rounded-[4px] mobile:hidden">
-                    {t('billing_20_percent_off', '20% Off')}
+                    {t('billing_two_months_free', '2 months free')}
                   </div>
                 </div>
               </div>
@@ -267,7 +269,7 @@ export const FirstBillingComponent = () => {
               {price.map(
                 ([key, value]) => (
                   <div
-                    onClick={() => setTier(key)}
+                    onClick={() => setTier(key as BillingTier)}
                     key={key}
                     className={clsx(
                       'cursor-pointer select-none w-[266px] h-[138px] tablet:w-full tablet:h-[124px] p-[24px] tablet:p-[15px] rounded-[20px] flex flex-col',
@@ -321,9 +323,9 @@ type FeatureItem = {
 };
 
 export const BillingFeatures: FC<{
-  tier: string;
+  tier: BillingTier;
   tiers?: PricingInterface;
-}> = ({ tier, tiers = pricing }) => {
+}> = ({ tier, tiers = publicPricing as PricingInterface }) => {
   const t = useT();
   const features = useMemo(() => {
     const currentPricing = tiers[tier];
@@ -331,19 +333,47 @@ export const BillingFeatures: FC<{
     const list: FeatureItem[] = [];
 
     list.push({
-      key: channelsOr === 1 ? 'billing_channel' : 'billing_channels',
-      defaultValue: channelsOr === 1 ? 'channel' : 'channels',
-      prefix: channelsOr,
+      key: 'billing_connected_accounts',
+      defaultValue: 'connected accounts',
+      prefix:
+        (channelsOr || 0) >= UNLIMITED_CHANNELS ? 'unlimited' : channelsOr || 0,
     });
 
     list.push({
       key: 'billing_posts_per_month',
-      defaultValue: 'posts per month',
-      prefix:
-        currentPricing.posts_per_month > 10000
-          ? 'unlimited'
-          : currentPricing.posts_per_month,
+      defaultValue: 'confirmed-live posts per month',
+      prefix: currentPricing.posts_per_month.toLocaleString(),
     });
+
+    list.push({
+      key: 'billing_failed_posts_free',
+      defaultValue: 'Failed and unconfirmed posts use no quota',
+    });
+    if (currentPricing.full_observability) {
+      list.push({
+        key: 'billing_full_observability',
+        defaultValue:
+          'Full delivery receipts, failure reasons, and fleet health',
+      });
+    }
+    if (currentPricing.dead_account_detection) {
+      list.push({
+        key: 'billing_dead_account_detection',
+        defaultValue: 'Dead-account detection',
+      });
+    }
+    if (currentPricing.priority_retries) {
+      list.push({
+        key: 'billing_priority_retries',
+        defaultValue: 'Priority retry lane',
+      });
+    }
+    if (currentPricing.sla) {
+      list.push({
+        key: 'billing_reliability_sla',
+        defaultValue: 'Reliability SLA',
+      });
+    }
 
     if (currentPricing.team_members) {
       list.push({

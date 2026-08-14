@@ -10,7 +10,7 @@ import './pipeline-diagram.css';
 export const PipelineDiagram = () => (
   <div className="mk-frame mkr-pipe-root">
     <div className="mkr-pipe-head">
-      <span>Fig. 03 — publish pipeline</span>
+      <span>Fig. 03 — what happens after you schedule</span>
     </div>
 
     <div className="mkr-pipe-diagram">
@@ -63,11 +63,11 @@ export const PipelineDiagram = () => (
     </div>
 
     <div className="mkr-pipe-caption">
-      <span>durable workflow</span>
+      <span>keeps working if the browser closes</span>
       <span className="mkr-pipe-caption-sep" aria-hidden="true">
         ·
       </span>
-      <span>deterministic id</span>
+      <span>duplicate-post protection</span>
       <span className="mkr-pipe-caption-sep" aria-hidden="true">
         ·
       </span>

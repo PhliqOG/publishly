@@ -4,8 +4,18 @@ import { Redis } from 'ioredis';
 class MockRedis {
   private data: Map<string, any> = new Map();
 
+  async ping() {
+    return 'PONG';
+  }
+
   async get(key: string) {
     return this.data.get(key);
+  }
+
+  async getdel(key: string) {
+    const value = this.data.get(key) ?? null;
+    this.data.delete(key);
+    return value;
   }
 
   async set(key: string, value: any) {
@@ -22,7 +32,8 @@ class MockRedis {
 }
 
 // Use real Redis if REDIS_URL is defined, otherwise use MockRedis
-export const ioRedis = process.env.REDIS_URL
+export const ioRedis =
+  process.env.REDIS_DISABLED !== 'true' && process.env.REDIS_URL
   ? new Redis(process.env.REDIS_URL, {
       maxRetriesPerRequest: null,
       connectTimeout: 10000,

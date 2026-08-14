@@ -22,6 +22,16 @@ type InboxChannel = {
   providerIdentifier: string;
   supportsInbox: boolean;
   supportsReplies: boolean;
+  supportsDirectMessages: boolean;
+  supportsDirectMessageReplies: boolean;
+};
+
+type InboxWorkflow = {
+  isRead: boolean;
+  resolved: boolean;
+  assignedUserId: string | null;
+  assignedUser?: { id: string; name?: string; email: string } | null;
+  internalNote: string;
 };
 
 type InboxComment = {
@@ -31,13 +41,21 @@ type InboxComment = {
   author: { name: string; username?: string; picture?: string };
   message: string;
   createdAt: string;
-  workflow: {
-    isRead: boolean;
-    resolved: boolean;
-    assignedUserId: string | null;
-    assignedUser?: { id: string; name?: string; email: string } | null;
-    internalNote: string;
-  };
+  workflow: InboxWorkflow;
+};
+
+type InboxDirectMessage = {
+  id: string;
+  threadId: string;
+  recipientId: string;
+  author: { id?: string; name: string; username?: string; picture?: string };
+  message: string;
+  createdAt: string;
+  direction: 'inbound' | 'outbound';
+  replyAllowed: boolean;
+  windowExpiresAt?: string;
+  unsupported?: boolean;
+  workflow: InboxWorkflow;
 };
 
 type TeamMember = {
@@ -80,7 +98,36 @@ const useInboxComments = (
     integrationId
       ? ['inbox-comments', integrationId, search, status, assignedTo]
       : null,
-    load
+    load,
+    { refreshInterval: 15_000 }
+  );
+};
+
+const useInboxDirectMessages = (
+  integrationId: string | null,
+  search: string,
+  status: string,
+  assignedTo: string
+) => {
+  const fetch = useFetch();
+  const load = useCallback(async () => {
+    if (!integrationId) return null;
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (status) params.set('status', status);
+    if (assignedTo) params.set('assignedTo', assignedTo);
+    const response = await fetch(
+      `/inbox/${integrationId}/messages${params.size ? `?${params}` : ''}`
+    );
+    if (!response.ok) throw new Error('inbox-messages-load-failed');
+    return response.json();
+  }, [integrationId, search, status, assignedTo]);
+  return useSWR<{ messages: InboxDirectMessage[] } | null>(
+    integrationId
+      ? ['inbox-direct-messages', integrationId, search, status, assignedTo]
+      : null,
+    load,
+    { refreshInterval: 15_000 }
   );
 };
 
@@ -114,7 +161,7 @@ export const InboxComponent: FC = () => {
         <div className="bg-sixth border border-fifth rounded-[4px] p-[24px] text-customColor18">
           {t(
             'inbox_no_channels',
-            'Connect a channel first - comments from networks with an official comments API will appear here.'
+            'Connect a channel first - comments or messages appear only when the network provides an official API.'
           )}
         </div>
       )}
@@ -125,19 +172,21 @@ export const InboxComponent: FC = () => {
               <div
                 key={channel.id}
                 onClick={() =>
-                  channel.supportsInbox ? setSelected(channel.id) : undefined
+                  channel.supportsInbox || channel.supportsDirectMessages
+                    ? setSelected(channel.id)
+                    : undefined
                 }
                 title={
-                  channel.supportsInbox
+                  channel.supportsInbox || channel.supportsDirectMessages
                     ? channel.name
                     : t(
                         'inbox_unsupported_tooltip',
-                        'Comment sync for this network is coming after platform approval - nothing is hidden, we just do not fake data.'
+                        'This network does not provide an approved comments or messages path in the current build.'
                       )
                 }
                 className={clsx(
                   'flex items-center gap-[10px] p-[12px] rounded-[4px] border border-fifth',
-                  channel.supportsInbox
+                  channel.supportsInbox || channel.supportsDirectMessages
                     ? 'cursor-pointer bg-sixth hover:bg-forth'
                     : 'opacity-40 cursor-not-allowed bg-sixth',
                   selected === channel.id && 'bg-forth'
@@ -155,6 +204,7 @@ export const InboxComponent: FC = () => {
                   <div className="text-[11px] text-customColor18">
                     {channel.providerIdentifier}
                     {!channel.supportsInbox &&
+                      !channel.supportsDirectMessages &&
                       ' - ' + t('inbox_not_available', 'not available yet')}
                   </div>
                 </div>
@@ -166,18 +216,58 @@ export const InboxComponent: FC = () => {
               <div className="bg-sixth border border-fifth rounded-[4px] p-[24px] text-customColor18">
                 {t(
                   'inbox_pick_channel',
-                  'Pick a channel on the left to read its comments.'
+                  'Pick a channel on the left to open its official inbox data.'
                 )}
               </div>
             )}
             {!!selectedChannel && (
-              <CommentsList
+              <InboxChannelView
                 key={selectedChannel.id}
                 channel={selectedChannel}
               />
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
+};
+
+const InboxChannelView: FC<{ channel: InboxChannel }> = ({ channel }) => {
+  const t = useT();
+  const [view, setView] = useState<'comments' | 'messages'>(
+    channel.supportsInbox ? 'comments' : 'messages'
+  );
+  return (
+    <div className="flex flex-col gap-[12px]">
+      {channel.supportsInbox && channel.supportsDirectMessages && (
+        <div className="flex gap-[8px]">
+          <button
+            type="button"
+            onClick={() => setView('comments')}
+            className={clsx(
+              'rounded-[6px] px-[12px] py-[8px] text-[13px]',
+              view === 'comments' ? 'bg-btnSimple' : 'bg-sixth'
+            )}
+          >
+            {t('comments', 'Comments')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('messages')}
+            className={clsx(
+              'rounded-[6px] px-[12px] py-[8px] text-[13px]',
+              view === 'messages' ? 'bg-btnSimple' : 'bg-sixth'
+            )}
+          >
+            {t('direct_messages', 'Direct messages')}
+          </button>
+        </div>
+      )}
+      {view === 'comments' && channel.supportsInbox ? (
+        <CommentsList channel={channel} />
+      ) : (
+        <DirectMessagesList channel={channel} />
       )}
     </div>
   );
@@ -333,9 +423,9 @@ const CommentsList: FC<{ channel: InboxChannel }> = ({ channel }) => {
               }}
             />
           )}
-          <CommentWorkflowControls
+          <InboxWorkflowControls
             channelId={channel.id}
-            comment={comment}
+            item={comment}
             team={team || []}
             onChanged={() => mutate()}
           />
@@ -345,16 +435,185 @@ const CommentsList: FC<{ channel: InboxChannel }> = ({ channel }) => {
   );
 };
 
-const CommentWorkflowControls: FC<{
+const DirectMessagesList: FC<{ channel: InboxChannel }> = ({ channel }) => {
+  const t = useT();
+  const fetch = useFetch();
+  const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search.trim());
+  const [status, setStatus] = useState('open');
+  const [assignedTo, setAssignedTo] = useState('');
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const { data: team } = useSWR<TeamMember[]>('inbox-team', async () => {
+    return (await (await fetch('/settings/team')).json()).users;
+  });
+  const { data, error, isLoading, mutate } = useInboxDirectMessages(
+    channel.id,
+    deferredSearch,
+    status,
+    assignedTo
+  );
+
+  const filters = (
+    <div className="grid gap-[8px] tablet:grid-cols-[minmax(180px,1fr),160px,220px]">
+      <input
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder={t('search_direct_messages', 'Search direct messages')}
+        className="h-[40px] rounded-[6px] border border-fifth bg-sixth px-[12px] text-[13px] outline-none focus:border-boxFocused"
+      />
+      <select
+        value={status}
+        onChange={(event) => setStatus(event.target.value)}
+        className="h-[40px] rounded-[6px] border border-fifth bg-sixth px-[10px] text-[13px]"
+      >
+        <option value="open">{t('open', 'Open')}</option>
+        <option value="unread">{t('unread', 'Unread')}</option>
+        <option value="resolved">{t('resolved', 'Resolved')}</option>
+        <option value="">{t('all', 'All')}</option>
+      </select>
+      <select
+        value={assignedTo}
+        onChange={(event) => setAssignedTo(event.target.value)}
+        className="h-[40px] rounded-[6px] border border-fifth bg-sixth px-[10px] text-[13px]"
+      >
+        <option value="">{t('all_assignees', 'All assignees')}</option>
+        {(team || []).map((member) => (
+          <option key={member.user.id} value={member.user.id}>
+            {member.user.email}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-[12px]">
+        {filters}
+        <div className="text-customColor18">{t('loading', 'Loading...')}</div>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="flex flex-col gap-[12px]">
+        {filters}
+        <div className="bg-sixth border border-fifth rounded-[4px] p-[24px] text-customColor18">
+          {t(
+            'inbox_messages_load_error',
+            'Could not load Instagram messages. Try again in a moment.'
+          )}
+        </div>
+      </div>
+    );
+  }
+  if (!data?.messages?.length) {
+    return (
+      <div className="flex flex-col gap-[12px]">
+        {filters}
+        <div className="bg-sixth border border-fifth rounded-[4px] p-[24px] text-customColor18">
+          {t('inbox_messages_empty', 'No direct messages match these filters.')}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-[10px]">
+      {filters}
+      <div className="text-[12px] text-customColor18">
+        {t(
+          'instagram_dm_policy',
+          "Instagram replies are available only after the customer starts the conversation and while Meta's 24-hour response window is open."
+        )}
+      </div>
+      {data.messages.map((message) => (
+        <div
+          key={message.id}
+          className={clsx(
+            'bg-sixth border border-fifth rounded-[4px] p-[16px] flex flex-col gap-[8px]',
+            !message.workflow.isRead && 'border-s-[3px] border-s-boxFocused'
+          )}
+        >
+          <div className="flex items-center gap-[10px]">
+            {!!message.author.picture && (
+              <img
+                src={message.author.picture}
+                alt=""
+                className="w-[28px] h-[28px] rounded-full"
+              />
+            )}
+            <div className="flex flex-col">
+              <div className="text-[14px]">{message.author.name}</div>
+              <div className="text-[11px] text-customColor18">
+                {message.direction === 'outbound'
+                  ? t('sent_by_business', 'Sent by your business')
+                  : t('received_from_customer', 'Received from customer')}
+              </div>
+            </div>
+            <div className="ms-auto text-[11px] text-customColor18">
+              {relativeTime(message.createdAt)}
+            </div>
+          </div>
+          <div className="text-[14px] whitespace-pre-wrap">
+            {message.message}
+          </div>
+          {message.direction === 'inbound' &&
+            channel.supportsDirectMessageReplies && (
+              <div>
+                {message.replyAllowed && !message.unsupported ? (
+                  <button
+                    type="button"
+                    className="text-[12px] underline text-customColor18"
+                    onClick={() =>
+                      setReplyTo(replyTo === message.id ? null : message.id)
+                    }
+                  >
+                    {t('reply', 'Reply')}
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-customColor18">
+                    {t(
+                      'instagram_reply_window_closed',
+                      'Reply unavailable: the response window is closed.'
+                    )}
+                  </span>
+                )}
+              </div>
+            )}
+          {replyTo === message.id && (
+            <DirectMessageReplyComposer
+              channelId={channel.id}
+              threadId={message.threadId}
+              recipientId={message.recipientId}
+              onDone={() => {
+                setReplyTo(null);
+                mutate();
+              }}
+            />
+          )}
+          <InboxWorkflowControls
+            channelId={channel.id}
+            item={message}
+            team={team || []}
+            onChanged={() => mutate()}
+          />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const InboxWorkflowControls: FC<{
   channelId: string;
-  comment: InboxComment;
+  item: { id: string; workflow: InboxWorkflow };
   team: TeamMember[];
   onChanged: () => void;
-}> = ({ channelId, comment, team, onChanged }) => {
+}> = ({ channelId, item, team, onChanged }) => {
   const fetch = useFetch();
   const toaster = useToaster();
   const t = useT();
-  const [note, setNote] = useState(comment.workflow.internalNote || '');
+  const [note, setNote] = useState(item.workflow.internalNote || '');
   const [saving, setSaving] = useState(false);
 
   const patchState = useCallback(
@@ -362,7 +621,7 @@ const CommentWorkflowControls: FC<{
       setSaving(true);
       try {
         const response = await fetch(
-          `/inbox/${channelId}/${encodeURIComponent(comment.id)}/state`,
+          `/inbox/${channelId}/${encodeURIComponent(item.id)}/state`,
           { method: 'POST', body: JSON.stringify(patch) }
         );
         if (!response.ok) throw new Error('state-update-failed');
@@ -375,7 +634,8 @@ const CommentWorkflowControls: FC<{
       } finally {
         setSaving(false);
       }
-    }, [channelId, comment.id, onChanged, fetch, toaster, t]
+    },
+    [channelId, item.id, onChanged, fetch, toaster, t]
   );
 
   return (
@@ -384,10 +644,10 @@ const CommentWorkflowControls: FC<{
         <button
           type="button"
           disabled={saving}
-          onClick={() => patchState({ read: !comment.workflow.isRead })}
+          onClick={() => patchState({ read: !item.workflow.isRead })}
           className="rounded-[5px] bg-btnSimple px-[10px] py-[6px] text-[12px]"
         >
-          {comment.workflow.isRead
+          {item.workflow.isRead
             ? t('mark_unread', 'Mark unread')
             : t('mark_read', 'Mark read')}
         </button>
@@ -395,17 +655,17 @@ const CommentWorkflowControls: FC<{
           type="button"
           disabled={saving}
           onClick={() =>
-            patchState({ resolved: !comment.workflow.resolved, read: true })
+            patchState({ resolved: !item.workflow.resolved, read: true })
           }
           className="rounded-[5px] bg-btnSimple px-[10px] py-[6px] text-[12px]"
         >
-          {comment.workflow.resolved
+          {item.workflow.resolved
             ? t('reopen', 'Reopen')
             : t('resolve', 'Resolve')}
         </button>
         <select
           aria-label={t('assign_to', 'Assign to')}
-          value={comment.workflow.assignedUserId || ''}
+          value={item.workflow.assignedUserId || ''}
           disabled={saving}
           onChange={(event) =>
             patchState({ assignedUserId: event.target.value || null })
@@ -419,7 +679,7 @@ const CommentWorkflowControls: FC<{
             </option>
           ))}
         </select>
-        {comment.workflow.resolved && (
+        {item.workflow.resolved && (
           <span className="text-[11px] text-emerald-400">
             {t('resolved', 'Resolved')}
           </span>
@@ -429,7 +689,7 @@ const CommentWorkflowControls: FC<{
         <div className="flex-1">
           <Textarea
             label={t('internal_note', 'Internal note')}
-            name={`note-${comment.id}`}
+            name={`note-${item.id}`}
             disableForm={true}
             value={note}
             onChange={(event: any) => setNote(event.target.value)}
@@ -441,7 +701,7 @@ const CommentWorkflowControls: FC<{
         </div>
         <button
           type="button"
-          disabled={saving || note === (comment.workflow.internalNote || '')}
+          disabled={saving || note === (item.workflow.internalNote || '')}
           onClick={() => patchState({ internalNote: note || null })}
           className="mb-[2px] rounded-[5px] bg-btnSimple px-[12px] py-[7px] text-[12px] disabled:opacity-40"
         >
@@ -503,6 +763,67 @@ const ReplyComposer: FC<{
         <Button onClick={send} disabled={sending || !message.trim()}>
           {sending ? t('sending', 'Sending...') : t('send_reply', 'Send reply')}
         </Button>
+      </div>
+    </div>
+  );
+};
+
+const DirectMessageReplyComposer: FC<{
+  channelId: string;
+  threadId: string;
+  recipientId: string;
+  onDone: () => void;
+}> = ({ channelId, threadId, recipientId, onDone }) => {
+  const fetch = useFetch();
+  const toaster = useToaster();
+  const t = useT();
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const send = useCallback(async () => {
+    const trimmed = message.trim();
+    if (!trimmed) return;
+    setSending(true);
+    try {
+      const response = await fetch(`/inbox/${channelId}/messages/reply`, {
+        method: 'POST',
+        body: JSON.stringify({ threadId, recipientId, message: trimmed }),
+      });
+      if (!response.ok) throw new Error('direct-message-reply-failed');
+      toaster.show(t('inbox_message_sent', 'Message sent'), 'success');
+      onDone();
+    } catch {
+      toaster.show(
+        t(
+          'inbox_message_failed',
+          'Instagram rejected the message. The response window may have closed.'
+        ),
+        'warning'
+      );
+    } finally {
+      setSending(false);
+    }
+  }, [message, channelId, threadId, recipientId, fetch, toaster, t, onDone]);
+
+  return (
+    <div className="flex flex-col gap-[8px] mt-[4px]">
+      <Textarea
+        label=""
+        name={`dm-reply-${threadId}`}
+        disableForm={true}
+        value={message}
+        onChange={(event: any) =>
+          setMessage(String(event.target.value).slice(0, 1000))
+        }
+        placeholder={t('inbox_message_placeholder', 'Write a message...')}
+      />
+      <div className="flex items-center gap-[10px]">
+        <Button onClick={send} disabled={sending || !message.trim()}>
+          {sending ? t('sending', 'Sending...') : t('send_reply', 'Send reply')}
+        </Button>
+        <span className="text-[11px] text-customColor18">
+          {message.length}/1000
+        </span>
       </div>
     </div>
   );

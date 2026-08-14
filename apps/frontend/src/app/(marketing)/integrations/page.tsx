@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { ReactNode } from 'react';
 import {
   MarketingFooter,
   MarketingNav,
@@ -10,14 +11,35 @@ import {
 } from '@gitroom/frontend/components/marketing/geo';
 
 export const metadata: Metadata = {
-  title: 'Integrations',
+  title: 'Social media API integrations for n8n, Make and MCP',
   description:
-    'Connect Publishly to anything: a REST API with scoped keys, an MCP server for AI assistants, signed webhooks, and honest recipes for n8n and Make.',
+    'Connect Publishly to your product, n8n, Make, or an approved AI assistant. Every option returns clear posting results and failure alerts.',
   alternates: { canonical: '/integrations' },
 };
 
-// Every card links to a real integration surface. No first-party n8n node or
-// Make module exists yet — those pages say so and document the REST recipe.
+function CodeBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mk-term" style={{ marginTop: 20 }}>
+      <div className="mk-term-top">
+        <span className="mk-term-dot" />
+        <span className="mk-term-dot" />
+        <span className="mk-term-dot" />
+        <span className="mk-term-title">{title}</span>
+      </div>
+      <pre className="mk-term-body" style={{ margin: 0, minHeight: 0 }}>
+        {children}
+      </pre>
+    </div>
+  );
+}
+
+// Every card links to a real, implementation-backed integration surface.
 const CARDS: Array<{
   num: string;
   title: string;
@@ -27,38 +49,38 @@ const CARDS: Array<{
 }> = [
   {
     num: 'REST API',
-    title: 'The public API',
-    body: 'Everything the dashboard schedules, a scoped key can schedule. Create, list and delete posts, upload media, read per-post delivery status.',
+    title: 'Add posting to your product',
+    body: 'Create and schedule posts, upload media, connect accounts, and read the result of every delivery.',
     href: '/api-docs',
     linkLabel: 'API docs',
   },
   {
     num: 'MCP',
-    title: 'MCP server',
-    body: 'Publishly ships a Model Context Protocol server, so an MCP-capable AI assistant can drive your schedule directly — with your API key, under your scopes.',
+    title: 'Let an approved assistant help',
+    body: 'The built-in MCP server lets a compatible AI assistant schedule posts and check results with only the permissions you approve.',
     href: '/integrations/mcp',
     linkLabel: 'Set up MCP',
   },
   {
     num: 'Webhooks',
-    title: 'Signed webhooks',
-    body: 'post.published and post.failure events, signed with HMAC-SHA256, retried on failure, with a delivery-attempt ledger. Your systems learn the moment a post lands or dies.',
+    title: 'Send results to your own software',
+    body: 'Your software gets an immediate, verified alert when a post advances, goes live, or fails — including the reason and retry decision.',
     href: '/api-docs',
     linkLabel: 'Webhook reference',
   },
   {
     num: 'n8n',
-    title: 'n8n',
-    body: 'No first-party node yet — and you don’t need one. An HTTP Request node schedules posts; a Webhook node receives signed delivery events. Full recipe inside.',
+    title: 'Build visual workflows in n8n',
+    body: 'Publish, schedule, check account health, and start a workflow when a verified delivery alert arrives.',
     href: '/integrations/n8n',
-    linkLabel: 'n8n recipe',
+    linkLabel: 'n8n node',
   },
   {
     num: 'Make',
-    title: 'Make',
-    body: 'Same honest story: no first-party module yet. Make’s HTTP module plus a custom webhook cover scheduling and delivery events end to end.',
+    title: 'Build scenarios in Make',
+    body: 'Use ready-made actions for posting, scheduling, receipts, and account health, plus a trigger for verified alerts.',
     href: '/integrations/make',
-    linkLabel: 'Make recipe',
+    linkLabel: 'Make app',
   },
 ];
 
@@ -77,22 +99,20 @@ export default function IntegrationsPage() {
                 Integrations
               </span>
               <h1 className="mk-h2">
-                One API surface. Every automation stack.
+                Connect Publishly to the tools you already use.
               </h1>
               <p className="mk-section-lede">
-                Publishly is built to be driven by other software: a REST API
-                with scoped keys, an MCP server for AI assistants, and signed
-                webhooks that tell your systems what actually happened to every
-                post.
+                Build posting into your own product, use a visual workflow, or
+                let an approved assistant help. Every route ends with the same
+                clear result: live, retrying, or needs your attention.
               </p>
             </header>
             <QuickAnswer>
-              Publishly integrates through four surfaces: a public REST API
-              (scoped, revocable keys), a built-in MCP server for AI
-              assistants, and signed post.published / post.failure webhooks.
-              n8n and Make work today through those same surfaces — no
-              first-party node exists yet, and the recipes below don’t need
-              one.
+              Publishly integrates through four surfaces: a public REST API with
+              keys you can limit and revoke, a built-in MCP server for AI
+              assistants, verified delivery alerts, and n8n and Make packages.
+              The n8n and Make packages currently install from this codebase; no
+              public marketplace listing is claimed yet.
             </QuickAnswer>
             <Byline published="2026-08-10" />
 
@@ -111,6 +131,40 @@ export default function IntegrationsPage() {
               ))}
             </div>
 
+            <section style={{ marginTop: 82 }} aria-labelledby="receipt-curl">
+              <span className="mk-eyebrow">Copy-paste proof</span>
+              <h2 id="receipt-curl" className="mk-h2" style={{ marginTop: 14 }}>
+                Ask for the receipt. Get the result.
+              </h2>
+              <p className="mk-section-lede">
+                After creating a post, replace <code>POST_ID</code> below with
+                the ID returned by Publishly. The response shows each delivery
+                step and the final live link when the platform confirms it.
+              </p>
+              <CodeBlock title="curl — get a delivery receipt">
+                {`curl https://your-publishly-host/public/v1/posts/POST_ID/receipts \\
+  -H 'Authorization: YOUR_API_KEY'
+
+# response (trimmed to the delivery fields)
+{
+  "postId": "POST_ID",
+  "latestStage": "confirmed_live",
+  "receipts": [{
+    "provider": "linkedin",
+    "stage": "confirmed_live",
+    "attempt": 1,
+    "providerUrl": "https://www.linkedin.com/feed/update/urn:li:share:742…",
+    "confirmationMethod": "linkedin_post_read"
+  }]
+}`}
+              </CodeBlock>
+              <p style={{ marginTop: 22 }}>
+                <Link href="/for-developers" className="mk-arrow">
+                  See the complete create-and-check example
+                </Link>
+              </p>
+            </section>
+
             <p
               style={{
                 marginTop: 44,
@@ -119,9 +173,9 @@ export default function IntegrationsPage() {
                 maxWidth: '62ch',
               }}
             >
-              Everything on this page maps to shipped or in-tree surfaces —
-              endpoints and event names match the running backend. If a recipe
-              here ever drifts from the API, the API docs win.
+              Everything on this page maps to working code in this repository.
+              The API reference remains the source of truth for exact request
+              fields and event names.
             </p>
           </div>
         </section>

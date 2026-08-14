@@ -18,7 +18,7 @@ import { LinkedinPageProvider } from '@gitroom/nestjs-libraries/integrations/soc
 import { ThreadsProvider } from '@gitroom/nestjs-libraries/integrations/social/threads.provider';
 import { DiscordProvider } from '@gitroom/nestjs-libraries/integrations/social/discord.provider';
 import { SlackProvider } from '@gitroom/nestjs-libraries/integrations/social/slack.provider';
-import { MastodonProvider } from '@gitroom/nestjs-libraries/integrations/social/mastodon.provider';
+import { MastodonCustomProvider } from '@gitroom/nestjs-libraries/integrations/social/mastodon.custom.provider';
 import { BlueskyProvider } from '@gitroom/nestjs-libraries/integrations/social/bluesky.provider';
 import { LemmyProvider } from '@gitroom/nestjs-libraries/integrations/social/lemmy.provider';
 import { InstagramStandaloneProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.standalone.provider';
@@ -33,7 +33,6 @@ import { KickProvider } from '@gitroom/nestjs-libraries/integrations/social/kick
 import { TwitchProvider } from '@gitroom/nestjs-libraries/integrations/social/twitch.provider';
 import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { MoltbookProvider } from '@gitroom/nestjs-libraries/integrations/social/moltbook.provider';
-import { SkoolProvider } from '@gitroom/nestjs-libraries/integrations/social/skool.provider';
 import { WhopProvider } from '@gitroom/nestjs-libraries/integrations/social/whop.provider';
 import { MeweProvider } from '@gitroom/nestjs-libraries/integrations/social/mewe.provider';
 import { TumblrProvider } from '@gitroom/nestjs-libraries/integrations/social/tumblr.provider';
@@ -42,6 +41,7 @@ import {
   isProviderConfigured,
   missingProviderEnv,
 } from '@gitroom/nestjs-libraries/integrations/provider.env.registry';
+import { providerCapabilities } from '@gitroom/nestjs-libraries/integrations/provider.capabilities';
 
 // maxLength implementations may depend on per-post settings; with no settings
 // some providers can throw, and the connect screen only needs a best-effort cap.
@@ -71,7 +71,7 @@ export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
   new SlackProvider(),
   new KickProvider(),
   new TwitchProvider(),
-  new MastodonProvider(),
+  new MastodonCustomProvider(),
   new BlueskyProvider(),
   new LemmyProvider(),
   new FarcasterProvider(),
@@ -85,10 +85,8 @@ export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
   new ListmonkProvider(),
   new MoltbookProvider(),
   new WhopProvider(),
-  new SkoolProvider(),
   new MeweProvider(),
   new TumblrProvider(),
-  // new MastodonCustomProvider(),
   // Sandbox channel for dev/tests/demos - never registered unless explicitly
   // enabled, so production deployments cannot expose it by accident.
   ...(process.env.ENABLE_TEST_PROVIDER === 'true'
@@ -116,6 +114,9 @@ export class IntegrationManager {
           maxLength: safeMaxLength(p),
           supportsInbox: !!p.listComments,
           supportsReplies: !!p.replyToComment,
+          supportsDirectMessages: !!p.listDirectMessages,
+          supportsDirectMessageReplies: !!p.sendDirectMessage,
+          capabilities: providerCapabilities(p),
           ...(p.extensionCookies
             ? { extensionCookies: p.extensionCookies }
             : {}),

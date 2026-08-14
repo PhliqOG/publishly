@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { NotificationsRepository } from '@gitroom/nestjs-libraries/database/prisma/notifications/notifications.repository';
 import { EmailService } from '@gitroom/nestjs-libraries/services/email.service';
 import { OrganizationRepository } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.repository';
@@ -10,6 +10,8 @@ export type NotificationType = 'success' | 'fail' | 'info';
 
 @Injectable()
 export class NotificationService {
+  private readonly logger = new Logger(NotificationService.name);
+
   constructor(
     private _notificationRepository: NotificationsRepository,
     private _emailService: EmailService,
@@ -53,7 +55,7 @@ export class NotificationService {
 
     if (digest) {
       try {
-        await this._temporalService.client
+        const workflow = await this._temporalService.client
           .getRawClient()
           ?.workflow.signalWithStart('digestEmailWorkflow', {
             workflowId: 'digest_email_workflow_' + orgId,
@@ -77,9 +79,27 @@ export class NotificationService {
               },
             ]),
           });
-      } catch (err) {}
-
-      return;
+        if (!workflow) {
+          throw new Error('Temporal returned no digest workflow handle.');
+        }
+        return;
+      } catch (error) {
+        this.logger.error({
+          event: 'notification_digest_schedule_failed',
+          organizationId: orgId,
+          code: 'notification_digest_scheduler_unavailable',
+          reason:
+            error instanceof Error && error.message
+              ? error.message
+              : 'The digest notification workflow could not be scheduled.',
+          fallback: 'immediate_email',
+        });
+        // A token/dead-account alert must not disappear with the scheduler.
+        // Immediate email is the explicit fallback; if it also fails, surface
+        // that error so the durable caller can retry it.
+        await this.sendEmailsToOrg(orgId, subject, message, type);
+        return;
+      }
     }
 
     await this.sendEmailsToOrg(orgId, subject, message, type);

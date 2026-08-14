@@ -8,19 +8,11 @@ import {
   Query,
   Param,
 } from '@nestjs/common';
-import {
-  CopilotRuntime,
-  OpenAIAdapter,
-  copilotRuntimeNodeHttpEndpoint,
-  copilotRuntimeNextJSAppRouterEndpoint,
-} from '@copilotkit/runtime';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { Organization } from '@prisma/client';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
-import { MastraAgent } from '@ag-ui/mastra';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { Request, Response } from 'express';
-import { RequestContext } from '@mastra/core/di';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
@@ -37,14 +29,26 @@ export class CopilotController {
     private _mastraService: MastraService
   ) {}
   @Post('/chat')
-  chatAgent(@Req() req: Request, @Res() res: Response) {
+  async chatAgent(@Req() req: Request, @Res() res: Response) {
     if (
       process.env.OPENAI_API_KEY === undefined ||
       process.env.OPENAI_API_KEY === ''
     ) {
       Logger.warn('OpenAI API key not set, chat functionality will not work');
-      return;
+      return res.status(503).json({
+        error: 'AI is not configured for this deployment.',
+        code: 'AI_PROVIDER_UNCONFIGURED',
+      });
     }
+
+    // CopilotKit pulls in a large agent/runtime dependency graph. Loading it on
+    // demand keeps the API health/readiness path fast and lets deployments that
+    // intentionally disable AI boot without paying that cost.
+    const {
+      CopilotRuntime,
+      OpenAIAdapter,
+      copilotRuntimeNodeHttpEndpoint,
+    } = await import('@copilotkit/runtime');
 
     const copilotRuntimeHandler = copilotRuntimeNodeHttpEndpoint({
       endpoint: '/copilot/chat',
@@ -69,8 +73,24 @@ export class CopilotController {
       process.env.OPENAI_API_KEY === ''
     ) {
       Logger.warn('OpenAI API key not set, chat functionality will not work');
-      return;
+      return res.status(503).json({
+        error: 'AI is not configured for this deployment.',
+        code: 'AI_PROVIDER_UNCONFIGURED',
+      });
     }
+
+    const [copilotKit, agUi, mastraCore] = await Promise.all([
+      import('@copilotkit/runtime'),
+      import('@ag-ui/mastra'),
+      import('@mastra/core/di'),
+    ]);
+    const {
+      CopilotRuntime,
+      OpenAIAdapter,
+      copilotRuntimeNextJSAppRouterEndpoint,
+    } = copilotKit;
+    const { MastraAgent } = agUi;
+    const { RequestContext } = mastraCore;
     const mastra = await this._mastraService.mastra();
     const requestContext = new RequestContext<ChannelsContext>();
     requestContext.set(

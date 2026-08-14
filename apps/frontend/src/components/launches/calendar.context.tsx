@@ -22,7 +22,10 @@ import { extend } from 'dayjs';
 import useCookie from 'react-use-cookie';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { timer } from '@gitroom/helpers/utils/timer';
-import { expandPostsList, expandPosts } from '@gitroom/helpers/utils/posts.list.minify';
+import {
+  expandPostsList,
+  expandPosts,
+} from '@gitroom/helpers/utils/posts.list.minify';
 import type { ProviderCapabilities } from '@gitroom/nestjs-libraries/integrations/provider.capabilities';
 extend(isoWeek);
 extend(weekOfYear);
@@ -109,6 +112,42 @@ export interface Integrations {
     id?: string;
   };
   capabilities?: ProviderCapabilities;
+  tokenExpiration?: string | null;
+  tokenDaysRemaining?: number | null;
+  tokenHealthState?:
+    | 'UNKNOWN'
+    | 'HEALTHY'
+    | 'EXPIRING'
+    | 'EXPIRED'
+    | 'RECONNECT_REQUIRED';
+  tokenHealthReason?: string | null;
+  connectionHealthState?:
+    | 'HEALTHY'
+    | 'AT_RISK'
+    | 'DEAD'
+    | 'RECONNECT_REQUIRED'
+    | 'DISABLED';
+  connectionHealthReason?: string | null;
+  consecutiveErrors?: number;
+  deadAccountAt?: string | null;
+  staleSince?: string | null;
+  platformTruth?: {
+    state: string;
+    publishingMode: string;
+    auditState: string;
+    code?: string | null;
+    reason?: string | null;
+    checkedAt?: string | null;
+    accountType?: string | null;
+    facebookPageLinked?: boolean;
+    privacyLevelOptions?: string[];
+    commentDisabled?: boolean | null;
+    duetDisabled?: boolean | null;
+    stitchDisabled?: boolean | null;
+    maxVideoDurationSeconds?: number | null;
+    creatorNickname?: string | null;
+    creatorUsername?: string | null;
+  };
 }
 
 // Helper function to get start and end dates based on display type
@@ -217,16 +256,12 @@ export const CalendarWeekProvider: FC<{
     data: calendarData,
     isLoading: calendarIsLoading,
     mutate: mutateCalendar,
-  } = useSWR(
-    filters.display !== 'list' ? `/posts-${params}` : null,
-    loadData,
-    {
-      refreshInterval: 3600000,
-      refreshWhenOffline: false,
-      refreshWhenHidden: false,
-      revalidateOnFocus: false,
-    }
-  );
+  } = useSWR(filters.display !== 'list' ? `/posts-${params}` : null, loadData, {
+    refreshInterval: 3600000,
+    refreshWhenOffline: false,
+    refreshWhenHidden: false,
+    revalidateOnFocus: false,
+  });
 
   // SWR for list view
   const {
@@ -297,7 +332,10 @@ export const CalendarWeekProvider: FC<{
   );
 
   const posts = useMemo(() => calendarData?.posts || [], [calendarData?.posts]);
-  const comments = useMemo(() => calendarData?.comments || [], [calendarData?.comments]);
+  const comments = useMemo(
+    () => calendarData?.comments || [],
+    [calendarData?.comments]
+  );
 
   // List view data
   const listPosts = useMemo(() => listData?.posts || [], [listData?.posts]);
@@ -334,7 +372,8 @@ export const CalendarWeekProvider: FC<{
   }, [mutateCalendar, mutateList]);
 
   // Determine loading state based on current view
-  const loading = filters.display === 'list' ? listIsLoading : calendarIsLoading;
+  const loading =
+    filters.display === 'list' ? listIsLoading : calendarIsLoading;
 
   return (
     <CalendarContext.Provider

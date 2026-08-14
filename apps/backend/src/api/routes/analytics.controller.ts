@@ -5,6 +5,8 @@ import { ApiTags } from '@nestjs/swagger';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { PostsService } from '@gitroom/nestjs-libraries/database/prisma/posts/posts.service';
 import { AnalyticsSnapshotRepository } from '@gitroom/nestjs-libraries/database/prisma/analytics/analytics-snapshot.repository';
+import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
+import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 
 @ApiTags('Analytics')
 @Controller('/analytics')
@@ -12,7 +14,8 @@ export class AnalyticsController {
   constructor(
     private _integrationService: IntegrationService,
     private _postsService: PostsService,
-    private _analyticsSnapshotRepository: AnalyticsSnapshotRepository
+    private _analyticsSnapshotRepository: AnalyticsSnapshotRepository,
+    private _subscriptionService: SubscriptionService
   ) {}
 
   // Stored history of platform-reported metrics (beyond providers' own
@@ -25,11 +28,23 @@ export class AnalyticsController {
     @Query('label') label?: string,
     @Query('days') days?: string
   ) {
+    const subscription = await this._subscriptionService.getSubscription(
+      org.id
+    );
+    const tier =
+      subscription?.subscriptionTier ||
+      (!process.env.STRIPE_PUBLISHABLE_KEY ? 'ULTIMATE' : 'FREE');
+    const retentionDays = pricing[tier].analytics_retention_days;
+    const requestedDays = Math.min(
+      retentionDays,
+      Math.max(1, parseInt(days || '90', 10) || 90)
+    );
+    await this._analyticsSnapshotRepository.prune(org.id, retentionDays);
     return this._analyticsSnapshotRepository.history(
       org.id,
       integration,
       label,
-      Math.min(365, Math.max(1, parseInt(days || '90', 10) || 90))
+      requestedDays
     );
   }
 

@@ -7,7 +7,9 @@ import {
 import { MARKETING } from '@gitroom/frontend/components/marketing/marketing.config';
 
 export const metadata: Metadata = {
-  title: 'About',
+  title: 'About Publishly — reliable social posting at scale',
+  description:
+    'Why Publishly exists: every social post should end with proof or a clear next step, with flat pricing for multi-brand and multi-client teams.',
   alternates: { canonical: '/about' },
 };
 
@@ -25,27 +27,26 @@ export default function AboutPage() {
               >
                 About
               </span>
-              <h1 className="mk-h2">Publishing, treated like infrastructure.</h1>
+              <h1 className="mk-h2">Every post should end with an answer.</h1>
               <p className="mk-section-lede">
-                {MARKETING.brand} schedules &amp; publishes social content for
-                teams that want a clear calendar, per-network control &amp;
-                recoverable background jobs — not a browser tab that must stay
-                open.
+                {MARKETING.brand} helps multi-brand, multi-client, and
+                multi-location teams know what went live, what failed, why it
+                failed, and what happens next.
               </p>
             </header>
 
             <div className="mk-prose">
               <p>
-                The product is deliberately narrow. Connect the accounts you
-                are authorized to manage, write once &amp; tailor each caption
-                per network, then schedule on a month, week, or day calendar. A
-                durable workflow engine carries every post to its destination;
-                when one network fails, the others stay published &amp; only the
-                failed delivery retries.
+                The product is deliberately narrow. Connect the accounts you are
+                authorized to manage, write once &amp; tailor each caption per
+                network, then schedule on a month, week, or day calendar. A
+                server keeps working after the browser closes. When one network
+                fails, the others stay published and only the failed delivery is
+                considered for a safe retry.
               </p>
               <p>
-                Analytics are snapshots of what each platform reports about
-                your own accounts — nothing modeled, nothing invented.
+                Analytics are snapshots of what each platform reports about your
+                own accounts — nothing modeled, nothing invented.
               </p>
             </div>
 
@@ -74,9 +75,8 @@ export default function AboutPage() {
                 <h3>How claims are made</h3>
                 <p>
                   No fabricated customer totals, reviews, partnerships, or
-                  unavailable metrics. A provider feature appears in the
-                  product only when an implemented official API adapter
-                  supports it.
+                  unavailable metrics. A provider feature appears in the product
+                  only when an implemented official API adapter supports it.
                 </p>
               </div>
               <div className="mk-row">

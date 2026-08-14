@@ -66,6 +66,7 @@ const FOOTER_GROUPS: Array<[string, Array<[string, string]>]> = [
       ['Publishly vs Metricool', '/compare/metricool'],
       ['Publishly vs Upload-Post', '/compare/upload-post'],
       ['Publishly vs Hootsuite', '/compare/hootsuite'],
+      ['Publishly vs bundle.social', '/compare/bundle-social'],
       ['How we compare', '/methodology/api-comparisons'],
     ],
   ],
@@ -86,6 +87,7 @@ const FOOTER_GROUPS: Array<[string, Array<[string, string]>]> = [
       ['Ayrshare alternatives', '/resources/best-ayrshare-alternatives-2026'],
       ['Flat-pricing APIs', '/resources/best-flat-pricing-posting-apis'],
       ['Changelog', '/changelog'],
+      ['System status', '/status'],
       ['Error codes', '/docs/errors'],
     ],
   ],
@@ -104,6 +106,7 @@ const FOOTER_GROUPS: Array<[string, Array<[string, string]>]> = [
       ['Terms', '/terms'],
       ['Acceptable use', '/acceptable-use'],
       ['Data deletion', '/data-deletion'],
+      ['Platform review', '/platform-review'],
     ],
   ],
 ];
@@ -144,15 +147,7 @@ export const MarketingFooter = () => (
       </div>
     </div>
     <div className="mk-ft-mark" aria-hidden="true">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/publishly-wordmark.png"
-        alt=""
-        width={1220}
-        height={380}
-        loading="lazy"
-        decoding="async"
-      />
+      <span className="mk-ft-mark-word">{MARKETING.brand}</span>
     </div>
   </footer>
 );

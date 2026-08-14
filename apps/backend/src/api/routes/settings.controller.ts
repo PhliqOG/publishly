@@ -17,8 +17,12 @@ import { OrgDataService } from '@gitroom/nestjs-libraries/database/prisma/organi
 import { AddTeamMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/add.team.member.dto';
 import { AdminAddTeamMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/admin.add.team.member.dto';
 import { ShortlinkPreferenceDto } from '@gitroom/nestjs-libraries/dtos/settings/shortlink-preference.dto';
+import { TransferOwnershipDto } from '@gitroom/nestjs-libraries/dtos/settings/transfer.ownership.dto';
 import { ApiTags } from '@nestjs/swagger';
-import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
+import {
+  AuthorizationActions,
+  Sections,
+} from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
 @ApiTags('Settings')
 @Controller('/settings')
@@ -91,6 +95,34 @@ export class SettingsController {
     return this._organizationService.deleteTeamMember(org, id);
   }
 
+  @Post('/team/transfer-ownership')
+  @CheckPolicies([AuthorizationActions.Update, Sections.OWNER])
+  async transferOwnership(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
+    @Body() body: TransferOwnershipDto
+  ) {
+    const transferred = await this._organizationService.transferOwnership(
+      org.id,
+      user.id,
+      body.userId
+    );
+    if (!transferred) {
+      throw new HttpException(
+        'Ownership can only be transferred to an active workspace member',
+        400
+      );
+    }
+    this._auditLogService.log({
+      organizationId: org.id,
+      userId: user.id,
+      action: 'team.ownership-transferred',
+      targetType: 'user',
+      targetId: body.userId,
+    });
+    return { transferred: true };
+  }
+
   // Full workspace export (no secrets - tokens are excluded by construction).
   @Get('/export')
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
@@ -108,7 +140,7 @@ export class SettingsController {
 
   // Destroys credentials immediately, soft-deletes content, disables members.
   @Delete('/organization')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Delete, Sections.OWNER])
   async deleteOrganization(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User

@@ -56,7 +56,6 @@ export class PinterestProvider
   isBetweenSteps = false;
   scopes = [
     'boards:read',
-    'boards:write',
     'pins:read',
     'pins:write',
     'user_accounts:read',
@@ -199,7 +198,7 @@ export class PinterestProvider
       }&redirect_uri=${encodeURIComponent(
         `${process.env.FRONTEND_URL}/integrations/social/pinterest`
       )}&response_type=code&scope=${encodeURIComponent(
-        'boards:read,boards:write,pins:read,pins:write,user_accounts:read'
+        this.scopes.join(',')
       )}&state=${state}`,
       codeVerifier: makeId(10),
       state,
@@ -299,8 +298,10 @@ export class PinterestProvider
         })
       ).json();
 
-      const { data } = await this.getSsrfSafeAxios().get(findMp4.path, {
+      const transport = this.resolveMediaTransportRequest(findMp4.path);
+      const { data } = await this.getSsrfSafeAxios().get(transport.url, {
         responseType: 'stream',
+        headers: transport.headers,
       });
 
       const formData = Object.keys(upload_parameters)
@@ -605,6 +606,28 @@ export class PinterestProvider
         { label: 'Saves', data: [] as any[] },
       ]
     );
+  }
+
+  public override async confirmPost(
+    accessToken: string,
+    postId: string,
+    releaseURL: string,
+    integration: Integration
+  ) {
+    return this.confirmJsonResource({
+      platform: 'Pinterest',
+      method: 'pinterest_pin_read',
+      url: `https://api.pinterest.com/v5/pins/${encodeURIComponent(postId)}`,
+      request: {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+      expectedId: postId,
+      fallbackUrl: releaseURL,
+      getId: (body) => body?.id,
+      getUrl: (body) => body?.link,
+      evidence: (body) => ({ mediaType: body?.media?.media_type || null }),
+    });
   }
 
   async postAnalytics(

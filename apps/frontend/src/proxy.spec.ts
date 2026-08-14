@@ -10,6 +10,10 @@ import { join } from 'path';
 
 const proxySource = readFileSync(join(__dirname, 'proxy.ts'), 'utf8');
 const sitemapSource = readFileSync(join(__dirname, 'app', 'sitemap.ts'), 'utf8');
+const nextConfigSource = readFileSync(
+  join(__dirname, '..', 'next.config.js'),
+  'utf8'
+);
 
 function allowlist(name: string): string[] {
   const block = proxySource.match(
@@ -59,5 +63,15 @@ describe('marketing routes are publicly reachable', () => {
     expect(isPublic('/robots.txt')).toBe(true);
     expect(isPublic('/sitemap.xml')).toBe(true);
     expect(isPublic('/')).toBe(true);
+  });
+
+  it('keeps public API fallbacks reachable in a direct frontend deployment', () => {
+    expect(proxySource).toContain(
+      "nextUrl.pathname.startsWith('/api/public/')"
+    );
+    expect(nextConfigSource).toContain("source: '/api/:path*'");
+    expect(nextConfigSource).toContain(
+      "process.env.BACKEND_INTERNAL_URL || 'http://localhost:3000'"
+    );
   });
 });

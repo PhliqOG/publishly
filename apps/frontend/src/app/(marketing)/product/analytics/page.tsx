@@ -3,7 +3,9 @@ import { ProductMarketingPage } from '@gitroom/frontend/components/marketing/pro
 import { AnalyticsReplica } from '@gitroom/frontend/components/marketing/replicas/analytics-replica';
 
 export const metadata: Metadata = {
-  title: 'Analytics',
+  title: 'Social media analytics across brands and accounts',
+  description:
+    'Compare posts, platforms, and authorized brand or client accounts using only numbers the social networks actually provide.',
   alternates: { canonical: '/product/analytics' },
 };
 
@@ -11,13 +13,13 @@ export default function AnalyticsMarketingPage() {
   return (
     <ProductMarketingPage
       eyebrow="Analytics"
-      title="Platform numbers, with their limits intact."
-      lede="Compare accounts & posts using metrics the authorized provider APIs actually return. Missing metrics stay missing — labelled, never estimated."
+      title="Real platform numbers. No invented gaps."
+      lede="Compare brand and client accounts using numbers the social networks actually provide. If a metric is unavailable, Publishly says so instead of estimating it."
       visual={<AnalyticsReplica />}
       spotlight={{
         eyebrow: 'Dashboards',
         heading: 'Numbers with their sources attached.',
-        body: 'Every metric comes from an authorized provider API & is snapshotted at refresh time, so history survives short platform lookback windows. Where a network reports nothing, the chart says so.',
+        body: 'Every metric comes from an account you authorized. Publishly saves regular snapshots so useful history can outlast a platform’s short reporting window. Where a network reports nothing, the chart says so.',
         points: [
           'Platform-reported values only',
           'Snapshot history per channel',

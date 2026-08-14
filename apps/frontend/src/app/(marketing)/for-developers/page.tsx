@@ -16,7 +16,7 @@ import {
 export const metadata: Metadata = {
   title: 'Social media posting API for developers',
   description:
-    'A social media posting API for developers: REST /public/v1, scoped revocable keys, a per-post status endpoint, signed post.published / post.failure webhooks with HMAC verification, an MCP server, and a free tier with real API access.',
+    'A social media posting API for developers: REST /public/v1, scoped revocable keys, confirmed-live receipts, signed post.receipt / post.failure webhooks, MCP, n8n, Make, and a real free tier.',
   keywords: [
     'social media posting api for developers',
     'social media api free tier',
@@ -30,7 +30,13 @@ export const metadata: Metadata = {
 // paths mirror the ones already published on /api-docs; do not add a path
 // here that isn't listed there too.
 
-function CodeBlock({ title, children }: { title: string; children: ReactNode }) {
+function CodeBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
   return (
     <div className="mk-term" style={{ marginTop: 20 }}>
       <div className="mk-term-top">
@@ -48,16 +54,16 @@ function CodeBlock({ title, children }: { title: string; children: ReactNode }) 
 
 const API_BASICS = [
   {
-    h: 'One base path',
-    p: 'Every call goes through REST /public/v1: posts, media upload, integrations, analytics and per-post delivery status, on one versioned surface.',
+    h: 'One predictable API',
+    p: 'Create posts, upload media, connect accounts, read results, and pull analytics through one versioned API.',
   },
   {
-    h: 'Scoped, revocable keys',
-    p: 'API keys are hashed at rest and shown once at creation. Scope a key to only what an integration needs, and revoke it independently at any time.',
+    h: 'Keys you can limit and turn off',
+    p: 'Give each integration only the access it needs. You can revoke one key without interrupting everything else.',
   },
   {
-    h: 'A status endpoint per post',
-    p: 'GET /public/v1/posts/:id/status returns the publishing job’s current state — you don’t have to guess whether something landed.',
+    h: 'A result for every post',
+    p: 'Ask for a post’s status or delivery receipts at any time. Your users never have to guess whether it landed.',
   },
 ];
 
@@ -72,7 +78,7 @@ const FAQ = [
   },
   {
     q: 'Does the API support scheduling?',
-    a: 'Yes. POST /public/v1/posts accepts a future publish time — the post moves through SCHEDULED → QUEUED → PROCESSING and on to PUBLISHED, the same pipeline the dashboard’s composer uses.',
+    a: 'Yes. POST /public/v1/posts accepts a future publish time. Each destination emits queued → uploading → sent → confirmed_live receipts, or a failed receipt with a classified reason. Sent is not success.',
   },
   {
     q: 'How do I verify webhook signatures?',
@@ -90,22 +96,24 @@ export default function ForDevelopersPage() {
             <span className="mk-eyebrow" style={{ display: 'block' }}>
               For developers
             </span>
-            <h1 className="mk-h2-lg" style={{ marginTop: 18, maxWidth: '20ch' }}>
-              The posting API your SaaS embeds.
+            <h1
+              className="mk-h2-lg"
+              style={{ marginTop: 18, maxWidth: '20ch' }}
+            >
+              Give your users social posting you can prove.
             </h1>
             <p className="mk-section-lede">
-              A REST API, scoped keys, a per-post status endpoint, and signed
-              webhooks for what actually happened — built so you can embed
-              social publishing into your own product without building the
-              reliability layer yourself.
+              Add posting to your product without also building delivery checks,
+              retry rules, connection warnings, and failure alerts. Publishly
+              handles those parts and gives your software the result.
             </p>
             <QuickAnswer>
               Publishly’s public API is REST at /public/v1, authenticated with
-              scoped, revocable keys. Create a post with POST
-              /public/v1/posts, poll GET /public/v1/posts/:id/status, or
-              subscribe to signed post.published and post.failure webhooks.
-              An MCP server ships with the backend, and the Free plan includes
-              real API access — 50 posts/month across 5 accounts.
+              scoped, revocable keys. Create a post with POST /public/v1/posts,
+              poll GET /public/v1/posts/:id/status, or subscribe to signed
+              post.receipt and post.failure webhooks. An MCP server ships with
+              the backend, and the Free plan includes real API access — 50
+              posts/month across 5 accounts.
             </QuickAnswer>
             <Byline published="2026-08-10" updated="2026-08-10" />
             <div
@@ -117,7 +125,10 @@ export default function ForDevelopersPage() {
                 marginTop: 34,
               }}
             >
-              <Link href={MARKETING.authRegister} className="mk-btn mk-btn-primary">
+              <Link
+                href={MARKETING.authRegister}
+                className="mk-btn mk-btn-primary"
+              >
                 {MARKETING.cta.primary}
               </Link>
               <Link href="/api-docs" className="mk-arrow">
@@ -130,7 +141,7 @@ export default function ForDevelopersPage() {
         <section className="mk-section" aria-labelledby="dev-basics">
           <div className="mk-container">
             <h2 id="dev-basics" className="mk-h2">
-              The surface, in three facts.
+              What your product gets.
             </h2>
             <div className="mk-rows" style={{ marginTop: 32 }}>
               {API_BASICS.map((item) => (
@@ -143,31 +154,51 @@ export default function ForDevelopersPage() {
           </div>
         </section>
 
-        <section className="mk-section mk-section-tint" aria-labelledby="dev-curl">
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="dev-curl"
+        >
           <div className="mk-container">
             <h2 id="dev-curl" className="mk-h2">
-              Create a post, then check on it.
+              Create a post, then get its receipt.
             </h2>
             <p className="mk-section-lede">
-              Two calls: schedule, then poll. Both are exactly what the
-              HTTP Request node in the n8n recipe sends.
+              Replace the API key and connection ID. These are the same calls
+              used by the Publishly app and the n8n and Make integrations.
             </p>
             <CodeBlock title="curl — schedule a post">
               {`curl -X POST https://your-publishly-host/public/v1/posts \\
   -H 'Authorization: YOUR_API_KEY' \\
+  -H 'Idempotency-Key: campaign-location-2026-08-14' \\
   -H 'Content-Type: application/json' \\
-  -d '{ "content": "Launch day.", "when": "2026-08-14T18:00" }'`}
+  -d '{
+    "type": "schedule",
+    "date": "2026-08-14T18:00:00.000Z",
+    "shortLink": false,
+    "tags": [],
+    "posts": [{
+      "integration": { "id": "YOUR_CONNECTION_ID" },
+      "value": [{ "content": "Launch day.", "image": [] }],
+      "settings": { "__type": "linkedin" }
+    }]
+  }'`}
             </CodeBlock>
-            <CodeBlock title="curl — poll delivery status">
-              {`curl https://your-publishly-host/public/v1/posts/<post-id>/status \\
+            <CodeBlock title="curl — get the delivery receipt">
+              {`curl https://your-publishly-host/public/v1/posts/POST_ID/receipts \\
   -H 'Authorization: YOUR_API_KEY'
 
-# response (one destination shown):
+# response (trimmed to the delivery fields):
 {
-  "state": "PUBLISHED",
-  "providerPostId": "17962233445566778",
-  "providerUrl": "https://www.instagram.com/p/Cx1a2b3C4d5/",
-  "attempts": 1
+  "postId": "POST_ID",
+  "latestStage": "confirmed_live",
+  "receipts": [{
+    "provider": "linkedin",
+    "stage": "confirmed_live",
+    "attempt": 1,
+    "providerPostId": "urn:li:share:742…",
+    "providerUrl": "https://www.linkedin.com/feed/update/urn:li:share:742…",
+    "confirmationMethod": "linkedin_post_read"
+  }]
 }`}
             </CodeBlock>
           </div>
@@ -176,17 +207,18 @@ export default function ForDevelopersPage() {
         <section className="mk-section" aria-labelledby="dev-webhooks">
           <div className="mk-container">
             <h2 id="dev-webhooks" className="mk-h2">
-              Signed webhooks, not polling.
+              Your app hears about failures immediately.
             </h2>
             <p className="mk-section-lede">
-              Register an endpoint and Publishly pushes post.published the
-              moment a post lands, and post.failure the moment one dies —
-              with a reason, a class, and whether it will retry.
+              Give Publishly a callback URL and it sends your app a delivery
+              event as the post moves forward. A confirmed-live event means the
+              platform check found the public post. A failure event includes the
+              reason and whether another safe attempt is coming.
             </p>
             <FactLine>
               Every webhook is signed with HMAC-SHA256, retried on delivery
-              failure, and tracked in a delivery-attempt ledger — so a missed
-              event isn’t a silent one.
+              failure, and recorded — so a missed alert is visible and can be
+              investigated.
             </FactLine>
             <p
               style={{
@@ -216,25 +248,27 @@ if (expected !== v1) throw new Error('Bad signature');
           </div>
         </section>
 
-        <section className="mk-section mk-section-tint" aria-labelledby="dev-automation">
+        <section
+          className="mk-section mk-section-tint"
+          aria-labelledby="dev-automation"
+        >
           <div className="mk-container">
             <h2 id="dev-automation" className="mk-h2">
-              MCP, n8n, Make — the same API underneath.
+              Use code, n8n, Make, or an approved AI assistant.
             </h2>
             <p className="mk-section-lede">
-              Publishly ships a built-in MCP server for AI assistants, and the
-              same REST API plus webhooks power n8n and Make today. Neither
-              automation tool has a first-party Publishly node yet — this page
-              says so plainly, and the recipes below don’t need one.
+              Every option uses the same delivery checks and retry rules. The
+              n8n and Make packages currently install from this codebase; we do
+              not claim public marketplace listings that are not live.
             </p>
             <div className="mk-cards">
               <div className="mk-card">
                 <span className="mk-card-num">MCP</span>
                 <h3>Built-in MCP server</h3>
                 <p>
-                  Ships with the backend — no plugin to install. An
-                  MCP-capable assistant can schedule and manage posts in the
-                  workspace you authorize it against.
+                  The server is built in. An approved assistant can publish,
+                  schedule, read receipts, and check account health with only
+                  the permissions you give it.
                 </p>
                 <p style={{ marginTop: 14 }}>
                   <Link href="/integrations/mcp" className="mk-arrow">
@@ -244,27 +278,27 @@ if (expected !== v1) throw new Error('Bad signature');
               </div>
               <div className="mk-card">
                 <span className="mk-card-num">n8n</span>
-                <h3>REST + webhooks recipe</h3>
+                <h3>Official node source</h3>
                 <p>
-                  No first-party node yet. An HTTP Request node schedules
-                  posts; a Webhook node receives signed delivery events.
+                  Publish, schedule, read receipts, check account health, and
+                  start a workflow when a verified alert arrives.
                 </p>
                 <p style={{ marginTop: 14 }}>
                   <Link href="/integrations/n8n" className="mk-arrow">
-                    n8n recipe
+                    n8n node
                   </Link>
                 </p>
               </div>
               <div className="mk-card">
                 <span className="mk-card-num">Make</span>
-                <h3>REST + webhooks recipe</h3>
+                <h3>Official custom-app source</h3>
                 <p>
-                  Same honest story: no first-party module yet. An HTTP
-                  module plus a custom webhook cover the same ground.
+                  Ready-made actions for posting, scheduling, receipts, and
+                  account health, plus a trigger for verified alerts.
                 </p>
                 <p style={{ marginTop: 14 }}>
                   <Link href="/integrations/make" className="mk-arrow">
-                    Make recipe
+                    Make app
                   </Link>
                 </p>
               </div>

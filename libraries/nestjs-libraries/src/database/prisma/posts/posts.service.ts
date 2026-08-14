@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   ValidationPipe,
 } from '@nestjs/common';
@@ -16,6 +17,8 @@ import {
   From,
   CreationMethod,
   State,
+  PublishingJobState,
+  PublishingJob,
 } from '@prisma/client';
 import { GetPostsDto } from '@gitroom/nestjs-libraries/dtos/posts/get.posts.dto';
 import { GetPostsListDto } from '@gitroom/nestjs-libraries/dtos/posts/get.posts.list.dto';
@@ -55,15 +58,47 @@ import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { weightedLength } from '@gitroom/helpers/utils/count.length';
+import { PublishingJobRepository } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-job.repository';
+import { PublishingFailureService } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-failure.service';
+import { PublishingReceiptService } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-receipt.service';
+import { PostConfirmationService } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/post-confirmation.service';
+import { normalizePostFailure } from '@gitroom/nestjs-libraries/reliability/post.failure';
+import { computePublishingRetry } from '@gitroom/nestjs-libraries/reliability/post.retry.policy';
+import { PlatformTruthService } from '@gitroom/nestjs-libraries/database/prisma/platform-truth/platform-truth.service';
+import {
+  PlatformPreflightIssue,
+  validatePlatformTruthAtCompose,
+} from '@gitroom/nestjs-libraries/reliability/platform.truth';
+import { PostCalendarWriterService } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/post-calendar-writer.service';
+import { randomUUID as uuidv4 } from 'node:crypto';
+import { parseOpaqueBulkPrivateMediaPath } from '@gitroom/helpers/bulk-scheduler/provider-media.contract';
+import { ProviderMediaService } from '@gitroom/nestjs-libraries/database/prisma/bulk-scheduler/provider-media.service';
+import { PublishingAttemptService } from '@gitroom/nestjs-libraries/database/prisma/publishing-jobs/publishing-attempt.service';
 
 type PostWithConditionals = Post & {
   integration?: Integration;
   childrenPost: Post[];
 };
 
+export type PostMaterializationHook = (input: {
+  post: Post;
+  publishingJob: PublishingJob;
+  integrationId: string;
+}) => Promise<void>;
+
+export type InternalPostCreationOptions = {
+  beforeWorkflowStart?: PostMaterializationHook;
+  campaignReservation?: {
+    campaignJobId: string;
+    reservationId: string;
+    claimTokenHash: string;
+  };
+};
+
 @Injectable()
 export class PostsService {
   private storage = UploadFactory.createStorage();
+  private readonly logger = new Logger(PostsService.name);
   constructor(
     private _postRepository: PostsRepository,
     private _integrationManager: IntegrationManager,
@@ -72,15 +107,64 @@ export class PostsService {
     private _shortLinkService: ShortLinkService,
     private _openaiService: OpenaiService,
     private _temporalService: TemporalService,
-    private _refreshIntegrationService: RefreshIntegrationService
+    private _refreshIntegrationService: RefreshIntegrationService,
+    private _publishingJobRepository: PublishingJobRepository,
+    private _publishingFailureService: PublishingFailureService,
+    private _publishingReceiptService: PublishingReceiptService,
+    private _postConfirmationService: PostConfirmationService,
+    private _platformTruth: PlatformTruthService,
+    private _calendarWriter: PostCalendarWriterService,
+    private _providerMedia: ProviderMediaService,
+    private _publishingAttempts: PublishingAttemptService
   ) {}
 
   searchForMissingThreeHoursPosts() {
     return this._postRepository.searchForMissingThreeHoursPosts();
   }
 
-  updatePost(id: string, postId: string, releaseURL: string) {
-    return this._postRepository.updatePost(id, postId, releaseURL);
+  async updatePost(id: string, postId: string, releaseURL: string) {
+    const post = await this._postRepository.getPostById(id);
+    if (!post) {
+      throw new Error(
+        `Post ${id} was not found while confirming its platform delivery`
+      );
+    }
+
+    await this._postConfirmationService.ensureConfirmed(
+      post,
+      postId,
+      releaseURL
+    );
+
+    const updated = await this._postRepository.updatePost(
+      id,
+      postId,
+      releaseURL
+    );
+    await this._publishingJobRepository.transition(id, 'PUBLISHED', {
+      providerPostId: postId,
+      providerUrl: releaseURL,
+      error: null,
+      failureCategory: null,
+      failureClass: null,
+      failureCode: null,
+      failureReason: null,
+    });
+    await this._publishingAttempts.markPostPublished(
+      post.organizationId,
+      post.id
+    );
+    return updated;
+  }
+
+  recordDeliveryReceipt(
+    input: Parameters<PublishingReceiptService['record']>[0]
+  ) {
+    return this._publishingReceiptService.record(input);
+  }
+
+  listDeliveryReceipts(organizationId: string, postId: string) {
+    return this._publishingReceiptService.listForPost(organizationId, postId);
   }
 
   async getMissingContent(
@@ -343,7 +427,12 @@ export class PostsService {
     );
   }
 
-  async updateMedia(id: string, imagesList: any[], convertToJPEG = false) {
+  async updateMedia(
+    id: string,
+    imagesList: any[],
+    convertToJPEG = false,
+    organizationId: string
+  ) {
     try {
       let imageUpdateNeeded = false;
       const getImageList = await Promise.all(
@@ -352,7 +441,7 @@ export class PostsService {
             (imagesList || []).map(async (p: any) => {
               if (!p.path && p.id) {
                 imageUpdateNeeded = true;
-                return this._mediaService.getMediaById(p.id);
+                return this._mediaService.getMediaById(organizationId, p.id);
               }
 
               return p;
@@ -360,6 +449,14 @@ export class PostsService {
           )
         )
           .map((m) => {
+            if (parseOpaqueBulkPrivateMediaPath(m?.path)) {
+              return {
+                ...m,
+                url: m.path,
+                type: 'video',
+                path: m.path,
+              };
+            }
             return {
               ...m,
               url:
@@ -381,7 +478,11 @@ export class PostsService {
               return m;
             }
 
-            if (hasExtension(m.path, 'png')) {
+            if (
+              !hasExtension(m.path, 'mp4') &&
+              !hasExtension(m.path, 'jpg') &&
+              !hasExtension(m.path, 'jpeg')
+            ) {
               imageUpdateNeeded = true;
               const response = await axios.get(m.url, {
                 responseType: 'arraybuffer',
@@ -440,6 +541,18 @@ export class PostsService {
     } catch (err: any) {
       return imagesList;
     }
+  }
+
+  hydratePublishingValue(
+    organizationId: string,
+    postId: string,
+    value: unknown
+  ) {
+    return this._providerMedia.hydratePublishingValue({
+      organizationId,
+      postId,
+      value,
+    });
   }
 
   async getPostGroupDebugExport(orgId: string, group: string) {
@@ -502,7 +615,8 @@ export class PostsService {
           image: await this.updateMedia(
             post.id,
             JSON.parse(post.image || '[]'),
-            convertToJPEG
+            convertToJPEG,
+            orgId
           ),
         }))
       ),
@@ -540,7 +654,8 @@ export class PostsService {
           image: await this.updateMedia(
             post.id,
             JSON.parse(post.image || '[]'),
-            convertToJPEG
+            convertToJPEG,
+            orgId
           ),
         }))
       ),
@@ -655,7 +770,11 @@ export class PostsService {
   }
 
   async deletePost(orgId: string, group: string) {
-    const post = await this._postRepository.deletePost(orgId, group);
+    const post = await this._calendarWriter.cancelGroup({
+      organizationId: orgId,
+      group,
+      actor: { actorType: 'user' },
+    });
 
     if (post?.id) {
       try {
@@ -677,16 +796,26 @@ export class PostsService {
             ) {
               await workflow.terminate();
             }
-          } catch (err) {}
+          } catch (err) {
+            this.logger.warn({
+              event: 'post.workflow_termination_failed',
+              postId: post.id,
+              workflowId: executionInfo.workflowId,
+              reason: normalizePostFailure({ error: err }).reason,
+            });
+          }
         }
-      } catch (err) {}
+      } catch (err) {
+        this.logger.warn({
+          event: 'post.workflow_lookup_failed_during_delete',
+          postId: post.id,
+          reason: normalizePostFailure({ error: err }).reason,
+        });
+      }
     }
 
+    await this._publishingJobRepository.cancelGroup(orgId, group);
     return { error: true };
-  }
-
-  async countPostsFromDay(orgId: string, date: Date) {
-    return this._postRepository.countPostsFromDay(orgId, date);
   }
 
   getPostByForWebhookId(id: string) {
@@ -697,60 +826,135 @@ export class PostsService {
     taskQueue: string,
     postId: string,
     orgId: string,
-    state: State
+    state: State,
+    jobStateOverride?: PublishingJobState,
+    reuseExisting = false
   ) {
-    try {
-      const workflows = this._temporalService.client
-        .getRawClient()
-        ?.workflow.list({
-          query: `postId="${postId}" AND ExecutionStatus="Running"`,
-        });
+    const jobState: PublishingJobState =
+      jobStateOverride || (state === 'DRAFT' ? 'DRAFT' : 'SCHEDULED');
+    await this._publishingJobRepository.transition(postId, jobState, {
+      error: null,
+      failureCategory: null,
+      failureClass: null,
+      failureCode: null,
+      failureReason: null,
+      nextAttemptAt: null,
+    });
+    if (!reuseExisting) {
+      try {
+        const workflows = this._temporalService.client
+          .getRawClient()
+          ?.workflow.list({
+            query: `postId="${postId}" AND ExecutionStatus="Running"`,
+          });
 
-      for await (const executionInfo of workflows) {
-        try {
-          const workflow = await this._temporalService.client.getWorkflowHandle(
-            executionInfo.workflowId
-          );
-          if (
-            workflow &&
-            (await workflow.describe()).status.name !== 'TERMINATED'
-          ) {
-            await workflow.terminate();
+        for await (const executionInfo of workflows) {
+          try {
+            const workflow =
+              await this._temporalService.client.getWorkflowHandle(
+                executionInfo.workflowId
+              );
+            if (
+              workflow &&
+              (await workflow.describe()).status.name !== 'TERMINATED'
+            ) {
+              await workflow.terminate();
+            }
+          } catch (err) {
+            this.logger.warn({
+              event: 'post.workflow_termination_failed',
+              postId,
+              workflowId: executionInfo.workflowId,
+              reason: normalizePostFailure({ error: err }).reason,
+            });
           }
-        } catch (err) {}
+        }
+      } catch (err) {
+        this.logger.warn({
+          event: 'post.workflow_lookup_failed_before_start',
+          postId,
+          reason: normalizePostFailure({ error: err }).reason,
+        });
       }
-    } catch (err) {}
+    }
 
     if (state === 'DRAFT') {
-      return;
+      return true;
     }
 
     try {
-      await this._temporalService.client
-        .getRawClient()
-        ?.workflow.start('postWorkflowV106', {
-          workflowId: `post_${postId}`,
-          taskQueue: 'main',
-          workflowIdConflictPolicy: 'TERMINATE_EXISTING',
-          args: [
-            {
-              taskQueue: taskQueue,
-              postId: postId,
-              organizationId: orgId,
-            },
-          ],
-          typedSearchAttributes: new TypedSearchAttributes([
-            {
-              key: postIdSearchParam,
-              value: postId,
-            },
-            {
-              key: organizationId,
-              value: orgId,
-            },
-          ]),
-        });
-    } catch (err) {}
+      const temporalClient = this._temporalService.client.getRawClient();
+      if (!temporalClient) {
+        throw new Error('The publishing queue client is unavailable.');
+      }
+      await temporalClient.workflow.start('postWorkflowV109', {
+        workflowId: `post_${postId}`,
+        taskQueue: 'main',
+        workflowIdConflictPolicy: reuseExisting
+          ? 'USE_EXISTING'
+          : 'TERMINATE_EXISTING',
+        ...(reuseExisting
+          ? { workflowIdReusePolicy: 'REJECT_DUPLICATE' as const }
+          : {}),
+        args: [
+          {
+            taskQueue: taskQueue,
+            postId: postId,
+            organizationId: orgId,
+          },
+        ],
+        typedSearchAttributes: new TypedSearchAttributes([
+          {
+            key: postIdSearchParam,
+            value: postId,
+          },
+          {
+            key: organizationId,
+            value: orgId,
+          },
+        ]),
+      });
+      return true;
+    } catch (err: any) {
+      const job = await this._publishingJobRepository.getForPost(orgId, postId);
+      const retryOrdinal =
+        job?.failures.filter(
+          (failure) => failure.failureCode === 'queue_unavailable'
+        ).length || 0;
+      const retry = computePublishingRetry({ postId, retryOrdinal });
+      await this._publishingFailureService.record({
+        organizationId: orgId,
+        postId,
+        state: 'RETRYING',
+        error: err,
+        code: 'queue_unavailable',
+        nextAttemptAt: retry.nextAttemptAt,
+        eventId: `post.failure:${postId}:queue-retry:${retryOrdinal + 1}`,
+      });
+      return false;
+    }
+  }
+
+  async retryDuePublishingQueuesV108() {
+    const due = await this._publishingJobRepository.listDueQueueRetries(
+      new Date(),
+      250
+    );
+    const output = [];
+    for (const job of due) {
+      output.push({
+        postId: job.postId,
+        started: await this.startWorkflow(
+          job.provider,
+          job.postId,
+          job.organizationId,
+          job.post.state,
+          'QUEUED',
+          true
+        ),
+      });
+    }
+    return output;
   }
 
   /**
@@ -767,11 +971,20 @@ export class PostsService {
       integration: { id: string };
       value: Array<{
         content?: string;
-        image?: Array<{ path: string; thumbnail?: string }>;
+        image?: Array<{ id?: string; path: string; thumbnail?: string }>;
       }>;
       settings?: any;
     }>
   ) {
+    const mediaCache = new Map<
+      string,
+      ReturnType<MediaService['getMediaById']>
+    >();
+    const truthCache = new Map<
+      string,
+      ReturnType<PlatformTruthService['refreshIntegration']>
+    >();
+
     return Promise.all(
       (posts || []).map(async (post) => {
         const integration = await this._integrationService.getIntegrationById(
@@ -799,7 +1012,49 @@ export class PostsService {
         }
 
         const settings = post.settings || {};
-        const media = (post.value || []).map((p) => p.image || []);
+        const media = await Promise.all(
+          (post.value || []).map(async (p) =>
+            Promise.all(
+              (p.image || []).map(async (item) => {
+                if (!item.id) {
+                  return { ...item, metadataVerified: false };
+                }
+                let lookup = mediaCache.get(item.id);
+                if (!lookup) {
+                  lookup = this._mediaService.getMediaById(orgId, item.id);
+                  mediaCache.set(item.id, lookup);
+                }
+                const stored = await lookup;
+                if (!stored || stored.path !== item.path) {
+                  return { ...item, metadataVerified: false };
+                }
+                return {
+                  ...item,
+                  mimeType: stored.mimeType,
+                  width: stored.width,
+                  height: stored.height,
+                  durationSeconds: stored.durationSeconds,
+                  fileSize: stored.fileSize,
+                  metadataStatus: stored.metadataStatus,
+                  metadataVerified: stored.metadataStatus !== 'PENDING',
+                };
+              })
+            )
+          )
+        );
+
+        let truthLookup = truthCache.get(integration.id);
+        if (!truthLookup) {
+          truthLookup = this._platformTruth.refreshIntegration(integration);
+          truthCache.set(integration.id, truthLookup);
+        }
+        const truth = await truthLookup;
+        const preflightFailure = validatePlatformTruthAtCompose({
+          provider: integration.providerIdentifier,
+          truth: truth.snapshot,
+          settings,
+          media: media[0] || [],
+        });
 
         // Settings DTO validation — mirrors the client `form.trigger()`.
         let valid = true;
@@ -824,10 +1079,19 @@ export class PostsService {
             additionalSettings
           );
         } catch (err: any) {
-          errors = err?.message || 'Invalid media';
+          errors = normalizePostFailure({
+            error: err,
+            code: `${integration.providerIdentifier}_media_validation_failed`,
+          }).reason;
+        }
+        if (preflightFailure) {
+          errors = preflightFailure.reason;
         }
 
-        const maximumCharacters = provider.maxLength(additionalSettings, settings);
+        const maximumCharacters = provider.maxLength(
+          additionalSettings,
+          settings
+        );
         const isX = integration.providerIdentifier === 'x';
 
         const emptyContent = (post.value || []).some((a) => {
@@ -844,16 +1108,52 @@ export class PostsService {
           return totalCharacters > (maximumCharacters || 1000000);
         });
 
+        const dataIssue = (
+          code: string,
+          reason: string
+        ): PlatformPreflightIssue => ({
+          failureClass: 'data_problem',
+          code,
+          reason,
+        });
+
         return {
           id: integration.id,
           identifier: integration.providerIdentifier,
           name: integration.name,
           valid,
           settingsError,
+          settingsFailure: !valid
+            ? dataIssue(
+                `${integration.providerIdentifier}_settings_invalid`,
+                settingsError || 'The platform settings are invalid.'
+              )
+            : null,
           errors,
+          mediaFailure:
+            errors !== true && !preflightFailure
+              ? dataIssue(
+                  `${integration.providerIdentifier}_media_invalid`,
+                  String(errors || 'The platform media is invalid.')
+                )
+              : null,
+          preflightFailure,
           emptyContent,
+          emptyContentFailure: emptyContent
+            ? dataIssue(
+                'empty_post',
+                'Your post should have at least one character or one image.'
+              )
+            : null,
           tooLong,
+          tooLongFailure: tooLong
+            ? dataIssue(
+                `${integration.providerIdentifier}_caption_too_long`,
+                'The post exceeds this platform character limit.'
+              )
+            : null,
           maximumCharacters,
+          platformTruth: truth.response,
         };
       })
     );
@@ -879,7 +1179,11 @@ export class PostsService {
   // the platform: require the explicit `republish` opt-in instead. The message
   // doubles as the confirmation dialog for API/MCP automation.
   private guardAgainstRepublish(
-    post: { state: State; publishDate: Date; integration?: { providerIdentifier: string } } | null,
+    post: {
+      state: State;
+      publishDate: Date;
+      integration?: { providerIdentifier: string };
+    } | null,
     source: 'createPost' | 'changeDate'
   ) {
     if (post?.state !== 'PUBLISHED') {
@@ -892,7 +1196,9 @@ export class PostsService {
     throw new BadRequestException(
       `This post was already published on ${dayjs
         .utc(post.publishDate)
-        .format('YYYY-MM-DD HH:mm')} UTC. Saving it this way would publish it again to ${
+        .format(
+          'YYYY-MM-DD HH:mm'
+        )} UTC. Saving it this way would publish it again to ${
         post.integration?.providerIdentifier || 'the channel'
       }. To edit without republishing, ${howToUpdate}. To intentionally publish again, pass republish: true.`
     );
@@ -902,10 +1208,90 @@ export class PostsService {
     orgId: string,
     body: CreatePostDto,
     creationMethod: CreationMethod,
-    keepGroup = false
+    keepGroup = false,
+    idempotentCreate = false,
+    internal?: InternalPostCreationOptions
   ): Promise<any[]> {
     const postList = [];
+    const effectiveDate =
+      body.type === 'now' ? dayjs().format('YYYY-MM-DDTHH:mm:00') : body.date;
+    const scheduledAt = dayjs(effectiveDate).toDate();
+    if (Number.isNaN(scheduledAt.getTime())) {
+      throw new BadRequestException({
+        failureClass: 'data_problem',
+        code: 'calendar_scheduled_at_invalid',
+        reason: 'The requested post date is not a valid calendar instant.',
+      });
+    }
     for (const post of body.posts) {
+      // A reservation must be able to own the exact future root Post before
+      // materialization. Allocate every missing chain ID once and reuse it on
+      // retries; the root ID is the calendar owner identity.
+      post.value = (post.value || []).map((value) => ({
+        ...value,
+        id: value.id || uuidv4(),
+      }));
+      const idempotentTargetGroup = (post as any).__publishlyTargetGroup as
+        | string
+        | undefined;
+      const idempotentRootId = post.value?.[0]?.id;
+      if (idempotentCreate && idempotentTargetGroup && idempotentRootId) {
+        const existing = await this._postRepository.getPostById(
+          idempotentRootId,
+          orgId
+        );
+        if (existing?.group === idempotentTargetGroup) {
+          const existingJob = await this._publishingJobRepository.getForPost(
+            orgId,
+            idempotentRootId
+          );
+          if (existingJob) {
+            await this._calendarWriter.ensurePost({
+              organizationId: orgId,
+              integrationId: existing.integrationId,
+              postId: existing.id,
+              scheduledAt: existing.publishDate,
+              localIntent: body.scheduleIntent,
+              creationMethod,
+              source: 'post_create_idempotency_repair',
+              operationKey: body.order,
+            });
+            // A prior execution of this same creation intent crossed the DB
+            // boundary. Never rewrite its Post/job state. If the workflow had
+            // not started yet, USE_EXISTING + REJECT_DUPLICATE safely fills the
+            // gap; otherwise the stable workflow identity is left untouched.
+            if (
+              body.type !== 'draft' &&
+              body.type !== 'update' &&
+              ['SCHEDULED', 'QUEUED'].includes(existingJob.state)
+            ) {
+              if (internal?.beforeWorkflowStart) {
+                await internal.beforeWorkflowStart({
+                  post: existing,
+                  publishingJob: existingJob,
+                  integrationId: existing.integrationId,
+                });
+              }
+              await this.startWorkflow(
+                existing.integration.providerIdentifier
+                  .split('-')[0]
+                  .toLowerCase(),
+                existing.id,
+                orgId,
+                existing.state,
+                existingJob.state,
+                true
+              );
+            }
+            postList.push({
+              postId: existing.id,
+              integration: existing.integrationId,
+            });
+            continue;
+          }
+        }
+      }
+
       if (
         (body.type === 'schedule' || body.type === 'now') &&
         !body.republish &&
@@ -936,28 +1322,116 @@ export class PostsService {
         content: removeLinks ? stripLinks(updateContent[i]) : updateContent[i],
       }));
 
-      const { posts } = await this._postRepository.createOrUpdatePost(
-        body.type,
-        orgId,
-        body.type === 'now' ? dayjs().format('YYYY-MM-DDTHH:mm:00') : body.date,
-        post,
-        body.tags,
-        creationMethod,
-        body.inter,
-        keepGroup
+      const existingRoot = await this._postRepository.getPostById(
+        post.value[0].id,
+        orgId
       );
+      const calendarInput = {
+        organizationId: orgId,
+        integrationId: post.integration.id,
+        postId: post.value[0].id,
+        scheduledAt,
+        localIntent: body.scheduleIntent,
+        creationMethod,
+        source: existingRoot ? 'post_edit' : 'post_create',
+        operationKey: body.order,
+        actor: {
+          actorType:
+            creationMethod === 'WEB'
+              ? ('user' as const)
+              : creationMethod === 'API' ||
+                creationMethod === 'CLI' ||
+                creationMethod === 'MCP'
+              ? ('apikey' as const)
+              : ('system' as const),
+        },
+      };
+      const prepared = existingRoot
+        ? undefined
+        : internal?.campaignReservation
+        ? await this._calendarWriter.prepareCampaignHandoff({
+            ...calendarInput,
+            ...internal.campaignReservation,
+          })
+        : await this._calendarWriter.prepareCreate(calendarInput);
+      if (existingRoot) {
+        if (existingRoot.publishDate.getTime() !== scheduledAt.getTime()) {
+          await this._calendarWriter.reschedule({
+            ...calendarInput,
+            action: 'update',
+            allowPinnedMove: !!body.republish || body.type === 'update',
+          });
+        } else {
+          await this._calendarWriter.ensurePost(calendarInput);
+        }
+      }
+      let posts: Post[];
+      try {
+        ({ posts } = await this._postRepository.createOrUpdatePost(
+          body.type,
+          orgId,
+          effectiveDate,
+          post,
+          body.tags,
+          creationMethod,
+          body.inter,
+          keepGroup,
+          idempotentCreate
+        ));
+      } catch (error) {
+        if (prepared) {
+          await this._calendarWriter.abortUnmaterialized(
+            prepared,
+            normalizePostFailure({ error }).reason
+          );
+        }
+        throw error;
+      }
 
       if (!posts?.length) {
+        if (prepared) {
+          await this._calendarWriter.abortUnmaterialized(
+            prepared,
+            'The post repository returned no materialized post.'
+          );
+        }
         return [] as any[];
       }
 
+      // Dispatch cannot start until the ledger is durably synchronized.
+      if (prepared) {
+        await this._calendarWriter.finalizeCreate(prepared);
+      }
+
       if (body.type !== 'update') {
-        this.startWorkflow(
+        const initialJobState: PublishingJobState =
+          body.type === 'draft'
+            ? 'DRAFT'
+            : body.type === 'now'
+            ? 'QUEUED'
+            : 'SCHEDULED';
+        const publishingJob = await this._publishingJobRepository.ensure(
+          orgId,
+          posts[0].id,
+          post.settings.__type.split('-')[0].toLowerCase(),
+          initialJobState,
+          post.integration.id
+        );
+        if (internal?.beforeWorkflowStart) {
+          await internal.beforeWorkflowStart({
+            post: posts[0],
+            publishingJob,
+            integrationId: post.integration.id,
+          });
+        }
+        await this.startWorkflow(
           post.settings.__type.split('-')[0].toLowerCase(),
           posts[0].id,
           orgId,
-          posts[0].state
-        ).catch((err) => {});
+          posts[0].state,
+          initialJobState,
+          idempotentCreate
+        );
       }
 
       Sentry.metrics.count('post_created', 1);
@@ -1016,7 +1490,9 @@ export class PostsService {
     try {
       existingSettings = JSON.parse(root.settings || '{}');
     } catch (err) {
-      existingSettings = {};
+      throw new BadRequestException(
+        'The stored platform settings are invalid and must be corrected before this post can be updated.'
+      );
     }
 
     // Merge: only the passed keys change, everything else stays.
@@ -1032,7 +1508,11 @@ export class PostsService {
       let image = [];
       try {
         image = JSON.parse(p.image || '[]');
-      } catch (err) {}
+      } catch (err) {
+        throw new BadRequestException(
+          `The stored media list for post ${p.id} is invalid and must be corrected before publishing.`
+        );
+      }
       return {
         id: p.id,
         content: p.content,
@@ -1122,7 +1602,189 @@ export class PostsService {
   }
 
   async changeState(id: string, state: State, err?: any, body?: any) {
-    return this._postRepository.changeState(id, state, err, body);
+    const normalizedFailure =
+      state === 'ERROR' ? normalizePostFailure({ error: err }) : undefined;
+    const changed = await this._postRepository.changeState(
+      id,
+      state,
+      normalizedFailure?.reason ?? err,
+      body
+    );
+    const jobState: PublishingJobState =
+      state === 'DRAFT'
+        ? 'DRAFT'
+        : state === 'QUEUE'
+        ? 'SCHEDULED'
+        : state === 'PUBLISHED'
+        ? 'PUBLISHED'
+        : 'FAILED';
+    if (jobState === 'FAILED') {
+      await this._publishingFailureService.record({
+        organizationId: changed.organizationId,
+        postId: id,
+        state: 'FAILED',
+        error: err,
+        reason: normalizedFailure?.reason,
+        code: normalizedFailure?.code,
+      });
+    } else {
+      await this._publishingJobRepository.transition(id, jobState, {
+        error: null,
+        failureCategory: null,
+        failureClass: null,
+        failureCode: null,
+        failureReason: null,
+      });
+    }
+    return changed;
+  }
+
+  async transitionPublishingJob(
+    postId: string,
+    state: PublishingJobState,
+    error?: string,
+    failureCategory?: string,
+    retryInSeconds?: number
+  ) {
+    const nextAttemptAt =
+      retryInSeconds !== undefined
+        ? dayjs().add(Math.max(1, retryInSeconds), 'second').toDate()
+        : undefined;
+
+    if (state === 'RETRYING' || state === 'FAILED') {
+      const context =
+        (await this._publishingJobRepository.getContext(postId)) ||
+        (await this._publishingJobRepository.getLegacyPostContext(postId));
+      if (!context) {
+        throw new Error(
+          `Post ${postId} was not found while transitioning its publishing job to ${state}`
+        );
+      }
+      return this._publishingFailureService.record({
+        organizationId: context.organizationId,
+        postId,
+        state,
+        error,
+        legacyCategory: failureCategory,
+        willRetry: state === 'RETRYING',
+        mutationMayHaveSucceeded: failureCategory === 'outcome_unknown',
+        nextAttemptAt,
+      });
+    }
+
+    if (state === 'QUEUED') {
+      const context =
+        (await this._publishingJobRepository.getContext(postId)) ||
+        (await this._publishingJobRepository.getLegacyPostContext(postId));
+      if (!context) {
+        throw new Error(
+          `Post ${postId} was not found while recording its queued receipt`
+        );
+      }
+      return this._publishingReceiptService.record({
+        organizationId: context.organizationId,
+        postId,
+        stage: 'queued',
+      });
+    }
+
+    if (state === 'PROCESSING') {
+      const context =
+        (await this._publishingJobRepository.getContext(postId)) ||
+        (await this._publishingJobRepository.getLegacyPostContext(postId));
+      if (!context) {
+        throw new Error(
+          `Post ${postId} was not found while recording its uploading receipt`
+        );
+      }
+      return this._publishingReceiptService.record({
+        organizationId: context.organizationId,
+        postId,
+        stage: 'uploading',
+      });
+    }
+
+    return this._publishingJobRepository.transition(postId, state, {
+      ...(error !== undefined ? { error } : {}),
+      ...(failureCategory !== undefined ? { failureCategory } : {}),
+      ...(nextAttemptAt !== undefined ? { nextAttemptAt } : {}),
+      incrementAttempt: false,
+    });
+  }
+
+  getPublishingJob(organizationId: string, postId: string) {
+    return this._publishingJobRepository.getForPost(organizationId, postId);
+  }
+
+  async ensureClassifiedPublishingOutcomeV107(
+    organizationId: string,
+    postId: string,
+    workflowError?: { message?: string; type?: string }
+  ) {
+    const job = await this._publishingJobRepository.getForPost(
+      organizationId,
+      postId
+    );
+
+    if (
+      job?.deliveryStage === 'confirmed_live' &&
+      job.post.state !== 'PUBLISHED' &&
+      job.providerPostId &&
+      job.providerUrl
+    ) {
+      await this.updatePost(postId, job.providerPostId, job.providerUrl);
+      return;
+    }
+
+    if (job?.post.state === 'PUBLISHED' && job.state !== 'PUBLISHED') {
+      await this._publishingJobRepository.transition(postId, 'PUBLISHED', {
+        error: null,
+        failureCategory: null,
+        failureClass: null,
+        failureCode: null,
+        failureReason: null,
+      });
+      return;
+    }
+
+    if (job?.state === 'PUBLISHED' || job?.state === 'CANCELLED') {
+      return;
+    }
+
+    if (
+      (job?.state === 'FAILED' || job?.state === 'RETRYING') &&
+      job.failureClass &&
+      job.failureCode &&
+      job.failureReason &&
+      job.failures.length > 0
+    ) {
+      return;
+    }
+
+    const mutationMayHaveSucceeded = job?.state === 'PROCESSING';
+    await this._publishingFailureService.record({
+      organizationId,
+      postId,
+      state: 'FAILED',
+      error: workflowError,
+      reason: workflowError?.message,
+      code: mutationMayHaveSucceeded ? 'outcome_unknown' : 'internal_error',
+      mutationMayHaveSucceeded,
+    });
+  }
+
+  listPublishingJobs(
+    organizationId: string,
+    state?: PublishingJobState,
+    cursor?: string,
+    take?: number
+  ) {
+    return this._publishingJobRepository.list(
+      organizationId,
+      state,
+      cursor,
+      take
+    );
   }
 
   async changePostStatus(
@@ -1137,15 +1799,20 @@ export class PostsService {
 
     const state: State = status === 'draft' ? 'DRAFT' : 'QUEUE';
     await this._postRepository.changeState(id, state);
+    await this._publishingJobRepository.ensure(
+      orgId,
+      id,
+      getPostById.integration.providerIdentifier.split('-')[0].toLowerCase(),
+      state === 'DRAFT' ? 'DRAFT' : 'SCHEDULED',
+      getPostById.integrationId
+    );
 
-    try {
-      await this.startWorkflow(
-        getPostById.integration.providerIdentifier.split('-')[0].toLowerCase(),
-        getPostById.id,
-        orgId,
-        state
-      );
-    } catch (err) {}
+    await this.startWorkflow(
+      getPostById.integration.providerIdentifier.split('-')[0].toLowerCase(),
+      getPostById.id,
+      orgId,
+      state
+    );
 
     return { id, state };
   }
@@ -1155,9 +1822,18 @@ export class PostsService {
     id: string,
     date: string,
     action: 'schedule' | 'update' = 'schedule',
-    republish = false
+    republish = false,
+    scheduleIntent?: CreatePostDto['scheduleIntent'],
+    operationKey?: string
   ) {
     const getPostById = await this._postRepository.getPostById(id, orgId);
+    if (!getPostById) {
+      throw new NotFoundException({
+        failureClass: 'data_problem',
+        code: 'calendar_post_not_found',
+        reason: 'The post does not exist in this workspace.',
+      });
+    }
 
     if (action === 'schedule' && !republish) {
       this.guardAgainstRepublish(getPostById, 'changeDate');
@@ -1165,25 +1841,42 @@ export class PostsService {
 
     // schedule: Set status to QUEUE and change date (reschedule the post)
     // update: Just change the date without changing the status
-    const newDate = await this._postRepository.changeDate(
-      orgId,
-      id,
-      date,
-      getPostById.state === 'DRAFT',
-      action
-    );
+    const scheduledAt = dayjs(date).toDate();
+    if (Number.isNaN(scheduledAt.getTime())) {
+      throw new BadRequestException({
+        failureClass: 'data_problem',
+        code: 'calendar_scheduled_at_invalid',
+        reason: 'The requested post date is not a valid calendar instant.',
+      });
+    }
+    const newDate = await this._calendarWriter.reschedule({
+      organizationId: orgId,
+      integrationId: getPostById.integrationId,
+      postId: id,
+      scheduledAt,
+      localIntent: scheduleIntent,
+      creationMethod: getPostById.creationMethod,
+      source: 'post_change_date',
+      operationKey,
+      actor: { actorType: 'user' },
+      action,
+      allowPinnedMove: republish || action === 'update',
+    });
 
     if (action === 'schedule') {
-      try {
-        await this.startWorkflow(
-          getPostById.integration.providerIdentifier
-            .split('-')[0]
-            .toLowerCase(),
-          getPostById.id,
-          orgId,
-          getPostById.state === 'DRAFT' ? 'DRAFT' : 'QUEUE'
-        );
-      } catch (err) {}
+      await this._publishingJobRepository.ensure(
+        orgId,
+        id,
+        getPostById.integration.providerIdentifier.split('-')[0].toLowerCase(),
+        'SCHEDULED',
+        getPostById.integrationId
+      );
+      await this.startWorkflow(
+        getPostById.integration.providerIdentifier.split('-')[0].toLowerCase(),
+        getPostById.id,
+        orgId,
+        getPostById.state === 'DRAFT' ? 'DRAFT' : 'QUEUE'
+      );
     }
 
     return newDate;
