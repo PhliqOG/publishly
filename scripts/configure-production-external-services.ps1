@@ -55,6 +55,7 @@ $cloudflareToken = [string]$source.CLOUDFLARE_API_TOKEN
 $cloudflareAccountId = [string]$source.CLOUDFLARE_ACCOUNT_ID
 $stripePublishableKey = [string]$source.STRIPE_PUBLISHABLE_KEY
 $stripeSecretKey = [string]$source.STRIPE_SECRET_KEY
+$operationsEmail = [string]$source.MASTER_HQ_EMAIL
 if (-not $cloudflareToken -or $cloudflareAccountId -notmatch '^[0-9a-f]{32}$') {
   throw 'The source environment does not contain usable Cloudflare credentials.'
 }
@@ -63,6 +64,9 @@ if (
   $stripeSecretKey -notmatch '^sk_live_'
 ) {
   throw 'The source environment must contain live Stripe publishable and secret keys.'
+}
+if ($operationsEmail -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$') {
+  throw 'The source environment must contain a valid MASTER_HQ_EMAIL for ACME notices.'
 }
 
 $cloudflareHeaders = @{
@@ -180,6 +184,8 @@ elseif ($stripeSigningKey -notmatch '^whsec_') {
 }
 
 $updates = [ordered]@{
+  ACME_EMAIL = $operationsEmail
+  NEXT_PUBLIC_SOURCE_URL = 'https://github.com/PhliqOG/publishly'
   S3_ENDPOINT = $r2Endpoint
   S3_ACCESS_KEY_ID = $r2AccessKeyId
   S3_SECRET_ACCESS_KEY = $r2SecretAccessKey

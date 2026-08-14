@@ -59,6 +59,20 @@ R2.
 
 ## First deployment from Windows
 
+Create a Hetzner Cloud project and place one read/write project API token in
+`%LOCALAPPDATA%\Publishly\hcloud.token` (one line, no quotes). Then provision
+the price-capped production host:
+
+```powershell
+.\scripts\provision-hetzner-vps.ps1
+```
+
+The provisioner is idempotent. It chooses the x86 `cx43` plan in Nuremberg
+(8 shared vCPU, 16 GB RAM, 160 GB disk), includes Hetzner backups, refuses a
+monthly total above 40 units of the account currency, registers only the
+prepared Publishly SSH key, and attaches a firewall that permits inbound SSH
+only. Cloudflare Tunnel handles web traffic over outbound connections.
+
 1. Generate the private environment file outside the repository. The helper
    creates cryptographically random infrastructure secrets, synchronizes the
    database password and URL, applies a current-user-only Windows ACL, and
